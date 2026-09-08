@@ -24,11 +24,7 @@ import {
 
 function applyThemeToDom(pref: ThemePreference) {
   const el = document.documentElement;
-  if (pref === 'system') {
-    el.removeAttribute('data-theme');
-  } else {
-    el.dataset.theme = pref;
-  }
+  el.dataset.theme = resolveTheme(pref);
 }
 
 function resolveTheme(pref: ThemePreference): 'light' | 'dark' {
@@ -120,6 +116,17 @@ function AppContent() {
     setMuted(mut);
     applyThemeToDom(pref);
     setResolvedDark(resolveTheme(pref) === 'dark');
+
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const handleOsThemeChange = () => {
+      if (getThemePreference() === 'system') {
+        const resolved = mq.matches ? 'dark' : 'light';
+        document.documentElement.dataset.theme = resolved;
+        setResolvedDark(resolved === 'dark');
+      }
+    };
+    mq.addEventListener('change', handleOsThemeChange);
+    return () => mq.removeEventListener('change', handleOsThemeChange);
   }, []);
 
   // ── Toggle handlers ────────────────────────────────────────────────────

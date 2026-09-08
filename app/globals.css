@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
 /* ============================================================
    TAILWIND v4 THEME — Time-Blindness Translator
    Warm, neurodivergent-friendly palette. No harsh reds.

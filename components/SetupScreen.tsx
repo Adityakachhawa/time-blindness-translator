@@ -522,16 +522,27 @@ export default function SetupScreen() {
             >
               <span className="text-3xl shrink-0">{card.emoji}</span>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-semibold uppercase tracking-wide mb-0.5 text-slate-500 dark:text-slate-300">
+                <p
+                  className="text-xs font-semibold uppercase tracking-wider mb-0.5"
+                  style={{ color: 'var(--muted)' }}
+                >
                   {card.label}
                 </p>
                 {card.value ? (
-                  <p className="font-black text-xl leading-tight text-slate-800 dark:text-white">
+                  <p
+                    className="font-black text-xl leading-tight"
+                    style={{ color: 'var(--fg)' }}
+                  >
                     {card.value}{' '}
-                    <span className="text-base font-semibold text-slate-800 dark:text-white">{card.unit}</span>
+                    <span className="text-base font-semibold" style={{ color: 'var(--fg)' }}>
+                      {card.unit}
+                    </span>
                   </p>
                 ) : null}
-                <p className="text-sm mt-0.5 text-slate-500 dark:text-slate-300">
+                <p
+                  className={card.value ? "text-sm mt-0.5" : "text-base font-semibold mt-0.5"}
+                  style={{ color: card.value ? 'var(--muted)' : 'var(--fg)' }}
+                >
                   {card.detail}
                 </p>
               </div>
@@ -574,7 +585,10 @@ export default function SetupScreen() {
         </motion.button>
 
         {!canStart && (
-          <p className="text-center text-sm mt-3 text-slate-500 dark:text-slate-400">
+          <p
+            className="text-center text-sm mt-3"
+            style={{ color: 'var(--muted)' }}
+          >
             ↑ Give your task a name first
           </p>
         )}
