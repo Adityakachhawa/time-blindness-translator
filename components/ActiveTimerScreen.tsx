@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useSpring, useMotionValue } from 'framer-motion';
 import { useTimer } from '@/context/TimerContext';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Undo2 } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -59,6 +59,30 @@ export default function ActiveTimerScreen() {
   const [msLeft, setMsLeft] = useState<number>(() =>
     state.endTime ? Math.max(0, state.endTime - Date.now()) : 0,
   );
+
+  // "Oops" grace period — 3-second undo window before completing
+  const [isCompleting, setIsCompleting] = useState(false);
+  const completingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!isCompleting) return;
+    completingTimer.current = setTimeout(() => {
+      dispatch({ type: 'COMPLETE_MISSION' });
+    }, 3000);
+    return () => {
+      if (completingTimer.current) clearTimeout(completingTimer.current);
+    };
+  }, [isCompleting, dispatch]);
+
+  const handleCompleteTap = useCallback(() => {
+    if (isCompleting) {
+      // Undo — cancel the pending completion
+      if (completingTimer.current) clearTimeout(completingTimer.current);
+      setIsCompleting(false);
+    } else {
+      setIsCompleting(true);
+    }
+  }, [isCompleting]);
 
   // A MotionValue fed into a spring for silky-smooth scaleY transitions
   const fillMV = useMotionValue(
@@ -211,27 +235,42 @@ export default function ActiveTimerScreen() {
         </p>
       )}
 
-      {/* ── I Did It! CTA ─────────────────────────────────────────────────── */}
+      {/* ── I Did It! CTA (with 3-second undo grace period) ────────────────── */}
       <motion.button
         whileHover={{ scale: 1.03, y: -3 }}
         whileTap={{ scale: 0.97 }}
-        onClick={() => dispatch({ type: 'COMPLETE_MISSION' })}
+        onClick={handleCompleteTap}
         id="complete-mission-btn"
         className="w-full flex items-center justify-center gap-3 rounded-2xl py-5 text-xl font-bold text-white"
         style={{
-          background:
-            'linear-gradient(135deg, var(--color-sage-500) 0%, var(--color-sage-600) 100%)',
-          boxShadow: '0 6px 24px rgba(125,175,156,0.45), 0 2px 6px rgba(0,0,0,0.08)',
+          background: isCompleting
+            ? 'linear-gradient(135deg, #f5a623 0%, #d8880a 100%)'
+            : 'linear-gradient(135deg, var(--color-sage-500) 0%, var(--color-sage-600) 100%)',
+          boxShadow: isCompleting
+            ? '0 6px 24px rgba(245,166,35,0.45), 0 2px 6px rgba(0,0,0,0.08)'
+            : '0 6px 24px rgba(125,175,156,0.45), 0 2px 6px rgba(0,0,0,0.08)',
           minHeight: 72,
+          transition: 'background 300ms ease, box-shadow 300ms ease',
         }}
-        aria-label="I completed the task"
+        aria-label={isCompleting ? 'Undo — cancel completion' : 'I completed the task'}
       >
-        <CheckCircle className="w-7 h-7 shrink-0" strokeWidth={2.5} />
-        I Did It! ✅
+        {isCompleting ? (
+          <>
+            <Undo2 className="w-7 h-7 shrink-0" strokeWidth={2.5} />
+            Completing… Tap to Undo ↩️
+          </>
+        ) : (
+          <>
+            <CheckCircle className="w-7 h-7 shrink-0" strokeWidth={2.5} />
+            I Did It! ✅
+          </>
+        )}
       </motion.button>
 
       <p className="text-xs text-center pb-4" style={{ color: 'var(--color-ink-300)' }}>
-        Tap any time you finish — even before the timer ends.
+        {isCompleting
+          ? 'Changed your mind? Tap the button above to cancel.'
+          : 'Tap any time you finish — even before the timer ends.'}
       </p>
     </div>
   );

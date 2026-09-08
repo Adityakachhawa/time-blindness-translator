@@ -340,6 +340,7 @@ export default function SetupScreen() {
           }
           autoFocus
           autoComplete="off"
+          enterKeyHint="done"
         />
       </motion.div>
 
@@ -512,7 +513,7 @@ export default function SetupScreen() {
               key={card.id}
               whileHover={{ y: -3, scale: 1.01 }}
               transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-              className="flex items-center gap-4 rounded-2xl px-5 py-4"
+              className="flex items-center gap-4 rounded-2xl px-5 py-4 min-h-[104px]"
               style={{
                 background: card.gradient,
                 border: `1.5px solid ${card.border}`,
@@ -521,25 +522,16 @@ export default function SetupScreen() {
             >
               <span className="text-3xl shrink-0">{card.emoji}</span>
               <div className="flex-1 min-w-0">
-                <p
-                  className="text-xs font-semibold uppercase tracking-wide mb-0.5"
-                  style={{ color: '#334155' }}
-                >
+                <p className="text-xs font-semibold uppercase tracking-wide mb-0.5 text-slate-500 dark:text-slate-300">
                   {card.label}
                 </p>
                 {card.value ? (
-                  <p
-                    className="font-black text-xl leading-tight"
-                    style={{ color: '#1e293b' }}
-                  >
+                  <p className="font-black text-xl leading-tight text-slate-800 dark:text-white">
                     {card.value}{' '}
-                    <span className="text-base font-semibold" style={{ color: '#1e293b' }}>{card.unit}</span>
+                    <span className="text-base font-semibold text-slate-800 dark:text-white">{card.unit}</span>
                   </p>
                 ) : null}
-                <p
-                  className="text-sm mt-0.5"
-                  style={{ color: '#475569' }}
-                >
+                <p className="text-sm mt-0.5 text-slate-500 dark:text-slate-300">
                   {card.detail}
                 </p>
               </div>
@@ -582,10 +574,7 @@ export default function SetupScreen() {
         </motion.button>
 
         {!canStart && (
-          <p
-            className="text-center text-sm mt-3"
-            style={{ color: '#64748b' }}
-          >
+          <p className="text-center text-sm mt-3 text-slate-500 dark:text-slate-400">
             ↑ Give your task a name first
           </p>
         )}
