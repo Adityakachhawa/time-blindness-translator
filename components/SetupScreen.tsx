@@ -513,7 +513,7 @@ export default function SetupScreen() {
               key={card.id}
               whileHover={{ y: -3, scale: 1.01 }}
               transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-              className="flex items-center gap-4 rounded-2xl px-5 py-4 min-h-[104px]"
+              className="flex items-center gap-4 rounded-2xl px-5 py-4 min-h-26"
               style={{
                 background: card.gradient,
                 border: `1.5px solid ${card.border}`,
