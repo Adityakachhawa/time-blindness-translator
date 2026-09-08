@@ -82,10 +82,19 @@ export interface AddTenMinutesAction {
   type: 'ADD_TEN_MINUTES';
 }
 
+/**
+ * Adds bonus minutes during an active mission, pushing the endTime further.
+ */
+export interface AddMinutesAction {
+  type: 'ADD_MINUTES';
+  payload: { minutes: number } | number;
+}
+
 /** Discriminated union of every action the reducer handles. */
 export type TimerAction =
   | UpdateSetupAction
   | StartMissionAction
   | CompleteMissionAction
   | ExpireTimerAction
-  | AddTenMinutesAction;
+  | AddTenMinutesAction
+  | AddMinutesAction;

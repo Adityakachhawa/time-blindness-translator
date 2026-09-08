@@ -96,6 +96,18 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       };
     }
 
+    case 'ADD_MINUTES': {
+      if (state.status !== 'active' || !state.endTime) return state;
+
+      const minutes = typeof action.payload === 'number' ? action.payload : action.payload.minutes;
+
+      return {
+        ...state,
+        actualMinutes: state.actualMinutes + minutes,
+        endTime: state.endTime + minutes * 60_000,
+      };
+    }
+
     default:
       return state;
   }

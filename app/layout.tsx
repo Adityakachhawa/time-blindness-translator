@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 
@@ -7,6 +7,13 @@ const inter = Inter({
   variable: "--font-sans",
   display: "swap",
 });
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fdf6ec' },
+    { media: '(prefers-color-scheme: dark)', color: '#1e293b' },
+  ],
+};
 
 export const metadata: Metadata = {
   title: "Time-Blindness Translator | ADHD-Friendly Timer",

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion, useSpring, useMotionValue } from 'framer-motion';
+import { motion, useSpring, useMotionValue, AnimatePresence } from 'framer-motion';
 import { useTimer } from '@/context/TimerContext';
 import { CheckCircle, Undo2 } from 'lucide-react';
 
@@ -64,6 +64,10 @@ export default function ActiveTimerScreen() {
   const [isCompleting, setIsCompleting] = useState(false);
   const completingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Halfway nudge state
+  const [hasShownNudge, setHasShownNudge] = useState(false);
+  const [showNudgeToast, setShowNudgeToast] = useState(false);
+
   useEffect(() => {
     if (!isCompleting) return;
     completingTimer.current = setTimeout(() => {
@@ -84,6 +88,17 @@ export default function ActiveTimerScreen() {
     }
   }, [isCompleting]);
 
+  const handleNudgeStillOnIt = useCallback(() => {
+    setShowNudgeToast(false);
+    setHasShownNudge(true);
+  }, []);
+
+  const handleNudgeAddFive = useCallback(() => {
+    dispatch({ type: 'ADD_MINUTES', payload: { minutes: 5 } });
+    setShowNudgeToast(false);
+    setHasShownNudge(true);
+  }, [dispatch]);
+
   // A MotionValue fed into a spring for silky-smooth scaleY transitions
   const fillMV = useMotionValue(
     Math.min(1, msLeft / (state.actualMinutes * 60_000)),
@@ -99,10 +114,16 @@ export default function ActiveTimerScreen() {
       const remaining = Math.max(0, endTime - Date.now());
       setMsLeft(remaining);
       fillMV.set(Math.min(1, remaining / totalMs));
+
+      // Halfway check: elapsed time has crossed 50% of the total actualMinutes
+      const elapsed = totalMs - remaining;
+      if (elapsed >= totalMs * 0.5 && !hasShownNudge) {
+        setShowNudgeToast(true);
+      }
     }, 100);
 
     return () => clearInterval(id);
-  }, [state.endTime, state.actualMinutes, fillMV]);
+  }, [state.endTime, state.actualMinutes, fillMV, hasShownNudge]);
 
   // Derived display values
   const totalMs   = state.actualMinutes * 60_000;
@@ -206,12 +227,12 @@ export default function ActiveTimerScreen() {
         {/* Small faded numerical countdown — reference only */}
         <p
           className="mt-5 text-3xl font-mono font-light tabular-nums select-none"
-          style={{ color: '#334155' }}
+          style={{ color: 'var(--fg)' }}
           aria-live="off"
         >
           {timeLabel}
         </p>
-        <p className="text-xs mt-0.5" style={{ color: '#475569' }}>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
           left on the clock
         </p>
       </motion.div>
@@ -272,6 +293,64 @@ export default function ActiveTimerScreen() {
           ? 'Changed your mind? Tap the button above to cancel.'
           : 'Tap any time you finish — even before the timer ends.'}
       </p>
+
+      {/* ── Halfway Nudge Toast / Notification ───────────────────────── */}
+      <AnimatePresence>
+        {showNudgeToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+            className="fixed bottom-6 inset-x-4 max-w-md mx-auto z-50 p-4 rounded-2xl shadow-2xl border flex flex-col gap-3"
+            style={{
+              background: 'var(--card)',
+              borderColor: 'var(--color-amber-400)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+            }}
+            role="alert"
+            aria-live="polite"
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-2xl shrink-0">👀</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-base leading-snug" style={{ color: 'var(--fg)' }}>
+                  Heads up — you're halfway through. How's it going? 👀
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                  Take a quick breath. You're doing awesome.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleNudgeStillOnIt}
+                className="flex-1 py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-sm hover:brightness-105"
+                style={{
+                  background: 'var(--color-sage-500)',
+                  color: '#ffffff',
+                }}
+              >
+                ✅ Still on it!
+              </button>
+              <button
+                type="button"
+                onClick={handleNudgeAddFive}
+                className="flex-1 py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-sm hover:brightness-105"
+                style={{
+                  background: 'var(--color-amber-500)',
+                  color: '#1c1917',
+                }}
+              >
+                ➕ Need +5 min
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
