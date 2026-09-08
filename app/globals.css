@@ -1,0 +1,178 @@
+@import "tailwindcss";
+
+/* ============================================================
+   TAILWIND v4 THEME — Time-Blindness Translator
+   Warm, neurodivergent-friendly palette. No harsh reds.
+   ============================================================ */
+@theme {
+  /* ---------- Colour palette ---------- */
+  --color-cream-50:    #fdf9f3;
+  --color-cream-100:   #fdf6ec;
+  --color-cream-200:   #f9edda;
+  --color-cream-300:   #f3dfc0;
+
+  --color-coral-400:   #f5a08a;
+  --color-coral-500:   #f2815a;   /* primary CTA — warm, never aggressive */
+  --color-coral-600:   #e06840;
+  --color-coral-700:   #c75230;
+
+  --color-sage-300:    #b0d0c4;
+  --color-sage-400:    #8ebfb1;
+  --color-sage-500:    #7daf9c;   /* progress / success */
+  --color-sage-600:    #5e957f;
+  --color-sage-700:    #446b5c;
+
+  --color-lavender-300:#cdbde8;
+  --color-lavender-400:#b89dd8;
+  --color-lavender-500:#a78bca;   /* accent / anchor cards */
+  --color-lavender-600:#8f6db5;
+  --color-lavender-700:#7352a0;
+
+  --color-amber-300:   #fcd48a;
+  --color-amber-400:   #f9c45a;
+  --color-amber-500:   #f5a623;   /* mid-timer warning, never alarm */
+  --color-amber-600:   #d8880a;
+  --color-amber-700:   #b36c04;
+
+  /* Neutral dark (warm-tinted, not clinical) */
+  --color-ink-900:     #1c1917;
+  --color-ink-800:     #292524;
+  --color-ink-700:     #44403c;
+  --color-ink-500:     #78716c;
+  --color-ink-300:     #a8a29e;
+  --color-ink-100:     #f5f5f4;
+
+  /* ---------- Typography ---------- */
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+
+  /* ---------- Spacing extras ---------- */
+  --radius-xl:  1rem;
+  --radius-2xl: 1.5rem;
+  --radius-3xl: 2rem;
+}
+
+/* ============================================================
+   BASE STYLES
+   ============================================================ */
+:root {
+  color-scheme: light dark;
+  --bg:       var(--color-cream-100);
+  --fg:       var(--color-ink-900);
+  --muted:    var(--color-ink-500);
+  --card:     rgba(255, 255, 255, 0.72);
+  --card-border: rgba(255, 255, 255, 0.55);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg:        #1a1614;   /* warm dark — not cold grey */
+    --fg:        var(--color-cream-100);
+    --muted:     var(--color-ink-300);
+    --card:      rgba(38, 34, 30, 0.80);
+    --card-border: rgba(255, 255, 255, 0.10);
+  }
+}
+
+/* Manual overrides — take precedence over the OS media query above */
+html[data-theme="dark"] {
+  --bg:          #1a1614;
+  --fg:          var(--color-cream-100);
+  --muted:       var(--color-ink-300);
+  --card:        rgba(38, 34, 30, 0.80);
+  --card-border: rgba(255, 255, 255, 0.10);
+}
+
+html[data-theme="light"] {
+  --bg:          var(--color-cream-100);
+  --fg:          var(--color-ink-900);
+  --muted:       var(--color-ink-500);
+  --card:        rgba(255, 255, 255, 0.72);
+  --card-border: rgba(255, 255, 255, 0.55);
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  min-height: 100dvh;
+}
+
+/* ============================================================
+   GLASSMORPHISM CARD
+   ============================================================ */
+.glass-card {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ============================================================
+   CUSTOM SCROLLBAR (thin, warm-tinted)
+   ============================================================ */
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-ink-300);
+  border-radius: 99px;
+}
+
+/* ============================================================
+   RANGE SLIDER — custom thumb/track
+   ============================================================ */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 8px;
+  border-radius: 99px;
+  outline: none;
+  cursor: pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-coral-500);
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.20);
+  cursor: pointer;
+  transition: transform 150ms ease, box-shadow 150ms ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--color-coral-500);
+  border: 3px solid white;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.20);
+  cursor: pointer;
+}
+
+/* ============================================================
+   NUMBER INPUT — hide spinners (use custom +/- buttons)
+   ============================================================ */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
