@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Share2, RotateCcw } from 'lucide-react';
+import { Download, Share2, RotateCcw, MessageCircle, Smartphone } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import confetti from 'canvas-confetti';
 import { useTimer } from '@/context/TimerContext';
@@ -109,7 +109,7 @@ function AdultingCertificate({
           For the heroic completion of
         </p>
         <p style={{
-          fontSize: 32, fontWeight: 'bold', color: '#1c1917',
+          fontSize: 32, fontWeight: 'bold', color: '#1e293b',
           margin: '0 0 4px', lineHeight: 1.2,
         }}>
           "{taskName}"
@@ -170,6 +170,8 @@ export default function SuccessScreen() {
   const certRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [shareUrl,    setShareUrl]    = useState('');
+  const [waShareUrl,  setWaShareUrl]  = useState('');
+  const [canNativeShare, setCanNativeShare] = useState(false);
 
   const anchors     = getAnchors(state.actualMinutes);
   const episodesStr = anchors.popCulture.value.toFixed(1);
@@ -196,13 +198,27 @@ export default function SuccessScreen() {
     fireCelebrationConfetti();
   }, [state]);
 
-  // Build share URL on mount (client-only — window.location)
+  // Build share URLs on mount (client-only — window.location)
   useEffect(() => {
     const text =
       `I just completed "${state.taskName}" in ${episodesStr} episodes of The Office! ✅\n\n` +
       `Time-Blindness Translator keeps my ADHD brain honest 🧠⏳\n\n` +
       `@Aditya_X_Writes`;
     setShareUrl(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`);
+    setWaShareUrl(`https://wa.me/?text=${encodeURIComponent(text)}`);
+    setCanNativeShare(typeof navigator !== 'undefined' && !!navigator.share);
+  }, [state.taskName, episodesStr]);
+
+  // Native share handler
+  const handleNativeShare = useCallback(async () => {
+    const text =
+      `I just completed "${state.taskName}" in ${episodesStr} episodes of The Office! ✅\n\n` +
+      `Time-Blindness Translator keeps my ADHD brain honest 🧠⏳`;
+    try {
+      await navigator.share({ title: 'My Mission', text });
+    } catch {
+      // User cancelled or share failed — silently ignore
+    }
   }, [state.taskName, episodesStr]);
 
   // Download certificate as PNG
@@ -363,6 +379,49 @@ export default function SuccessScreen() {
           <Share2 className="w-5 h-5 shrink-0" />
           Share on X (Twitter) 🐦
         </motion.a>
+
+        {/* Share to WhatsApp */}
+        <motion.a
+          whileHover={{ scale: 1.03, y: -2 }}
+          whileTap={{ scale: 0.97 }}
+          href={waShareUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          id="share-wa-btn"
+          className="w-full flex items-center justify-center gap-3 rounded-2xl py-4 text-lg font-bold"
+          style={{
+            background: '#25D366',
+            color: 'white',
+            boxShadow: '0 4px 16px rgba(37,211,102,0.35)',
+            minHeight: 64,
+            textDecoration: 'none',
+          }}
+          aria-label="Share your achievement on WhatsApp"
+        >
+          <MessageCircle className="w-5 h-5 shrink-0" />
+          Share on WhatsApp 💬
+        </motion.a>
+
+        {/* Native Share (mobile only) */}
+        {canNativeShare && (
+          <motion.button
+            whileHover={{ scale: 1.03, y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={handleNativeShare}
+            id="share-native-btn"
+            className="w-full flex items-center justify-center gap-3 rounded-2xl py-4 text-lg font-bold"
+            style={{
+              background: 'linear-gradient(135deg, var(--color-lavender-500) 0%, var(--color-lavender-600) 100%)',
+              color: 'white',
+              boxShadow: '0 4px 16px rgba(167,139,202,0.35)',
+              minHeight: 64,
+            }}
+            aria-label="Share via your device's share menu"
+          >
+            <Smartphone className="w-5 h-5 shrink-0" />
+            Share via… 📲
+          </motion.button>
+        )}
 
         {/* Start again */}
         <motion.button

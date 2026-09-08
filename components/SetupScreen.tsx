@@ -121,14 +121,14 @@ function MinuteStepper({
     width: 52,
     height: 52,
     borderRadius: '50%',
-    background: 'var(--color-cream-200)',
-    border: '2px solid var(--color-cream-300)',
+    background: 'var(--card)',
+    border: '2px solid var(--card-border)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer',
     flexShrink: 0,
-    color: 'var(--color-ink-700)',
+    color: 'var(--fg)',
   } as const;
 
   return (
@@ -163,13 +163,13 @@ function MinuteStepper({
             background: 'transparent',
             border: 'none',
             outline: 'none',
-            color: 'var(--color-ink-900)',
+            color: 'var(--fg)',
           }}
           aria-label="Estimated minutes"
         />
         <span
           className="text-xl font-semibold"
-          style={{ color: 'var(--color-ink-500)' }}
+          style={{ color: 'var(--muted)' }}
         >
           min
         </span>
@@ -247,7 +247,7 @@ export default function SetupScreen() {
           }}
         >
           <span className="text-xl">🔥</span>
-          <p className="font-bold text-sm" style={{ color: '#92400e' }}>
+          <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>
             {todayCount} {todayCount === 1 ? 'task' : 'tasks'} crushed today — keep going!
           </p>
         </motion.div>
@@ -257,13 +257,13 @@ export default function SetupScreen() {
       <motion.div variants={itemVariants} className="text-center">
         <h2
           className="text-3xl font-black leading-tight"
-          style={{ color: 'var(--color-ink-900)' }}
+          style={{ color: 'var(--fg)' }}
         >
           Let's be{' '}
           <span style={{ color: 'var(--color-coral-500)' }}>honest</span>{' '}
           about time
         </h2>
-        <p className="mt-2 text-base" style={{ color: 'var(--color-ink-500)' }}>
+        <p className="mt-2 text-base" style={{ color: 'var(--muted)' }}>
           Enter your estimate — we'll apply the ADHD tax automatically.
         </p>
       </motion.div>
@@ -276,8 +276,7 @@ export default function SetupScreen() {
         >
           Quick start →
         </p>
-        <div className="flex gap-2 overflow-x-auto pb-1 -mx-1 px-1"
-             style={{ scrollbarWidth: 'none' }}>
+        <div className="flex flex-wrap gap-2 pb-1 -mx-1 px-1">
           {TEMPLATES.map(t => (
             <motion.button
               key={t.label}
@@ -291,9 +290,9 @@ export default function SetupScreen() {
               }
               className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium shrink-0 whitespace-nowrap"
               style={{
-                background: 'rgba(255,255,255,0.75)',
-                border: '1.5px solid rgba(0,0,0,0.08)',
-                color: '#334155',
+                background: 'var(--card)',
+                border: '1.5px solid var(--card-border)',
+                color: 'var(--fg)',
               }}
               aria-label={`Quick start: ${t.label}, ${t.minutes} minutes`}
             >
@@ -309,7 +308,7 @@ export default function SetupScreen() {
         <label
           htmlFor="task-name"
           className="text-sm font-semibold uppercase tracking-wide"
-          style={{ color: 'var(--color-ink-500)' }}
+          style={{ color: 'var(--muted)' }}
         >
           What are you doing?
         </label>
@@ -326,9 +325,9 @@ export default function SetupScreen() {
           }
           className="w-full rounded-2xl px-5 py-4 text-lg font-medium placeholder-shown:italic"
           style={{
-            background: 'rgba(255,255,255,0.75)',
-            border: '2px solid var(--color-cream-300)',
-            color: 'var(--color-ink-900)',
+            background: 'var(--card)',
+            border: '2px solid var(--card-border)',
+            color: 'var(--fg)',
             outline: 'none',
             backdropFilter: 'blur(8px)',
             transition: 'border-color 200ms',
@@ -349,15 +348,15 @@ export default function SetupScreen() {
         <label
           htmlFor="estimate-input"
           className="text-sm font-semibold uppercase tracking-wide"
-          style={{ color: 'var(--color-ink-500)' }}
+          style={{ color: 'var(--muted)' }}
         >
           Your optimistic estimate
         </label>
         <div
           className="w-full rounded-2xl py-5 px-4"
           style={{
-            background: 'rgba(255,255,255,0.75)',
-            border: '2px solid var(--color-cream-300)',
+            background: 'var(--card)',
+            border: '2px solid var(--card-border)',
             backdropFilter: 'blur(8px)',
           }}
         >
@@ -380,7 +379,7 @@ export default function SetupScreen() {
             <label
               htmlFor="tax-slider"
               className="text-sm font-semibold uppercase tracking-wide"
-              style={{ color: 'var(--color-ink-500)' }}
+              style={{ color: 'var(--muted)' }}
             >
               ADHD Tax
             </label>
@@ -388,8 +387,8 @@ export default function SetupScreen() {
               whileHover={{ scale: 1.1, rotate: 15 }}
               whileTap={{ scale: 0.9 }}
               onClick={handleSurpriseMe}
-              className="p-1 rounded-lg transition-colors flex items-center justify-center bg-white shadow-sm border"
-              style={{ color: 'var(--color-coral-500)', borderColor: 'var(--color-cream-300)' }}
+              className="p-1 rounded-lg transition-colors flex items-center justify-center shadow-sm border"
+              style={{ color: 'var(--color-coral-500)', borderColor: 'var(--card-border)', background: 'var(--card)' }}
               aria-label="Surprise me with a random tax multiplier"
             >
               <Dices className="w-4 h-4" strokeWidth={2.5} />
@@ -406,8 +405,8 @@ export default function SetupScreen() {
         <div
           className="w-full rounded-2xl px-5 py-5 flex flex-col gap-3"
           style={{
-            background: 'rgba(255,255,255,0.75)',
-            border: '2px solid var(--color-cream-300)',
+            background: 'var(--card)',
+            border: '2px solid var(--card-border)',
             backdropFilter: 'blur(8px)',
           }}
         >
@@ -417,11 +416,11 @@ export default function SetupScreen() {
             <div>
               <p
                 className="font-semibold text-sm"
-                style={{ color: 'var(--color-ink-800)' }}
+                style={{ color: 'var(--fg)' }}
               >
                 {taxLabel.description}
               </p>
-              <p className="text-xs" style={{ color: 'var(--color-ink-400)' }}>
+              <p className="text-xs" style={{ color: 'var(--muted)' }}>
                 Today feels like a{' '}
                 <strong>{state.taxMultiplier.toFixed(1)}×</strong> day
               </p>
@@ -486,7 +485,7 @@ export default function SetupScreen() {
         }}
       >
         <span className="text-2xl">🧮</span>
-        <p style={{ color: 'var(--color-ink-800)' }}>
+        <p style={{ color: 'var(--fg)' }}>
           <span className="font-medium">Reality check: </span>
           <span className="font-black text-xl">
             {state.actualMinutes} minutes
@@ -502,7 +501,7 @@ export default function SetupScreen() {
       <motion.div variants={itemVariants} className="flex flex-col gap-3">
         <p
           className="text-sm font-semibold uppercase tracking-wide"
-          style={{ color: 'var(--color-ink-500)' }}
+          style={{ color: 'var(--muted)' }}
         >
           That's the same as…
         </p>
