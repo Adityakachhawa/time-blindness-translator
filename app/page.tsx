@@ -156,10 +156,10 @@ function AppContent() {
           {/* Brand */}
           <span className="text-2xl select-none" aria-hidden>⏳</span>
           <div className="flex-1 min-w-0">
-            <p className="font-bold leading-none text-sm" style={{ color: 'var(--color-ink-900)' }}>
+            <p className="font-bold leading-none text-sm" style={{ color: 'var(--fg)' }}>
               Time-Blindness Translator
             </p>
-            <p className="text-xs mt-0.5 truncate" style={{ color: subtitleClr }}>
+            <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted)' }}>
               for brains that think "15 minutes" is a social construct
             </p>
           </div>

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, Share2, RotateCcw, MessageCircle, Smartphone } from 'lucide-react';
+import { Download, RotateCcw, Smartphone } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import confetti from 'canvas-confetti';
 import { useTimer } from '@/context/TimerContext';
@@ -62,15 +62,18 @@ function AdultingCertificate({
       ref={certRef}
       style={{
         // Fully self-contained inline styles so html-to-image captures correctly
-        width: 640,
-        minHeight: 380,
+        width: '100%',
+        maxWidth: 640,
+        minHeight: 320,
+        margin: '0 auto',
         background: 'linear-gradient(140deg, #fdf9f3 0%, #fdf6ec 50%, #f3dfc0 100%)',
         border: '3px solid #f2815a',
         borderRadius: 24,
-        padding: '40px 44px',
+        padding: 'clamp(20px, 5vw, 40px) clamp(16px, 5vw, 44px)',
         fontFamily: 'Georgia, "Times New Roman", serif',
         position: 'relative',
         overflow: 'hidden',
+        boxSizing: 'border-box',
       }}
     >
       {/* Decorative corner flourishes */}
@@ -109,8 +112,8 @@ function AdultingCertificate({
           For the heroic completion of
         </p>
         <p style={{
-          fontSize: 32, fontWeight: 'bold', color: '#1e293b',
-          margin: '0 0 4px', lineHeight: 1.2,
+          fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 'bold', color: '#1e293b',
+          margin: '0 0 4px', lineHeight: 1.2, wordBreak: 'break-word' as const,
         }}>
           "{taskName}"
         </p>
@@ -118,20 +121,20 @@ function AdultingCertificate({
 
       {/* Anchor stats */}
       <div style={{
-        display: 'flex', justifyContent: 'center', gap: 32,
+        display: 'flex', justifyContent: 'center', gap: 'clamp(16px, 4vw, 32px)',
         background: 'rgba(125,175,156,0.12)',
-        borderRadius: 14, padding: '16px 24px',
+        borderRadius: 14, padding: 'clamp(12px, 3vw, 16px) clamp(16px, 4vw, 24px)',
         marginBottom: 20, border: '1px solid rgba(125,175,156,0.3)',
       }}>
         <div style={{ textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 28, fontWeight: 'bold', color: '#1c1917' }}>{episodes}</p>
+          <p style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', fontWeight: 'bold', color: '#1e293b' }}>{episodes}</p>
           <p style={{ margin: 0, fontSize: 11, color: '#78716c', textTransform: 'uppercase', letterSpacing: 1 }}>
             📺 episodes
           </p>
         </div>
         <div style={{ width: 1, background: 'rgba(0,0,0,0.1)' }} />
         <div style={{ textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 28, fontWeight: 'bold', color: '#1c1917' }}>{songs}</p>
+          <p style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', fontWeight: 'bold', color: '#1e293b' }}>{songs}</p>
           <p style={{ margin: 0, fontSize: 11, color: '#78716c', textTransform: 'uppercase', letterSpacing: 1 }}>
             🎵 songs
           </p>
@@ -141,7 +144,7 @@ function AdultingCertificate({
       {/* Tagline */}
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
         <p style={{
-          fontSize: 17, fontStyle: 'italic', color: '#44403c',
+          fontSize: 'clamp(14px, 3vw, 17px)', fontStyle: 'italic', color: '#475569',
           lineHeight: 1.5, margin: 0,
         }}>
           "{tagline}"
@@ -315,19 +318,16 @@ export default function SuccessScreen() {
         initial={{ opacity: 0, y: 24 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.3 }}
-        className="w-full overflow-x-auto"
+        className="w-full max-w-md mx-auto"
       >
-        {/* Scroll wrapper for small screens */}
-        <div style={{ minWidth: 320 }}>
-          <AdultingCertificate
-            certRef={certRef}
-            taskName={state.taskName}
-            episodes={episodesStr}
-            songs={songsStr}
-            tagline={tagline}
-            dateStr={dateStr}
-          />
-        </div>
+        <AdultingCertificate
+          certRef={certRef}
+          taskName={state.taskName}
+          episodes={episodesStr}
+          songs={songsStr}
+          tagline={tagline}
+          dateStr={dateStr}
+        />
       </motion.div>
 
       {/* ── Action buttons ─────────────────────────────────────────────────── */}
@@ -376,8 +376,8 @@ export default function SuccessScreen() {
           }}
           aria-label="Share your achievement on X (Twitter)"
         >
-          <Share2 className="w-5 h-5 shrink-0" />
-          Share on X (Twitter) 🐦
+          <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0 fill-current"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" /></svg>
+          Share on X
         </motion.a>
 
         {/* Share to WhatsApp */}
@@ -398,8 +398,8 @@ export default function SuccessScreen() {
           }}
           aria-label="Share your achievement on WhatsApp"
         >
-          <MessageCircle className="w-5 h-5 shrink-0" />
-          Share on WhatsApp 💬
+          <svg viewBox="0 0 24 24" className="w-5 h-5 shrink-0 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
+          Share on WhatsApp
         </motion.a>
 
         {/* Native Share (mobile only) */}
