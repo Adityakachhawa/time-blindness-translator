@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Moon, Sun, Volume2, VolumeX, History } from 'lucide-react';
+import { Moon, Sun, Volume2, VolumeX, History, Headphones, Waves, Brain, Coffee } from 'lucide-react';
+import { useAmbientAudio, type Track } from '@/hooks/useAmbientAudio';
 import { TimerProvider, useTimer } from '@/context/TimerContext';
 import SetupScreen from '@/components/SetupScreen';
 import ActiveTimerScreen from '@/components/ActiveTimerScreen';
@@ -80,6 +81,21 @@ function HeaderIconBtn({
 // App content (consumes TimerContext)
 // ---------------------------------------------------------------------------
 
+// Map ambient track → icon + colour
+const TRACK_ICONS: Record<Track, React.ReactNode> = {
+  'off':         <Headphones className="w-5 h-5 opacity-50" strokeWidth={2} />,
+  'brown-noise': <Waves      className="w-5 h-5 text-amber-600 dark:text-amber-400" strokeWidth={2} />,
+  'lofi':        <Brain      className="w-5 h-5 text-purple-600 dark:text-purple-400" strokeWidth={2} />,
+  'cafe':        <Coffee     className="w-5 h-5 text-amber-800 dark:text-amber-600" strokeWidth={2} />,
+};
+
+const TRACK_LABELS: Record<Track, string> = {
+  'off':         'Ambient audio: off',
+  'brown-noise': 'Now playing: Brown Noise',
+  'lofi':        'Now playing: Lo-fi',
+  'cafe':        'Now playing: Café Ambience',
+};
+
 function AppContent() {
   const { state } = useTimer();
 
@@ -92,6 +108,9 @@ function AppContent() {
 
   // ── History drawer ─────────────────────────────────────────────────────
   const [historyOpen, setHistoryOpen] = useState(false);
+
+  // ── Ambient audio ──────────────────────────────────────────────────────
+  const { currentTrack, cycleTrack } = useAmbientAudio();
 
   // Hydrate prefs from localStorage after mount (SSR-safe)
   useEffect(() => {
@@ -172,6 +191,14 @@ function AppContent() {
               label="View task history"
             >
               <History className="w-5 h-5" strokeWidth={2} />
+            </HeaderIconBtn>
+
+            {/* Ambient audio cycle */}
+            <HeaderIconBtn
+              onClick={cycleTrack}
+              label={TRACK_LABELS[currentTrack]}
+            >
+              {TRACK_ICONS[currentTrack]}
             </HeaderIconBtn>
 
             {/* Mute toggle */}
