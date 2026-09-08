@@ -153,6 +153,45 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [state.status, state.endTime]);
 
+  // -------------------------------------------------------------------
+  // Silent history tracking — persist enriched record on completion
+  // Uses `completedAt` as a unique key to prevent React Strict Mode
+  // (or any re-render) from writing a duplicate entry.
+  // -------------------------------------------------------------------
+  useEffect(() => {
+    if (state.status !== 'success' || !state.completedAt) return;
+
+    const KEY = 'tbt_history';
+
+    try {
+      const raw = typeof window !== 'undefined'
+        ? window.localStorage.getItem(KEY)
+        : null;
+      const history: Record<string, unknown>[] = raw ? JSON.parse(raw) : [];
+
+      // Dedup: skip if a record with this completedAt already exists
+      if (history.some((r) => r.id === state.completedAt || r.completedAt === state.completedAt)) {
+        return;
+      }
+
+      history.unshift({
+        id:            state.completedAt,
+        taskName:      state.taskName,
+        optimisticMin: state.initialEstimate,
+        taxMultiplier: state.taxMultiplier,
+        allocatedMin:  state.actualMinutes,
+        actualMinutes: state.actualMinutes,
+        completedAt:   state.completedAt,
+        tagline:       state.tagline ?? null,
+      });
+
+      // Cap at 50 entries
+      window.localStorage.setItem(KEY, JSON.stringify(history.slice(0, 50)));
+    } catch {
+      // localStorage unavailable — silently ignore
+    }
+  }, [state.status, state.completedAt, state.taskName, state.initialEstimate, state.taxMultiplier, state.actualMinutes, state.tagline]);
+
   return (
     <TimerContext.Provider value={{ state, dispatch }}>
       {children}

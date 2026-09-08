@@ -11,7 +11,10 @@
 export interface TaskRecord {
   id:             string;
   taskName:       string;
-  actualMinutes:  number;
+  optimisticMin:  number;   // user's original estimate before ADHD tax
+  taxMultiplier:  number;   // ADHD tax multiplier applied
+  allocatedMin:   number;   // actual minutes after tax (renamed from actualMinutes)
+  actualMinutes:  number;   // kept for backwards compat with existing records
   completedAt:    number;   // ms since epoch
   tagline?:       string;
 }
