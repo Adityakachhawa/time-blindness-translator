@@ -18,6 +18,9 @@ export interface TimerState {
   /** Raw estimate entered by the user (minutes). */
   initialEstimate: number;
 
+  /** Alias for initialEstimate for reporting */
+  optimisticMin?: number;
+
   /** ADHD Tax multiplier – 1.0 (mild) to 2.5 (severe). */
   taxMultiplier: number;
 
@@ -26,6 +29,9 @@ export interface TimerState {
    * nearest 5 minutes.  This is the real countdown duration.
    */
   actualMinutes: number;
+
+  /** Alias for actualMinutes for reporting */
+  allocatedMin?: number;
 
   /**
    * Absolute timestamp (ms since epoch) when the timer should fire.
@@ -44,7 +50,22 @@ export interface TimerState {
    * Only populated while status === 'success'.
    */
   tagline?: string;
+
+  /** Number of extensions used during this mission. */
+  extensionCount: number;
 }
+
+// ---------------------------------------------------------------------------
+// Lifetime Stats & Certificate Themes
+// ---------------------------------------------------------------------------
+
+export interface LifetimeStats {
+  totalTasks: number;
+  totalMinutesSaved: number;
+  totalExtensions: number;
+}
+
+export type CertTheme = 'classic' | 'dark' | 'chaos';
 
 // ---------------------------------------------------------------------------
 // Actions

@@ -8,6 +8,8 @@
 // Types
 // ---------------------------------------------------------------------------
 
+import type { LifetimeStats } from '../types/timer';
+
 export interface TaskRecord {
   id:             string;
   taskName:       string;
@@ -25,9 +27,10 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 // Storage keys
 // ---------------------------------------------------------------------------
 
-const KEY_HISTORY = 'tbt_task_history';
-const KEY_MUTED   = 'tbt_muted';
-const KEY_THEME   = 'tbt_theme';
+const KEY_HISTORY  = 'tbt_task_history';
+const KEY_MUTED    = 'tbt_muted';
+const KEY_THEME    = 'tbt_theme';
+const KEY_LIFETIME = 'tbt_lifetime_stats';
 
 const MAX_HISTORY = 50;
 
@@ -78,6 +81,40 @@ export function getTodayCount(): number {
   const today   = new Date().toDateString();
   const history = getTaskHistory();
   return history.filter(r => new Date(r.completedAt).toDateString() === today).length;
+}
+
+// ---------------------------------------------------------------------------
+// Lifetime stats
+// ---------------------------------------------------------------------------
+
+const DEFAULT_LIFETIME_STATS: LifetimeStats = {
+  totalTasks: 0,
+  totalMinutesSaved: 0,
+  totalExtensions: 0,
+};
+
+/** Returns the lifetime stats object from localStorage. */
+export function getLifetimeStats(): LifetimeStats {
+  const stats = safeRead<LifetimeStats>(KEY_LIFETIME, DEFAULT_LIFETIME_STATS);
+  return {
+    totalTasks: typeof stats?.totalTasks === 'number' && !isNaN(stats.totalTasks) ? stats.totalTasks : 0,
+    totalMinutesSaved: typeof stats?.totalMinutesSaved === 'number' && !isNaN(stats.totalMinutesSaved) ? stats.totalMinutesSaved : 0,
+    totalExtensions: typeof stats?.totalExtensions === 'number' && !isNaN(stats.totalExtensions) ? stats.totalExtensions : 0,
+  };
+}
+
+/**
+ * Increments lifetime stats on completion of a mission.
+ * minutesSaved must be (allocatedMin - optimisticMin) — the tax buffer applied.
+ */
+export function incrementLifetimeStats(minutesSaved: number, extensionsUsed: number): void {
+  const current = getLifetimeStats();
+  const updated: LifetimeStats = {
+    totalTasks: current.totalTasks + 1,
+    totalMinutesSaved: current.totalMinutesSaved + Math.max(0, minutesSaved),
+    totalExtensions: current.totalExtensions + Math.max(0, extensionsUsed),
+  };
+  safeWrite(KEY_LIFETIME, updated);
 }
 
 // ---------------------------------------------------------------------------

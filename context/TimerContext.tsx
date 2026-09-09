@@ -5,11 +5,13 @@ import {
   useContext,
   useEffect,
   useReducer,
+  useRef,
   type Dispatch,
   type ReactNode,
 } from 'react';
 import type { TimerAction, TimerState } from '../types/timer';
 import { calculateActualTime, getRandomTagline, TAX_MULTIPLIER_DEFAULT } from '../lib/calculations';
+import { incrementLifetimeStats } from '../lib/storage';
 
 // ---------------------------------------------------------------------------
 // Initial state
@@ -17,13 +19,18 @@ import { calculateActualTime, getRandomTagline, TAX_MULTIPLIER_DEFAULT } from '.
 
 const INITIAL_ESTIMATE_DEFAULT = 15; // minutes
 
+const initialActual = calculateActualTime(INITIAL_ESTIMATE_DEFAULT, TAX_MULTIPLIER_DEFAULT);
+
 const initialState: TimerState = {
   status: 'setup',
   taskName: '',
   initialEstimate: INITIAL_ESTIMATE_DEFAULT,
+  optimisticMin: INITIAL_ESTIMATE_DEFAULT,
   taxMultiplier: TAX_MULTIPLIER_DEFAULT,
-  actualMinutes: calculateActualTime(INITIAL_ESTIMATE_DEFAULT, TAX_MULTIPLIER_DEFAULT),
+  actualMinutes: initialActual,
+  allocatedMin: initialActual,
   endTime: null,
+  extensionCount: 0,
 };
 
 // ---------------------------------------------------------------------------
@@ -40,13 +47,16 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       const nextTaskName = action.payload.taskName ?? state.taskName;
       const nextEstimate = action.payload.initialEstimate ?? state.initialEstimate;
       const nextTax = action.payload.taxMultiplier ?? state.taxMultiplier;
+      const nextActual = calculateActualTime(nextEstimate, nextTax);
 
       return {
         ...state,
         taskName: nextTaskName,
         initialEstimate: nextEstimate,
+        optimisticMin: nextEstimate,
         taxMultiplier: nextTax,
-        actualMinutes: calculateActualTime(nextEstimate, nextTax),
+        actualMinutes: nextActual,
+        allocatedMin: nextActual,
       };
     }
 
@@ -57,6 +67,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         ...state,
         status: 'active',
         endTime: Date.now() + state.actualMinutes * 60_000,
+        extensionCount: 0,
       };
     }
 
@@ -84,6 +95,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       if (state.status !== 'expired') return state;
 
       const bonusMinutes = 10;
+      const nextActual = state.actualMinutes + bonusMinutes;
 
       return {
         ...state,
@@ -91,8 +103,10 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         // "No shame" — extend the total so the certificate/anchors still
         // reflect reality, and give a fresh 10-minute window from *now*
         // rather than re-adding to the old (already expired) endTime.
-        actualMinutes: state.actualMinutes + bonusMinutes,
+        actualMinutes: nextActual,
+        allocatedMin: nextActual,
         endTime: Date.now() + bonusMinutes * 60_000,
+        extensionCount: state.extensionCount + 1,
       };
     }
 
@@ -100,11 +114,14 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       if (state.status !== 'active' || !state.endTime) return state;
 
       const minutes = typeof action.payload === 'number' ? action.payload : action.payload.minutes;
+      const nextActual = state.actualMinutes + minutes;
 
       return {
         ...state,
-        actualMinutes: state.actualMinutes + minutes,
+        actualMinutes: nextActual,
+        allocatedMin: nextActual,
         endTime: state.endTime + minutes * 60_000,
+        extensionCount: state.extensionCount + 1,
       };
     }
 
@@ -166,12 +183,22 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   }, [state.status, state.endTime]);
 
   // -------------------------------------------------------------------
-  // Silent history tracking — persist enriched record on completion
+  // Silent history & lifetime stats tracking — persist on completion
   // Uses `completedAt` as a unique key to prevent React Strict Mode
-  // (or any re-render) from writing a duplicate entry.
+  // (or any re-render) from writing a duplicate entry or incrementing stats twice.
   // -------------------------------------------------------------------
+  const lastRecordedCompletionRef = useRef<number | null>(null);
+
   useEffect(() => {
     if (state.status !== 'success' || !state.completedAt) return;
+    if (lastRecordedCompletionRef.current === state.completedAt) return;
+    lastRecordedCompletionRef.current = state.completedAt;
+
+    const optimisticMin = state.optimisticMin ?? state.initialEstimate;
+    const allocatedMin  = state.allocatedMin  ?? state.actualMinutes;
+    const minutesSaved  = allocatedMin - optimisticMin;
+
+    incrementLifetimeStats(minutesSaved, state.extensionCount);
 
     const KEY = 'tbt_history';
 
@@ -189,10 +216,10 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       history.unshift({
         id:            state.completedAt,
         taskName:      state.taskName,
-        optimisticMin: state.initialEstimate,
+        optimisticMin,
         taxMultiplier: state.taxMultiplier,
-        allocatedMin:  state.actualMinutes,
-        actualMinutes: state.actualMinutes,
+        allocatedMin,
+        actualMinutes: allocatedMin,
         completedAt:   state.completedAt,
         tagline:       state.tagline ?? null,
       });
@@ -202,7 +229,18 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     } catch {
       // localStorage unavailable — silently ignore
     }
-  }, [state.status, state.completedAt, state.taskName, state.initialEstimate, state.taxMultiplier, state.actualMinutes, state.tagline]);
+  }, [
+    state.status,
+    state.completedAt,
+    state.taskName,
+    state.initialEstimate,
+    state.optimisticMin,
+    state.taxMultiplier,
+    state.actualMinutes,
+    state.allocatedMin,
+    state.tagline,
+    state.extensionCount,
+  ]);
 
   return (
     <TimerContext.Provider value={{ state, dispatch }}>

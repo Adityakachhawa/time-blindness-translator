@@ -9,6 +9,7 @@ import { useTimer } from '@/context/TimerContext';
 import { getAnchors } from '@/lib/calculations';
 import { saveCompletedTask, getMutePreference } from '@/lib/storage';
 import { playGentleBell } from '@/lib/audio';
+import type { CertTheme } from '@/types/timer';
 
 // ---------------------------------------------------------------------------
 // Confetti burst — warm palette, no default green/red
@@ -42,6 +43,96 @@ function fireCelebrationConfetti() {
 }
 
 // ---------------------------------------------------------------------------
+// Certificate Themes & Styles
+// ---------------------------------------------------------------------------
+
+const CERT_EXPORT_BG: Record<CertTheme, string> = {
+  classic: '#fdf9f3',
+  dark:    '#1e293b',
+  chaos:   '#fecfef',
+};
+
+interface CertThemeStyle {
+  containerBg:     string;
+  containerBorder: string;
+  innerBorder:     string;
+  flourishColor:   string;
+  flourishOpacity: number;
+  headerSub:       string;
+  divider:         string;
+  awardText:       string;
+  taskIntro:       string;
+  taskTitle:       string;
+  statsBg:         string;
+  statsBorder:     string;
+  statsVal:        string;
+  statsLabel:      string;
+  statsDivider:    string;
+  tagline:         string;
+  footer:          string;
+}
+
+const THEME_STYLES: Record<CertTheme, CertThemeStyle> = {
+  classic: {
+    containerBg:     'linear-gradient(140deg, #fdf9f3 0%, #fdf6ec 50%, #f3dfc0 100%)',
+    containerBorder: '3px solid #f2815a',
+    innerBorder:     '1px solid rgba(242,129,90,0.35)',
+    flourishColor:   '#78716c',
+    flourishOpacity: 0.25,
+    headerSub:       '#78716c',
+    divider:         '#f2815a',
+    awardText:       '#a8a29e',
+    taskIntro:       '#78716c',
+    taskTitle:       '#1e293b',
+    statsBg:         'rgba(125,175,156,0.12)',
+    statsBorder:     '1px solid rgba(125,175,156,0.3)',
+    statsVal:        '#1e293b',
+    statsLabel:      '#78716c',
+    statsDivider:    'rgba(0,0,0,0.1)',
+    tagline:         '#475569',
+    footer:          '#a8a29e',
+  },
+  dark: {
+    containerBg:     'linear-gradient(140deg, #1e293b 0%, #0f172a 100%)',
+    containerBorder: '3px solid #818cf8',
+    innerBorder:     '1px solid rgba(129, 140, 248, 0.35)',
+    flourishColor:   '#818cf8',
+    flourishOpacity: 0.35,
+    headerSub:       '#94a3b8',
+    divider:         '#818cf8',
+    awardText:       '#64748b',
+    taskIntro:       '#94a3b8',
+    taskTitle:       '#f8fafc',
+    statsBg:         'rgba(129, 140, 248, 0.12)',
+    statsBorder:     '1px solid rgba(129, 140, 248, 0.3)',
+    statsVal:        '#f8fafc',
+    statsLabel:      '#94a3b8',
+    statsDivider:    'rgba(255,255,255,0.12)',
+    tagline:         '#cbd5e1',
+    footer:          '#64748b',
+  },
+  chaos: {
+    containerBg:     'linear-gradient(135deg, #ff9a9e 0%, #fecfef 40%, #a1c4fd 70%, #c2e9fb 100%)',
+    containerBorder: '3px solid #ec4899',
+    innerBorder:     '1px solid rgba(236, 72, 153, 0.35)',
+    flourishColor:   '#be185d',
+    flourishOpacity: 0.4,
+    headerSub:       '#831843',
+    divider:         '#ec4899',
+    awardText:       '#9d174d',
+    taskIntro:       '#831843',
+    taskTitle:       '#1e1b4b',
+    statsBg:         'rgba(255, 255, 255, 0.55)',
+    statsBorder:     '1px solid rgba(236, 72, 153, 0.35)',
+    statsVal:        '#1e1b4b',
+    statsLabel:      '#831843',
+    statsDivider:    'rgba(236, 72, 153, 0.2)',
+    tagline:         '#312e81',
+    footer:          '#831843',
+  },
+};
+
+// ---------------------------------------------------------------------------
 // Certificate component (captured by html-to-image)
 // ---------------------------------------------------------------------------
 
@@ -52,11 +143,14 @@ interface CertificateProps {
   tagline:   string;
   dateStr:   string;
   certRef:   React.RefObject<HTMLDivElement | null>;
+  theme:     CertTheme;
 }
 
 function AdultingCertificate({
-  taskName, episodes, songs, tagline, dateStr, certRef,
+  taskName, episodes, songs, tagline, dateStr, certRef, theme,
 }: CertificateProps) {
+  const s = THEME_STYLES[theme] ?? THEME_STYLES.classic;
+
   return (
     <div
       ref={certRef}
@@ -66,26 +160,27 @@ function AdultingCertificate({
         maxWidth: 640,
         minHeight: 320,
         margin: '0 auto',
-        background: 'linear-gradient(140deg, #fdf9f3 0%, #fdf6ec 50%, #f3dfc0 100%)',
-        border: '3px solid #f2815a',
+        background: s.containerBg,
+        border: s.containerBorder,
         borderRadius: 24,
         padding: 'clamp(20px, 5vw, 40px) clamp(16px, 5vw, 44px)',
         fontFamily: 'Georgia, "Times New Roman", serif',
         position: 'relative',
         overflow: 'hidden',
         boxSizing: 'border-box',
+        transition: 'all 250ms ease',
       }}
     >
       {/* Decorative corner flourishes */}
-      <div style={{ position: 'absolute', top: 12, left: 14, fontSize: 28, opacity: 0.25 }}>✦</div>
-      <div style={{ position: 'absolute', top: 12, right: 14, fontSize: 28, opacity: 0.25 }}>✦</div>
-      <div style={{ position: 'absolute', bottom: 12, left: 14, fontSize: 28, opacity: 0.25 }}>✦</div>
-      <div style={{ position: 'absolute', bottom: 12, right: 14, fontSize: 28, opacity: 0.25 }}>✦</div>
+      <div style={{ position: 'absolute', top: 12, left: 14, fontSize: 28, color: s.flourishColor, opacity: s.flourishOpacity }}>✦</div>
+      <div style={{ position: 'absolute', top: 12, right: 14, fontSize: 28, color: s.flourishColor, opacity: s.flourishOpacity }}>✦</div>
+      <div style={{ position: 'absolute', bottom: 12, left: 14, fontSize: 28, color: s.flourishColor, opacity: s.flourishOpacity }}>✦</div>
+      <div style={{ position: 'absolute', bottom: 12, right: 14, fontSize: 28, color: s.flourishColor, opacity: s.flourishOpacity }}>✦</div>
 
       {/* Inner border line */}
       <div style={{
         position: 'absolute', inset: 10,
-        border: '1px solid rgba(242,129,90,0.35)',
+        border: s.innerBorder,
         borderRadius: 18,
         pointerEvents: 'none',
       }} />
@@ -94,13 +189,13 @@ function AdultingCertificate({
       <div style={{ textAlign: 'center', marginBottom: 24 }}>
         <p style={{
           fontSize: 11, letterSpacing: 4, textTransform: 'uppercase',
-          color: '#78716c', fontFamily: 'Georgia, serif', margin: 0,
+          color: s.headerSub, fontFamily: 'Georgia, serif', margin: 0,
         }}>
           Official Certificate of Achievement
         </p>
-        <div style={{ margin: '10px auto', width: 60, height: 2, background: '#f2815a', borderRadius: 99 }} />
+        <div style={{ margin: '10px auto', width: 60, height: 2, background: s.divider, borderRadius: 99 }} />
         <p style={{
-          fontSize: 13, color: '#a8a29e', margin: 0, fontStyle: 'italic',
+          fontSize: 13, color: s.awardText, margin: 0, fontStyle: 'italic',
         }}>
           Awarded to a genuinely remarkable human being
         </p>
@@ -108,11 +203,11 @@ function AdultingCertificate({
 
       {/* Task name */}
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
-        <p style={{ fontSize: 13, color: '#78716c', margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: 2 }}>
+        <p style={{ fontSize: 13, color: s.taskIntro, margin: '0 0 6px', textTransform: 'uppercase', letterSpacing: 2 }}>
           For the heroic completion of
         </p>
         <p style={{
-          fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 'bold', color: '#1e293b',
+          fontSize: 'clamp(22px, 5vw, 32px)', fontWeight: 'bold', color: s.taskTitle,
           margin: '0 0 4px', lineHeight: 1.2, wordBreak: 'break-word' as const,
         }}>
           "{taskName}"
@@ -122,20 +217,20 @@ function AdultingCertificate({
       {/* Anchor stats */}
       <div style={{
         display: 'flex', justifyContent: 'center', gap: 'clamp(16px, 4vw, 32px)',
-        background: 'rgba(125,175,156,0.12)',
+        background: s.statsBg,
         borderRadius: 14, padding: 'clamp(12px, 3vw, 16px) clamp(16px, 4vw, 24px)',
-        marginBottom: 20, border: '1px solid rgba(125,175,156,0.3)',
+        marginBottom: 20, border: s.statsBorder,
       }}>
         <div style={{ textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', fontWeight: 'bold', color: '#1e293b' }}>{episodes}</p>
-          <p style={{ margin: 0, fontSize: 11, color: '#78716c', textTransform: 'uppercase', letterSpacing: 1 }}>
+          <p style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', fontWeight: 'bold', color: s.statsVal }}>{episodes}</p>
+          <p style={{ margin: 0, fontSize: 11, color: s.statsLabel, textTransform: 'uppercase', letterSpacing: 1 }}>
             📺 episodes
           </p>
         </div>
-        <div style={{ width: 1, background: 'rgba(0,0,0,0.1)' }} />
+        <div style={{ width: 1, background: s.statsDivider }} />
         <div style={{ textAlign: 'center' }}>
-          <p style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', fontWeight: 'bold', color: '#1e293b' }}>{songs}</p>
-          <p style={{ margin: 0, fontSize: 11, color: '#78716c', textTransform: 'uppercase', letterSpacing: 1 }}>
+          <p style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', fontWeight: 'bold', color: s.statsVal }}>{songs}</p>
+          <p style={{ margin: 0, fontSize: 11, color: s.statsLabel, textTransform: 'uppercase', letterSpacing: 1 }}>
             🎵 songs
           </p>
         </div>
@@ -144,7 +239,7 @@ function AdultingCertificate({
       {/* Tagline */}
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
         <p style={{
-          fontSize: 'clamp(14px, 3vw, 17px)', fontStyle: 'italic', color: '#475569',
+          fontSize: 'clamp(14px, 3vw, 17px)', fontStyle: 'italic', color: s.tagline,
           lineHeight: 1.5, margin: 0,
         }}>
           "{tagline}"
@@ -153,10 +248,10 @@ function AdultingCertificate({
 
       {/* Footer */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
-        <p style={{ fontSize: 11, color: '#a8a29e', margin: 0 }}>
+        <p style={{ fontSize: 11, color: s.footer, margin: 0 }}>
           Time-Blindness Translator
         </p>
-        <p style={{ fontSize: 11, color: '#a8a29e', margin: 0 }}>
+        <p style={{ fontSize: 11, color: s.footer, margin: 0 }}>
           {dateStr}
         </p>
       </div>
@@ -172,6 +267,7 @@ export default function SuccessScreen() {
   const { state, dispatch } = useTimer();
   const certRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [certTheme,   setCertTheme]   = useState<CertTheme>('classic');
   const [shareUrl,    setShareUrl]    = useState('');
   const [waShareUrl,  setWaShareUrl]  = useState('');
   const [canNativeShare, setCanNativeShare] = useState(false);
@@ -192,9 +288,9 @@ export default function SuccessScreen() {
 
     saveCompletedTask({
       taskName: state.taskName,
-      optimisticMin: state.initialEstimate,
+      optimisticMin: state.optimisticMin ?? state.initialEstimate,
       taxMultiplier: state.taxMultiplier,
-      allocatedMin: state.actualMinutes,
+      allocatedMin: state.allocatedMin ?? state.actualMinutes,
       actualMinutes: state.actualMinutes,
       completedAt: Date.now(),
       tagline: state.tagline || undefined,
@@ -235,7 +331,7 @@ export default function SuccessScreen() {
       const dataUrl = await toPng(certRef.current, {
         cacheBust:      true,
         pixelRatio:     2,
-        backgroundColor: '#fdf9f3',
+        backgroundColor: CERT_EXPORT_BG[certTheme],
         // Skip the CSSOM font-face walk entirely — it throws a SecurityError
         // when dev-mode or browser-extension stylesheets are cross-origin.
         fontEmbedCSS:   '',
@@ -255,7 +351,7 @@ export default function SuccessScreen() {
     } finally {
       setDownloading(false);
     }
-  }, [downloading]);
+  }, [downloading, certTheme]);
 
   // Reset to setup by reloading the page (preserves the stateless SPA contract)
   const handleReset = () => window.location.reload();
@@ -330,6 +426,7 @@ export default function SuccessScreen() {
           songs={songsStr}
           tagline={tagline}
           dateStr={dateStr}
+          theme={certTheme}
         />
       </motion.div>
 
@@ -340,6 +437,49 @@ export default function SuccessScreen() {
         transition={{ delay: 0.45 }}
         className="flex flex-col gap-3 w-full"
       >
+        {/* ── Certificate Theme Toggle Row ────────────────────────────────── */}
+        <div
+          role="radiogroup"
+          aria-label="Certificate Theme"
+          className="flex items-center justify-center gap-2 p-1.5 rounded-2xl w-full"
+          style={{
+            background: 'var(--card)',
+            border: '1.5px solid var(--card-border)',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          {(
+            [
+              { id: 'classic', label: '🎓 Classic' },
+              { id: 'dark',    label: '🌙 Night' },
+              { id: 'chaos',   label: '🌈 Chaos' },
+            ] as const
+          ).map((t) => {
+            const active = certTheme === t.id;
+            return (
+              <motion.button
+                key={t.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.96 }}
+                type="button"
+                role="radio"
+                aria-checked={active}
+                onClick={() => setCertTheme(t.id)}
+                className="flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center cursor-pointer select-none"
+                style={{
+                  background: active
+                    ? 'linear-gradient(135deg, var(--color-coral-500) 0%, var(--color-coral-600) 100%)'
+                    : 'transparent',
+                  color: active ? '#ffffff' : 'var(--fg)',
+                  boxShadow: active ? '0 2px 10px rgba(242,129,90,0.35)' : 'none',
+                }}
+              >
+                {t.label}
+              </motion.button>
+            );
+          })}
+        </div>
+
         {/* Download */}
         <motion.button
           whileHover={{ scale: 1.03, y: -2 }}

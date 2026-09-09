@@ -64,9 +64,44 @@ export default function ActiveTimerScreen() {
   const [isCompleting, setIsCompleting] = useState(false);
   const completingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // "Witness Me" mission-start announcement toast (one-time dismissible)
+  const [showWitnessToast, setShowWitnessToast] = useState(true);
+
   // Halfway nudge state
   const [hasShownNudge, setHasShownNudge] = useState(false);
   const [showNudgeToast, setShowNudgeToast] = useState(false);
+
+  // Auto-dismiss the start toast after 10s if untouched
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setShowWitnessToast(false);
+    }, 10000);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const handleWitnessShare = useCallback(async () => {
+    setShowWitnessToast(false);
+
+    const shareUrl = 'https://time-blindness-translator.vercel.app';
+    const text = `Just set a ${state.actualMinutes}-min timer for '${state.taskName || 'my mission'}' using the ADHD Tax method on Time-Blindness Translator. Witness me. 👀 @Aditya_X_Writes`;
+    const title = 'Time-Blindness Translator';
+
+    if (typeof navigator !== 'undefined' && navigator.share) {
+      try {
+        await navigator.share({
+          title,
+          text,
+          url: shareUrl,
+        });
+      } catch (err: unknown) {
+        // Silently swallow AbortError (user cancelled share sheet)
+        if (err instanceof Error && err.name === 'AbortError') return;
+      }
+    } else if (typeof window !== 'undefined') {
+      const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
+      window.open(tweetUrl, '_blank', 'noopener,noreferrer');
+    }
+  }, [state.actualMinutes, state.taskName]);
 
   useEffect(() => {
     if (!isCompleting) return;
@@ -346,6 +381,64 @@ export default function ActiveTimerScreen() {
                 }}
               >
                 ➕ Need +5 min
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── "Witness Me" Mission-Start Announcement Toast ──────────────── */}
+      <AnimatePresence>
+        {showWitnessToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 30, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 26 }}
+            className="fixed bottom-6 inset-x-4 max-w-md mx-auto z-50 p-4 rounded-2xl shadow-2xl border flex flex-col gap-3"
+            style={{
+              background: 'var(--card)',
+              borderColor: 'var(--color-coral-400)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+            }}
+            role="alert"
+            aria-live="polite"
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-2xl shrink-0">📣</span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-base leading-snug" style={{ color: 'var(--fg)' }}>
+                  Announce your mission?
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+                  Share for accountability with friends or followers.
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 pt-1">
+              <button
+                type="button"
+                onClick={handleWitnessShare}
+                className="flex-1 py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-sm hover:brightness-105"
+                style={{
+                  background: 'linear-gradient(135deg, var(--color-coral-500) 0%, var(--color-coral-600) 100%)',
+                  color: '#ffffff',
+                }}
+              >
+                📢 Witness me!
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowWitnessToast(false)}
+                className="flex-1 py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer border hover:bg-black/5 dark:hover:bg-white/5"
+                style={{
+                  borderColor: 'var(--card-border)',
+                  color: 'var(--muted)',
+                }}
+              >
+                nah, just doing it
               </button>
             </div>
           </motion.div>
