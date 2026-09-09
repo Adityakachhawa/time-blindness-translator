@@ -30,9 +30,9 @@ function lerpHex(a: string, b: string, t: number): string {
 }
 
 // Warm palette anchors — no aggressive red at any point
-const SAGE   = '7daf9c'; // sage-500   — calm, "you have time"
-const AMBER  = 'f5a623'; // amber-500  — gentle urgency
-const CORAL  = 'f2815a'; // coral-500  — warm nudge, never alarming
+const SAGE = '7daf9c'; // sage-500   — calm, "you have time"
+const AMBER = 'f5a623'; // amber-500  — gentle urgency
+const CORAL = 'f2815a'; // coral-500  — warm nudge, never alarming
 
 /**
  * Interpolates a warm block colour from sage → amber → coral
@@ -79,27 +79,47 @@ export default function ActiveTimerScreen() {
     return () => clearTimeout(timer);
   }, []);
 
-  const handleWitnessShare = useCallback(async () => {
+  const handleStartShare = useCallback(async () => {
     setShowWitnessToast(false);
 
+    const shareText = `Just set a ${state.actualMinutes}-min timer for '${state.taskName}' using the ADHD Tax method on Time-Blindness Translator. Witness me. 👀 @Aditya_X_Writes`;
     const shareUrl = 'https://time-blindness-translator.vercel.app';
-    const text = `Just set a ${state.actualMinutes}-min timer for '${state.taskName || 'my mission'}' using the ADHD Tax method on Time-Blindness Translator. Witness me. 👀 @Aditya_X_Writes`;
-    const title = 'Time-Blindness Translator';
+    const twitterIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
 
-    if (typeof navigator !== 'undefined' && navigator.share) {
+    const isMobile =
+      typeof navigator !== 'undefined' &&
+      /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+
+    if (isMobile && typeof navigator.share === 'function') {
       try {
         await navigator.share({
-          title,
-          text,
+          title: 'Time-Blindness Translator',
+          text: shareText,
           url: shareUrl,
         });
+        return;
       } catch (err: unknown) {
-        // Silently swallow AbortError (user cancelled share sheet)
-        if (err instanceof Error && err.name === 'AbortError') return;
+        // If user cancelled the share sheet, exit gracefully
+        if (err instanceof Error && err.name === 'AbortError') {
+          return;
+        }
+        // If mobile share failed for other reasons, fall through to desktop fallback
       }
-    } else if (typeof window !== 'undefined') {
-      const tweetUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(shareUrl)}`;
-      window.open(tweetUrl, '_blank', 'noopener,noreferrer');
+    }
+
+    // Desktop (PC / Mac) fallback OR mobile share failure fallback:
+    // 1. Copy to clipboard for easy pasting anywhere
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      try {
+        await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
+      } catch {
+        // Silently ignore clipboard write rejections (e.g. lack of focus/permissions)
+      }
+    }
+
+    // 2. Open Twitter intent in a new tab (never navigate current tab)
+    if (typeof window !== 'undefined') {
+      window.open(twitterIntentUrl, '_blank', 'noopener,noreferrer');
     }
   }, [state.actualMinutes, state.taskName]);
 
@@ -142,8 +162,8 @@ export default function ActiveTimerScreen() {
 
   useEffect(() => {
     if (!state.endTime) return;
-    const endTime  = state.endTime as number;
-    const totalMs  = state.actualMinutes * 60_000;
+    const endTime = state.endTime as number;
+    const totalMs = state.actualMinutes * 60_000;
 
     const id = setInterval(() => {
       const remaining = Math.max(0, endTime - Date.now());
@@ -161,12 +181,12 @@ export default function ActiveTimerScreen() {
   }, [state.endTime, state.actualMinutes, fillMV, hasShownNudge]);
 
   // Derived display values
-  const totalMs   = state.actualMinutes * 60_000;
+  const totalMs = state.actualMinutes * 60_000;
   const fillRatio = Math.min(1, Math.max(0, msLeft / totalMs));
-  const pctLeft   = Math.round(fillRatio * 100);
-  const isLow     = fillRatio < 0.22;
+  const pctLeft = Math.round(fillRatio * 100);
+  const isLow = fillRatio < 0.22;
   const timeLabel = formatTime(msLeft);
-  const blockBg   = useMemo(() => computeBlockColor(fillRatio), [fillRatio]);
+  const blockBg = useMemo(() => computeBlockColor(fillRatio), [fillRatio]);
 
   return (
     <div className="flex flex-col items-center gap-8 w-full">
@@ -222,8 +242,8 @@ export default function ActiveTimerScreen() {
             className="absolute inset-x-0 top-0 rounded-3xl"
             style={{
               height: '100%',
-              scaleY:          scaleSpring,
-              originY:         0,
+              scaleY: scaleSpring,
+              originY: 0,
               backgroundColor: blockBg,
               // Soft glow intensifies when running low
               boxShadow: isLow
@@ -420,7 +440,7 @@ export default function ActiveTimerScreen() {
             <div className="flex items-center gap-3 pt-1">
               <button
                 type="button"
-                onClick={handleWitnessShare}
+                onClick={handleStartShare}
                 className="flex-1 py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-sm hover:brightness-105"
                 style={{
                   background: 'linear-gradient(135deg, var(--color-coral-500) 0%, var(--color-coral-600) 100%)',
