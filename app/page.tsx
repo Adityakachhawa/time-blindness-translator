@@ -5,6 +5,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Moon, Sun, Volume2, VolumeX, History, Headphones, Waves, Brain, Coffee, Heart } from 'lucide-react';
 import { useAmbientAudio, type Track } from '@/hooks/useAmbientAudio';
 import { TimerProvider, useTimer } from '@/context/TimerContext';
+import { useTabProgressIndicator } from '@/hooks/useTabProgressIndicator';
 import SetupScreen from '@/components/SetupScreen';
 import ActiveTimerScreen from '@/components/ActiveTimerScreen';
 import SuccessScreen from '@/components/SuccessScreen';
@@ -107,6 +108,9 @@ function AppContent() {
 
   // ── Ambient audio ──────────────────────────────────────────────────────
   const { currentTrack, cycleTrack } = useAmbientAudio();
+
+  // ── Tab progress ───────────────────────────────────────────────────────
+  useTabProgressIndicator();
 
   // Hydrate prefs from localStorage after mount (SSR-safe)
   useEffect(() => {

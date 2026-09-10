@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { X, CheckCircle2, Clock, Heart } from 'lucide-react';
 import { getTaskHistory, getTodayCount, relativeTime, type TaskRecord } from '@/lib/storage';
+import CompletionHeatmap from '@/components/CompletionHeatmap';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -175,8 +176,21 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
               </div>
             )}
 
-            {/* Task list */}
+            {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-5 py-3">
+
+              {/* ── Completion heatmap ─────────────────────────────────── */}
+              <div style={{ marginBottom: 20 }}>
+                <p
+                  className="text-xs uppercase tracking-widest font-semibold mb-3"
+                  style={{ color: '#94a3b8' }}
+                >
+                  Activity
+                </p>
+                <CompletionHeatmap />
+              </div>
+
+              {/* ── Recent task list ───────────────────────────────────── */}
               {history.length === 0 ? (
                 <EmptyState />
               ) : (

@@ -11,7 +11,7 @@ import {
 } from 'react';
 import type { TimerAction, TimerState } from '../types/timer';
 import { calculateActualTime, getRandomTagline, TAX_MULTIPLIER_DEFAULT } from '../lib/calculations';
-import { incrementLifetimeStats } from '../lib/storage';
+import { incrementLifetimeStats, incrementDailyCount } from '../lib/storage';
 
 // ---------------------------------------------------------------------------
 // Initial state
@@ -199,6 +199,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     const minutesSaved  = allocatedMin - optimisticMin;
 
     incrementLifetimeStats(minutesSaved, state.extensionCount);
+    incrementDailyCount(new Date(state.completedAt));
 
     const KEY = 'tbt_history';
 

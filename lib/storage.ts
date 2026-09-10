@@ -27,10 +27,11 @@ export type ThemePreference = 'system' | 'light' | 'dark';
 // Storage keys
 // ---------------------------------------------------------------------------
 
-const KEY_HISTORY  = 'tbt_task_history';
-const KEY_MUTED    = 'tbt_muted';
-const KEY_THEME    = 'tbt_theme';
-const KEY_LIFETIME = 'tbt_lifetime_stats';
+const KEY_HISTORY       = 'tbt_task_history';
+const KEY_MUTED         = 'tbt_muted';
+const KEY_THEME         = 'tbt_theme';
+const KEY_LIFETIME      = 'tbt_lifetime_stats';
+const KEY_DAILY_COUNTS  = 'tbt_daily_counts';
 
 const MAX_HISTORY = 50;
 
@@ -115,6 +116,51 @@ export function incrementLifetimeStats(minutesSaved: number, extensionsUsed: num
     totalExtensions: current.totalExtensions + Math.max(0, extensionsUsed),
   };
   safeWrite(KEY_LIFETIME, updated);
+}
+
+// ---------------------------------------------------------------------------
+// Daily completion counts (heatmap data)
+// ---------------------------------------------------------------------------
+
+/** ISO date string in YYYY-MM-DD format derived from a local calendar date. */
+function toISODate(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Increments the completion count for the given calendar day.
+ * Un-trimmed (no MAX cap) — all days are retained to support the heatmap.
+ * Should be called whenever a mission completes, alongside incrementLifetimeStats.
+ */
+export function incrementDailyCount(date: Date): void {
+  const counts = safeRead<Record<string, number>>(KEY_DAILY_COUNTS, {});
+  const key = toISODate(date);
+  counts[key] = (typeof counts[key] === 'number' ? counts[key] : 0) + 1;
+  safeWrite(KEY_DAILY_COUNTS, counts);
+}
+
+/**
+ * Returns a { "YYYY-MM-DD": count } map for the trailing `days` calendar days
+ * (including today). Days with no completions are absent from the returned object.
+ *
+ * @param days  Number of trailing days to include (e.g. 365 or 84 for 12 weeks).
+ */
+export function getDailyCounts(days: number): Record<string, number> {
+  const all = safeRead<Record<string, number>>(KEY_DAILY_COUNTS, {});
+  const result: Record<string, number> = {};
+  const now = new Date();
+  for (let i = 0; i < days; i++) {
+    const d = new Date(now);
+    d.setDate(d.getDate() - i);
+    const key = toISODate(d);
+    if (typeof all[key] === 'number' && all[key] > 0) {
+      result[key] = all[key];
+    }
+  }
+  return result;
 }
 
 // ---------------------------------------------------------------------------

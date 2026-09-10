@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useSpring, useMotionValue, AnimatePresence } from 'framer-motion';
 import { useTimer } from '@/context/TimerContext';
+import { computeBlockColor } from '@/lib/calculations';
 import { Brain, CheckCircle, Megaphone, PlusCircle, ScanEye, Undo2, Zap } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -15,37 +16,6 @@ function formatTime(ms: number): string {
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
   return `${min}:${sec.toString().padStart(2, '0')}`;
-}
-
-/** Linear interpolate between two RGB hex colour strings (no `#` prefix) */
-function lerpHex(a: string, b: string, t: number): string {
-  const toRgb = (h: string) => [
-    parseInt(h.slice(0, 2), 16),
-    parseInt(h.slice(2, 4), 16),
-    parseInt(h.slice(4, 6), 16),
-  ] as const;
-  const [ar, ag, ab] = toRgb(a);
-  const [br, bg, bb] = toRgb(b);
-  return `rgb(${Math.round(ar + (br - ar) * t)},${Math.round(ag + (bg - ag) * t)},${Math.round(ab + (bb - ab) * t)})`;
-}
-
-// Warm palette anchors — no aggressive red at any point
-const SAGE = '7daf9c'; // sage-500   — calm, "you have time"
-const AMBER = 'f5a623'; // amber-500  — gentle urgency
-const CORAL = 'f2815a'; // coral-500  — warm nudge, never alarming
-
-/**
- * Interpolates a warm block colour from sage → amber → coral
- * based on the fill ratio (1 = full / just started, 0 = empty / time up).
- */
-function computeBlockColor(fill: number): string {
-  const clamped = Math.max(0, Math.min(1, fill));
-  if (clamped >= 0.5) {
-    // sage → amber as fill goes from 1.0 → 0.5
-    return lerpHex(SAGE, AMBER, (1 - clamped) * 2);
-  }
-  // amber → coral as fill goes from 0.5 → 0
-  return lerpHex(AMBER, CORAL, (0.5 - clamped) * 2);
 }
 
 // ---------------------------------------------------------------------------
