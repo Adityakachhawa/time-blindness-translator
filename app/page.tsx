@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Moon, Sun, Volume2, VolumeX, History, Headphones, Waves, Brain, Coffee } from 'lucide-react';
+import { Moon, Sun, Volume2, VolumeX, History, Headphones, Waves, Brain, Coffee, Heart } from 'lucide-react';
 import { useAmbientAudio, type Track } from '@/hooks/useAmbientAudio';
 import { TimerProvider, useTimer } from '@/context/TimerContext';
 import SetupScreen from '@/components/SetupScreen';
@@ -263,7 +263,7 @@ function AppContent() {
         {/* AdSense slot — activate by swapping YOUR_ADSENSE_ID */}
         {/* <ins className="adsbygoogle" data-ad-client="ca-pub-YOUR_ADSENSE_ID" data-ad-slot="XXXXXXXX" data-ad-format="auto" /> */}
         <p className="text-xs" style={{ color: subtitleClr }}>
-          Free forever · No accounts · Nothing stored remotely · Made with 💙
+          Free forever · No accounts · Nothing stored remotely · Made with <Heart className="inline w-3 h-3 mb-0.5 mx-0.5 fill-current" style={{ color: 'var(--color-coral-500)' }} />
         </p>
       </footer>
 

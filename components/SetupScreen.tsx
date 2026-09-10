@@ -2,7 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Dices, Minus, Plus, Rocket } from 'lucide-react';
+import {
+  Bath, Brush, Calculator, ChefHat, Clapperboard, CloudLightning, CloudRain, CloudSun,
+  Coffee, Dices, Droplets, Dumbbell, Film, GraduationCap, LucideIcon,
+  Mail, MessageSquare, Minus, Moon, Music, Pill, Plus, Rocket,
+  Sparkles, Star, Sun, Timer, Trophy, Tv2, UtensilsCrossed,
+} from 'lucide-react';
 import { useTimer } from '@/context/TimerContext';
 import {
   getAnchors,
@@ -31,13 +36,30 @@ const itemVariants = {
 // Feature 3: Quick-Start Templates
 // ---------------------------------------------------------------------------
 
+// Icon resolver — maps Lucide icon name strings (from calculations.ts) to components
+const LUCIDE_ICONS: Record<string, LucideIcon> = {
+  Bath, Brush, Calculator, ChefHat, Clapperboard, CloudLightning, CloudRain, CloudSun,
+  Coffee, Droplets, Dumbbell, Film, GraduationCap, Mail, MessageSquare,
+  Moon, Music, Pill, Rocket, Sparkles, Star, Sun, Timer, Trophy, Tv2, UtensilsCrossed,
+};
+
+function LucideIconComponent({ name, className, strokeWidth }: { name: string; className?: string; strokeWidth?: number }) {
+  const Icon = LUCIDE_ICONS[name];
+  if (!Icon) return null;
+  return <Icon className={className} strokeWidth={strokeWidth} />;
+}
+
+// ---------------------------------------------------------------------------
+// Quick-Start Templates
+// ---------------------------------------------------------------------------
+
 const TEMPLATES = [
-  { emoji: '📧', label: 'Clear inbox',  minutes: 20 },
-  { emoji: '🍽️', label: 'Wash dishes',  minutes: 10 },
-  { emoji: '🛁', label: 'Get ready',    minutes: 30 },
-  { emoji: '💊', label: 'Take meds',    minutes: 5  },
-  { emoji: '📝', label: 'Reply texts',  minutes: 5  },
-  { emoji: '🧹', label: 'Quick tidy',   minutes: 15 },
+  { icon: 'Mail',            label: 'Clear inbox',  minutes: 20 },
+  { icon: 'UtensilsCrossed', label: 'Wash dishes',  minutes: 10 },
+  { icon: 'Bath',            label: 'Get ready',    minutes: 30 },
+  { icon: 'Pill',            label: 'Take meds',    minutes: 5  },
+  { icon: 'MessageSquare',   label: 'Reply texts',  minutes: 5  },
+  { icon: 'Brush',           label: 'Quick tidy',   minutes: 15 },
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -45,9 +67,9 @@ const TEMPLATES = [
 // ---------------------------------------------------------------------------
 
 const TAX_PRESETS = [
-  { value: 1.2, label: '🌤️ Good day'    },
-  { value: 1.5, label: '🌥️ Average day' },
-  { value: 2.0, label: '🌩️ Rough day'  },
+  { value: 1.2, label: 'Good day'    },
+  { value: 1.5, label: 'Average day' },
+  { value: 2.0, label: 'Rough day'  },
 ];
 
 // ---------------------------------------------------------------------------
@@ -56,7 +78,7 @@ const TAX_PRESETS = [
 
 interface AnchorCardConfig {
   id:       string;
-  emoji:    string;
+  icon:     string;
   label:    string;
   value:    string;
   unit:     string;
@@ -73,7 +95,7 @@ function buildCardConfigs(actualMinutes: number): AnchorCardConfig[] {
   return [
     {
       id:       'pop-culture',
-      emoji:    '📺',
+      icon:     anchors.popCulture.icon,
       label:    'The Office / Anime',
       value:    ep >= 1 ? ep.toFixed(1) : `${Math.round(ep * 100)}%`,
       unit:     ep >= 1 ? 'episodes' : 'of one episode',
@@ -83,7 +105,7 @@ function buildCardConfigs(actualMinutes: number): AnchorCardConfig[] {
     },
     {
       id:       'music',
-      emoji:    '🎵',
+      icon:     anchors.music.icon,
       label:    'Pop Songs',
       value:    sg.toFixed(1),
       unit:     'songs',
@@ -93,7 +115,7 @@ function buildCardConfigs(actualMinutes: number): AnchorCardConfig[] {
     },
     {
       id:       'real-world',
-      emoji:    anchors.realWorld.emoji,
+      icon:     anchors.realWorld.icon,
       label:    'Real World',
       value:    '',
       unit:     '',
@@ -246,7 +268,7 @@ export default function SetupScreen() {
             border: '1.5px solid rgba(245,166,35,0.4)',
           }}
         >
-          <span className="text-xl">🔥</span>
+          <Trophy className="w-5 h-5 shrink-0" style={{ color: 'var(--color-amber-400)' }} />
           <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>
             {todayCount} {todayCount === 1 ? 'task' : 'tasks'} crushed today — keep going!
           </p>
@@ -296,7 +318,7 @@ export default function SetupScreen() {
               }}
               aria-label={`Quick start: ${t.label}, ${t.minutes} minutes`}
             >
-              <span>{t.emoji}</span>
+              <LucideIconComponent name={t.icon} className="w-4 h-4 shrink-0" strokeWidth={2} />
               <span>{t.label}</span>
             </motion.button>
           ))}
@@ -413,7 +435,11 @@ export default function SetupScreen() {
         >
           {/* Mood badge */}
           <div className="flex items-center gap-2">
-            <span className="text-2xl">{taxLabel.emoji}</span>
+            <LucideIconComponent
+              name={taxLabel.icon}
+              className="w-6 h-6 shrink-0"
+              strokeWidth={1.75}
+            />
             <div>
               <p
                 className="font-semibold text-sm"
@@ -485,7 +511,7 @@ export default function SetupScreen() {
           border: '1.5px solid var(--color-amber-400)',
         }}
       >
-        <span className="text-2xl">🧮</span>
+        <Calculator className="w-5 h-5 shrink-0" style={{ color: 'var(--color-amber-500)' }} strokeWidth={1.75} />
         <p style={{ color: 'var(--fg)' }}>
           <span className="font-medium">Reality check: </span>
           <span className="font-black text-xl">
@@ -520,7 +546,9 @@ export default function SetupScreen() {
                 backdropFilter: 'blur(8px)',
               }}
             >
-              <span className="text-3xl shrink-0">{card.emoji}</span>
+        <span className="text-2xl">
+          <LucideIconComponent name={card.icon} className="w-7 h-7 shrink-0" strokeWidth={1.75} />
+        </span>
               <div className="flex-1 min-w-0">
                 <p
                   className="text-xs font-semibold uppercase tracking-wider mb-0.5"
@@ -581,7 +609,7 @@ export default function SetupScreen() {
           aria-disabled={!canStart}
         >
           <Rocket className="w-6 h-6 shrink-0" />
-          Start the Mission 🚀
+          Start the Mission
         </motion.button>
 
         {!canStart && (

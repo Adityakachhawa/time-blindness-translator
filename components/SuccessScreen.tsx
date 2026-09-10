@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Download, RotateCcw, Smartphone } from 'lucide-react';
+import { Download, GraduationCap, Moon, Music, RotateCcw, Smartphone, Sparkles, Timer, Trophy, Tv2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import confetti from 'canvas-confetti';
 import { useTimer } from '@/context/TimerContext';
@@ -223,16 +223,16 @@ function AdultingCertificate({
       }}>
         <div style={{ textAlign: 'center' }}>
           <p style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', fontWeight: 'bold', color: s.statsVal }}>{episodes}</p>
-          <p style={{ margin: 0, fontSize: 11, color: s.statsLabel, textTransform: 'uppercase', letterSpacing: 1 }}>
-            📺 episodes
-          </p>
+           <p style={{ margin: 0, fontSize: 11, color: s.statsLabel, textTransform: 'uppercase', letterSpacing: 1 }}>
+              <Tv2 style={{ display: 'inline', width: 10, height: 10, marginRight: 4 }} /> episodes
+            </p>
         </div>
         <div style={{ width: 1, background: s.statsDivider }} />
         <div style={{ textAlign: 'center' }}>
           <p style={{ margin: 0, fontSize: 'clamp(22px, 4vw, 28px)', fontWeight: 'bold', color: s.statsVal }}>{songs}</p>
-          <p style={{ margin: 0, fontSize: 11, color: s.statsLabel, textTransform: 'uppercase', letterSpacing: 1 }}>
-            🎵 songs
-          </p>
+           <p style={{ margin: 0, fontSize: 11, color: s.statsLabel, textTransform: 'uppercase', letterSpacing: 1 }}>
+              <Music style={{ display: 'inline', width: 10, height: 10, marginRight: 4 }} /> songs
+            </p>
         </div>
       </div>
 
@@ -366,7 +366,10 @@ export default function SuccessScreen() {
         transition={{ type: 'spring', stiffness: 200, damping: 14 }}
         className="text-center"
       >
-        <span className="text-7xl block mb-3">🏆</span>
+        <Trophy
+            className="w-16 h-16 block mb-3 mx-auto"
+            style={{ color: 'var(--color-amber-400)', filter: 'drop-shadow(0 4px 12px rgba(245,166,35,0.4))' }}
+          />
         <h2
           className="text-3xl font-black leading-tight"
           style={{ color: 'var(--color-ink-900)' }}
@@ -389,16 +392,16 @@ export default function SuccessScreen() {
         className="flex gap-3 justify-center flex-wrap"
       >
         {[
-          { emoji: '📺', val: episodesStr, unit: 'episodes' },
-          { emoji: '🎵', val: songsStr,    unit: 'songs' },
-          { emoji: '⏱️', val: `${state.actualMinutes}`, unit: 'minutes' },
+          { Icon: Tv2,    val: episodesStr,                   unit: 'episodes' },
+          { Icon: Music,  val: songsStr,                      unit: 'songs'    },
+          { Icon: Timer,  val: `${state.actualMinutes}`,      unit: 'minutes'  },
         ].map(b => (
           <div
             key={b.unit}
             className="flex flex-col items-center rounded-2xl px-5 py-3 glass-card"
             style={{ border: '1.5px solid var(--color-cream-300)', minWidth: 88 }}
           >
-            <span className="text-2xl">{b.emoji}</span>
+            <b.Icon className="w-6 h-6 mb-1" style={{ color: 'var(--color-coral-500)' }} strokeWidth={1.75} />
             <span
               className="text-2xl font-black tabular-nums"
               style={{ color: 'var(--color-ink-900)' }}
@@ -450,9 +453,9 @@ export default function SuccessScreen() {
         >
           {(
             [
-              { id: 'classic', label: '🎓 Classic' },
-              { id: 'dark',    label: '🌙 Night' },
-              { id: 'chaos',   label: '🌈 Chaos' },
+              { id: 'classic', label: 'Classic', Icon: GraduationCap },
+              { id: 'dark',    label: 'Night',   Icon: Moon           },
+              { id: 'chaos',   label: 'Chaos',   Icon: Sparkles       },
             ] as const
           ).map((t) => {
             const active = certTheme === t.id;
@@ -465,7 +468,7 @@ export default function SuccessScreen() {
                 role="radio"
                 aria-checked={active}
                 onClick={() => setCertTheme(t.id)}
-                className="flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center cursor-pointer select-none"
+                className="flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none"
                 style={{
                   background: active
                     ? 'linear-gradient(135deg, var(--color-coral-500) 0%, var(--color-coral-600) 100%)'
@@ -474,6 +477,7 @@ export default function SuccessScreen() {
                   boxShadow: active ? '0 2px 10px rgba(242,129,90,0.35)' : 'none',
                 }}
               >
+                <t.Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
                 {t.label}
               </motion.button>
             );
@@ -498,7 +502,7 @@ export default function SuccessScreen() {
           aria-label="Download your adulting certificate as a PNG"
         >
           <Download className="w-5 h-5 shrink-0" />
-          {downloading ? 'Generating…' : 'Download Certificate 🎓'}
+          {downloading ? 'Generating…' : 'Download Certificate'}
         </motion.button>
 
         {/* ── Social share row (icon-only, native share-sheet style) ──────── */}

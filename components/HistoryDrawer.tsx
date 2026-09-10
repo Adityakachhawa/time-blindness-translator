@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
-import { X, CheckCircle2, Clock } from 'lucide-react';
+import { X, CheckCircle2, Clock, Heart } from 'lucide-react';
 import { getTaskHistory, getTodayCount, relativeTime, type TaskRecord } from '@/lib/storage';
 
 // ---------------------------------------------------------------------------
@@ -200,7 +200,7 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
               style={{ borderColor: 'rgba(0,0,0,0.08)' }}
             >
               <p className="text-xs" style={{ color: '#94a3b8' }}>
-                Stored locally · never leaves your device · 💙
+                Stored locally · never leaves your device · <Heart className="inline w-3 h-3 mb-0.5 mx-0.5 fill-current" style={{ color: 'var(--color-coral-500)' }} />
               </p>
             </div>
           </motion.div>

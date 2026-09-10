@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useSpring, useMotionValue, AnimatePresence } from 'framer-motion';
 import { useTimer } from '@/context/TimerContext';
-import { CheckCircle, Undo2 } from 'lucide-react';
+import { Brain, CheckCircle, Megaphone, PlusCircle, ScanEye, Undo2, Zap } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -300,14 +300,14 @@ export default function ActiveTimerScreen() {
           className="text-base font-semibold text-center px-4"
           style={{ color: 'var(--color-coral-600)' }}
         >
-          Almost there — you're doing great! 💪
+          Almost there — you're doing great! <Zap className="inline w-4 h-4 mb-0.5 ml-0.5" strokeWidth={2.5} />
         </motion.p>
       ) : (
         <p
           className="text-sm text-center px-4"
           style={{ color: 'var(--color-ink-500)' }}
         >
-          Stay with it. Your brain is doing the thing. 🧠
+          Stay with it. Your brain is doing the thing. <Brain className="inline w-4 h-4 mb-0.5 ml-0.5" strokeWidth={1.75} />
         </p>
       )}
 
@@ -333,12 +333,12 @@ export default function ActiveTimerScreen() {
         {isCompleting ? (
           <>
             <Undo2 className="w-7 h-7 shrink-0" strokeWidth={2.5} />
-            Completing… Tap to Undo ↩️
+            Completing… Tap to Undo
           </>
         ) : (
           <>
             <CheckCircle className="w-7 h-7 shrink-0" strokeWidth={2.5} />
-            I Did It! ✅
+            I Did It!
           </>
         )}
       </motion.button>
@@ -368,10 +368,10 @@ export default function ActiveTimerScreen() {
             aria-live="polite"
           >
             <div className="flex items-start gap-3">
-              <span className="text-2xl shrink-0">👀</span>
+              <ScanEye className="w-6 h-6 shrink-0" style={{ color: 'var(--color-amber-500)' }} strokeWidth={1.75} />
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-base leading-snug" style={{ color: 'var(--fg)' }}>
-                  Heads up — you're halfway through. How's it going? 👀
+                  Heads up — you're halfway through. How's it going?
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
                   Take a quick breath. You're doing awesome.
@@ -389,7 +389,7 @@ export default function ActiveTimerScreen() {
                   color: '#ffffff',
                 }}
               >
-                ✅ Still on it!
+                <CheckCircle className="w-4 h-4 shrink-0" strokeWidth={2.5} /> Still on it!
               </button>
               <button
                 type="button"
@@ -400,7 +400,7 @@ export default function ActiveTimerScreen() {
                   color: '#1c1917',
                 }}
               >
-                ➕ Need +5 min
+                <PlusCircle className="w-4 h-4 shrink-0" strokeWidth={2.5} /> Need +5 min
               </button>
             </div>
           </motion.div>
@@ -426,7 +426,7 @@ export default function ActiveTimerScreen() {
             aria-live="polite"
           >
             <div className="flex items-start gap-3">
-              <span className="text-2xl shrink-0">📣</span>
+              <Megaphone className="w-6 h-6 shrink-0" style={{ color: 'var(--color-coral-500)' }} strokeWidth={1.75} />
               <div className="flex-1 min-w-0">
                 <p className="font-bold text-base leading-snug" style={{ color: 'var(--fg)' }}>
                   Announce your mission?
@@ -447,7 +447,7 @@ export default function ActiveTimerScreen() {
                   color: '#ffffff',
                 }}
               >
-                📢 Witness me!
+                <Megaphone className="w-4 h-4 shrink-0" strokeWidth={2} /> Witness me!
               </button>
               <button
                 type="button"
