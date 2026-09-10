@@ -9,6 +9,7 @@
 // ---------------------------------------------------------------------------
 
 import type { LifetimeStats } from '../types/timer';
+import type { UnlockedTrophy } from './trophies';
 
 export interface TaskRecord {
   id:             string;
@@ -32,7 +33,7 @@ const KEY_MUTED         = 'tbt_muted';
 const KEY_THEME         = 'tbt_theme';
 const KEY_LIFETIME      = 'tbt_lifetime_stats';
 const KEY_DAILY_COUNTS  = 'tbt_daily_counts';
-export const KEY_CELEBRATED_MILESTONES = 'tbt_celebrated_milestones';
+export const KEY_UNLOCKED_TROPHIES = 'tbt_unlocked_trophies';
 
 const MAX_HISTORY = 50;
 
@@ -202,18 +203,18 @@ export function getCurrentStreak(): number {
 }
 
 // ---------------------------------------------------------------------------
-// Milestones
+// Trophies / Milestones
 // ---------------------------------------------------------------------------
 
-export function getCelebratedMilestones(): string[] {
-  return safeRead<string[]>(KEY_CELEBRATED_MILESTONES, []);
+export function getUnlockedTrophies(): UnlockedTrophy[] {
+  return safeRead<UnlockedTrophy[]>(KEY_UNLOCKED_TROPHIES, []);
 }
 
-export function markMilestoneCelebrated(id: string): void {
-  const list = getCelebratedMilestones();
-  if (!list.includes(id)) {
-    list.push(id);
-    safeWrite(KEY_CELEBRATED_MILESTONES, list);
+export function unlockTrophy(id: string): void {
+  const list = getUnlockedTrophies();
+  if (!list.some(t => t.id === id)) {
+    list.push({ id, earnedAt: Date.now() });
+    safeWrite(KEY_UNLOCKED_TROPHIES, list);
   }
 }
 

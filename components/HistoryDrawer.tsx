@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { X, CheckCircle2, Clock, Heart } from 'lucide-react';
 import { getTaskHistory, getTodayCount, relativeTime, type TaskRecord } from '@/lib/storage';
 import CompletionHeatmap from '@/components/CompletionHeatmap';
+import TrophyCase from '@/components/TrophyCase';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -79,8 +80,10 @@ function TaskRow({ record, index }: { record: TaskRecord; index: number }) {
 // ---------------------------------------------------------------------------
 
 export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
-  const [history,    setHistory]    = useState<TaskRecord[]>([]);
+  const [history, setHistory] = useState<TaskRecord[]>([]);
   const [todayCount, setTodayCount] = useState(0);
+  const [view, setView] = useState<'activity' | 'trophies'>('activity');
+  const prefersReducedMotion = useReducedMotion();
   const drawerRef = useRef<HTMLDivElement>(null);
 
   // Refresh data whenever drawer opens
@@ -156,7 +159,7 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
             </div>
 
             {/* Streak / today summary */}
-            {todayCount > 0 && (
+            {todayCount > 0 && view === 'activity' && (
               <div
                 className="mx-4 mt-4 rounded-2xl px-4 py-3 flex items-center gap-3"
                 style={{
@@ -176,34 +179,70 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
               </div>
             )}
 
+            {/* Custom Tab Toggle */}
+            <div className="mx-4 mt-4 p-1 rounded-full bg-slate-100 flex relative">
+              <button
+                onClick={() => setView('activity')}
+                className="flex-1 relative z-10 rounded-full py-1.5 text-sm font-semibold transition-colors"
+                style={{ color: view === 'activity' ? 'white' : '#64748b' }}
+              >
+                Activity
+              </button>
+              <button
+                onClick={() => setView('trophies')}
+                className="flex-1 relative z-10 rounded-full py-1.5 text-sm font-semibold transition-colors"
+                style={{ color: view === 'trophies' ? 'white' : '#64748b' }}
+              >
+                Trophies
+              </button>
+              
+              {/* Active Indicator Background */}
+              <motion.div
+                layoutId="activeTabIndicator"
+                transition={prefersReducedMotion ? { duration: 0 } : undefined}
+                className="absolute inset-y-1 rounded-full"
+                style={{
+                  width: 'calc(50% - 4px)',
+                  left: view === 'activity' ? '4px' : 'calc(50%)',
+                  background: 'linear-gradient(135deg, #f5a623 0%, #f2815a 100%)',
+                  boxShadow: '0 2px 8px rgba(242,129,90,0.25)',
+                }}
+              />
+            </div>
+
             {/* Scrollable content */}
-            <div className="flex-1 overflow-y-auto px-5 py-3">
-
-              {/* ── Completion heatmap ─────────────────────────────────── */}
-              <div style={{ marginBottom: 20 }}>
-                <p
-                  className="text-xs uppercase tracking-widest font-semibold mb-3"
-                  style={{ color: '#94a3b8' }}
-                >
-                  Activity
-                </p>
-                <CompletionHeatmap />
-              </div>
-
-              {/* ── Recent task list ───────────────────────────────────── */}
-              {history.length === 0 ? (
-                <EmptyState />
+            <div className="flex-1 overflow-y-auto pb-3 pt-1">
+              {view === 'trophies' ? (
+                <TrophyCase />
               ) : (
-                <div>
-                  <p
-                    className="text-xs uppercase tracking-widest font-semibold mb-3"
-                    style={{ color: '#94a3b8' }}
-                  >
-                    Recent completions
-                  </p>
-                  {history.map((record, i) => (
-                    <TaskRow key={record.id} record={record} index={i} />
-                  ))}
+                <div className="px-5 py-3">
+                  {/* ── Completion heatmap ─────────────────────────────────── */}
+                  <div style={{ marginBottom: 20 }}>
+                    <p
+                      className="text-xs uppercase tracking-widest font-semibold mb-3"
+                      style={{ color: '#94a3b8' }}
+                    >
+                      Activity
+                    </p>
+                    <CompletionHeatmap />
+                  </div>
+
+                  {/* ── Recent task list ───────────────────────────────────── */}
+                  {history.length === 0 ? (
+                    <EmptyState />
+                  ) : (
+                    <div>
+                      <p
+                        className="text-xs uppercase tracking-widest font-semibold mb-3"
+                        style={{ color: '#94a3b8' }}
+                      >
+                        Recent completions
+                      </p>
+                      {history.map((record, i) => (
+                        <TaskRow key={record.id} record={record} index={i} />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

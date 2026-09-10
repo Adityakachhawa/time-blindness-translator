@@ -12,11 +12,12 @@ import {
   getMutePreference, 
   getLifetimeStats, 
   getCurrentStreak, 
-  getCelebratedMilestones, 
-  markMilestoneCelebrated 
+  getUnlockedTrophies, 
+  unlockTrophy 
 } from '@/lib/storage';
 import { MILESTONES, type Milestone } from '@/lib/milestones';
 import { playGentleBell } from '@/lib/audio';
+import TrophySnackbar from '@/components/TrophySnackbar';
 import type { CertTheme } from '@/types/timer';
 
 // ---------------------------------------------------------------------------
@@ -322,6 +323,7 @@ export default function SuccessScreen() {
   const [waShareUrl,  setWaShareUrl]  = useState('');
   const [canNativeShare, setCanNativeShare] = useState(false);
   const [milestone,   setMilestone]   = useState<Milestone | null>(null);
+  const [unlockedTrophyId, setUnlockedTrophyId] = useState<string | null>(null);
 
   const anchors     = getAnchors(state.actualMinutes);
   const episodesStr = anchors.popCulture.value.toFixed(1);
@@ -350,11 +352,11 @@ export default function SuccessScreen() {
     // Evaluate Milestones
     const currentStats = getLifetimeStats();
     const currentStreak = getCurrentStreak();
-    const celebrated = getCelebratedMilestones();
+    const unlockedTrophies = getUnlockedTrophies();
     
     let hitMilestone: Milestone | null = null;
     for (const m of MILESTONES) {
-      if (celebrated.includes(m.id)) continue;
+      if (unlockedTrophies.some(t => t.id === m.id)) continue;
       
       let achieved = false;
       if (m.type === 'lifetime-tasks' && currentStats.totalTasks >= m.threshold) {
@@ -365,7 +367,8 @@ export default function SuccessScreen() {
       
       if (achieved) {
         hitMilestone = m;
-        markMilestoneCelebrated(m.id);
+        unlockTrophy(m.id);
+        setUnlockedTrophyId(m.id);
         break; // Celebrate the first matched milestone
       }
     }
@@ -664,6 +667,8 @@ export default function SuccessScreen() {
           Start a New Mission
         </motion.button>
       </motion.div>
+
+      <TrophySnackbar trophyId={unlockedTrophyId} />
     </div>
   );
 }
