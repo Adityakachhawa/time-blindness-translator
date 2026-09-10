@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, useReducedMotion } from 'framer-motion';
 import {
   Bath, Brush, Calculator, ChefHat, Clapperboard, CloudLightning, CloudRain, CloudSun,
   Coffee, Dices, Droplets, Dumbbell, Film, GraduationCap, LucideIcon,
@@ -216,6 +216,7 @@ function MinuteStepper({
 
 export default function SetupScreen() {
   const { state, dispatch } = useTimer();
+  const prefersReducedMotion = useReducedMotion();
 
   const sliderPct =
     ((state.taxMultiplier - TAX_MULTIPLIER_MIN) /
@@ -534,48 +535,76 @@ export default function SetupScreen() {
         </p>
 
         <div className="grid grid-cols-1 gap-3">
-          {cards.map(card => (
-            <motion.div
-              key={card.id}
-              whileHover={{ y: -3, scale: 1.01 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 22 }}
-              className="flex items-center gap-4 rounded-2xl px-5 py-4 min-h-26"
-              style={{
-                background: card.gradient,
-                border: `1.5px solid ${card.border}`,
-                backdropFilter: 'blur(8px)',
-              }}
-            >
-        <span className="text-2xl">
-          <LucideIconComponent name={card.icon} className="w-7 h-7 shrink-0" strokeWidth={1.75} />
-        </span>
-              <div className="flex-1 min-w-0">
-                <p
-                  className="text-xs font-semibold uppercase tracking-wider mb-0.5"
-                  style={{ color: 'var(--muted)' }}
+          {cards.map(card => {
+            // Subtle idle animations based on card type
+            let idleAnimate = {};
+            let idleTransition = {};
+            
+            if (!prefersReducedMotion) {
+              if (card.id === 'pop-culture') {
+                // TV/Monitor: rare CRT flicker
+                idleAnimate = { opacity: [1, 1, 1, 1, 1, 0.7, 1, 1, 1, 1] };
+                idleTransition = { duration: 6, repeat: Infinity, ease: 'linear' };
+              } else if (card.id === 'music') {
+                // Music note: subtle bob
+                idleAnimate = { y: [0, -2, 0] };
+                idleTransition = { duration: 2.5, repeat: Infinity, ease: 'easeInOut' };
+              } else if (card.id === 'real-world') {
+                // Real-world: subtle pulse/rotate combo
+                idleAnimate = { rotate: [0, -2, 2, 0] };
+                idleTransition = { duration: 4, repeat: Infinity, ease: 'easeInOut' };
+              }
+            }
+
+            return (
+              <motion.div
+                key={card.id}
+                whileHover={!prefersReducedMotion ? { y: -3, scale: 1.02 } : {}}
+                whileTap={!prefersReducedMotion ? { scale: 0.98 } : {}}
+                // We omit a custom `transition` object so the hover/tap physics naturally 
+                // match the default spring physics used by the MinuteStepper buttons.
+                className="flex items-center gap-4 rounded-2xl px-5 py-4 min-h-26"
+                style={{
+                  background: card.gradient,
+                  border: `1.5px solid ${card.border}`,
+                  backdropFilter: 'blur(8px)',
+                }}
+              >
+                <motion.span 
+                  className="text-2xl inline-block"
+                  animate={idleAnimate}
+                  transition={idleTransition}
                 >
-                  {card.label}
-                </p>
-                {card.value ? (
+                  <LucideIconComponent name={card.icon} className="w-7 h-7 shrink-0" strokeWidth={1.75} />
+                </motion.span>
+                <div className="flex-1 min-w-0">
                   <p
-                    className="font-black text-xl leading-tight"
-                    style={{ color: 'var(--fg)' }}
+                    className="text-xs font-semibold uppercase tracking-wider mb-0.5"
+                    style={{ color: 'var(--muted)' }}
                   >
-                    {card.value}{' '}
-                    <span className="text-base font-semibold" style={{ color: 'var(--fg)' }}>
-                      {card.unit}
-                    </span>
+                    {card.label}
                   </p>
-                ) : null}
-                <p
-                  className={card.value ? "text-sm mt-0.5" : "text-base font-semibold mt-0.5"}
-                  style={{ color: card.value ? 'var(--muted)' : 'var(--fg)' }}
-                >
-                  {card.detail}
-                </p>
-              </div>
-            </motion.div>
-          ))}
+                  {card.value ? (
+                    <p
+                      className="font-black text-xl leading-tight"
+                      style={{ color: 'var(--fg)' }}
+                    >
+                      {card.value}{' '}
+                      <span className="text-base font-semibold" style={{ color: 'var(--fg)' }}>
+                        {card.unit}
+                      </span>
+                    </p>
+                  ) : null}
+                  <p
+                    className={card.value ? "text-sm mt-0.5" : "text-base font-semibold mt-0.5"}
+                    style={{ color: card.value ? 'var(--muted)' : 'var(--fg)' }}
+                  >
+                    {card.detail}
+                  </p>
+                </div>
+              </motion.div>
+            );
+          })}
         </div>
       </motion.div>
 
