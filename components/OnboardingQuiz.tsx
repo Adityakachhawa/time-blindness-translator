@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { X, BatteryWarning, Zap, Target, Coffee, VolumeX, Waves } from 'lucide-react';
+import { X, ChevronLeft, BatteryWarning, Zap, Target, Coffee, VolumeX, Waves } from 'lucide-react';
 import type { Track } from '@/hooks/useAmbientAudio';
 
 export interface QuizResult {
@@ -57,12 +57,15 @@ const QUESTIONS: Question[] = [
 export default function OnboardingQuiz({ onComplete, onSkip }: OnboardingQuizProps) {
   const prefersReducedMotion = useReducedMotion();
   const [step, setStep] = useState(0);
-  const [answers, setAnswers] = useState<any[]>([]);
+  const [direction, setDirection] = useState(1);
+  const [answers, setAnswers] = useState<Record<number, any>>({});
 
   const handleSelect = (val: any) => {
-    const newAnswers = [...answers, val];
+    const newAnswers = { ...answers, [step]: val };
+    setAnswers(newAnswers);
+
     if (step < QUESTIONS.length - 1) {
-      setAnswers(newAnswers);
+      setDirection(1);
       setStep(s => s + 1);
     } else {
       // Done!
@@ -75,43 +78,68 @@ export default function OnboardingQuiz({ onComplete, onSkip }: OnboardingQuizPro
     }
   };
 
+  const handleBack = () => {
+    if (step > 0) {
+      setDirection(-1);
+      setStep(s => s - 1);
+    }
+  };
+
   const variants = prefersReducedMotion ? {
     enter: { opacity: 0 },
     center: { opacity: 1 },
     exit: { opacity: 0 }
   } : {
-    enter: { x: 50, opacity: 0 },
+    enter: (dir: number) => ({ x: dir > 0 ? 50 : -50, opacity: 0 }),
     center: { x: 0, opacity: 1 },
-    exit: { x: -50, opacity: 0 }
+    exit: (dir: number) => ({ x: dir < 0 ? 50 : -50, opacity: 0 })
   };
 
   const q = QUESTIONS[step];
 
   return (
     <div className="w-full relative flex flex-col justify-center min-h-[420px]">
-      <button 
-        onClick={onSkip}
-        className="absolute -top-2 right-0 p-2 text-slate-400 hover:text-slate-600 transition-colors z-20"
-        aria-label="Skip quiz"
-      >
-        <X className="w-5 h-5" />
-      </button>
+      {/* Header Row */}
+      <div className="absolute -top-2 left-0 right-0 flex items-center justify-between z-20">
+        <div className="w-10">
+          {step > 0 && (
+            <button 
+              onClick={handleBack}
+              className="p-2 text-slate-400 hover:text-slate-600 transition-colors flex items-center"
+              aria-label="Go back"
+            >
+              <ChevronLeft className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+        
+        {/* Progress dots */}
+        <div className="flex gap-2">
+          {QUESTIONS.map((_, i) => (
+            <div 
+              key={i} 
+              className="w-2 h-2 rounded-full transition-colors"
+              style={{ background: i === step ? 'var(--color-coral-500)' : 'rgba(0,0,0,0.1)' }}
+            />
+          ))}
+        </div>
 
-      {/* Progress dots */}
-      <div className="absolute top-0 left-0 right-0 flex justify-center gap-2 z-10">
-        {QUESTIONS.map((_, i) => (
-          <div 
-            key={i} 
-            className="w-2 h-2 rounded-full transition-colors"
-            style={{ background: i === step ? 'var(--color-coral-500)' : 'rgba(0,0,0,0.1)' }}
-          />
-        ))}
+        <div className="w-10 flex justify-end">
+          <button 
+            onClick={onSkip}
+            className="p-2 text-slate-400 hover:text-slate-600 transition-colors"
+            aria-label="Skip quiz"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
       </div>
 
       <div className="relative w-full mt-10 flex-1 overflow-visible">
-        <AnimatePresence mode="wait">
+        <AnimatePresence mode="wait" custom={direction}>
           <motion.div
             key={step}
+            custom={direction}
             variants={variants}
             initial="enter"
             animate="center"
@@ -124,35 +152,39 @@ export default function OnboardingQuiz({ onComplete, onSkip }: OnboardingQuizPro
             </h2>
 
             <div className="flex flex-col gap-3 pb-2">
-              {q.options.map((opt, i) => (
-                <motion.button
-                  key={i}
-                  whileHover={!prefersReducedMotion ? { y: -2, scale: 1.02 } : {}}
-                  whileTap={!prefersReducedMotion ? { scale: 0.98 } : {}}
-                  onClick={() => handleSelect(opt.value)}
-                  className="flex items-center gap-4 text-left w-full p-4 rounded-2xl transition-shadow hover:shadow-md"
-                  style={{
-                    background: 'var(--card)',
-                    border: '1.5px solid var(--card-border)',
-                  }}
-                >
-                  {opt.icon && (
-                    <div className="shrink-0 bg-slate-50 dark:bg-slate-800 p-2 rounded-full">
-                      {opt.icon}
-                    </div>
-                  )}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-bold text-lg leading-tight" style={{ color: 'var(--fg)' }}>
-                      {opt.label}
-                    </p>
-                    {opt.sub && (
-                      <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>
-                        {opt.sub}
-                      </p>
+              {q.options.map((opt, i) => {
+                const isSelected = answers[step] === opt.value;
+                return (
+                  <motion.button
+                    key={i}
+                    whileHover={!prefersReducedMotion ? { y: -2, scale: 1.02 } : {}}
+                    whileTap={!prefersReducedMotion ? { scale: 0.98 } : {}}
+                    onClick={() => handleSelect(opt.value)}
+                    className="flex items-center gap-4 text-left w-full p-4 rounded-2xl transition-all hover:shadow-md"
+                    style={{
+                      background: isSelected ? 'var(--card)' : 'var(--card)',
+                      border: isSelected ? '1.5px solid var(--color-coral-500)' : '1.5px solid var(--card-border)',
+                      boxShadow: isSelected ? '0 4px 12px rgba(242,129,90,0.1)' : 'none',
+                    }}
+                  >
+                    {opt.icon && (
+                      <div className="shrink-0 bg-slate-50 dark:bg-slate-800 p-2 rounded-full">
+                        {opt.icon}
+                      </div>
                     )}
-                  </div>
-                </motion.button>
-              ))}
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-lg leading-tight" style={{ color: 'var(--fg)' }}>
+                        {opt.label}
+                      </p>
+                      {opt.sub && (
+                        <p className="text-sm mt-0.5" style={{ color: 'var(--muted)' }}>
+                          {opt.sub}
+                        </p>
+                      )}
+                    </div>
+                  </motion.button>
+                );
+              })}
             </div>
           </motion.div>
         </AnimatePresence>
