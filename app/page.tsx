@@ -16,6 +16,7 @@ import {
   setThemePreference,
   getMutePreference,
   setMutePreference,
+  syncHistoricalData,
   type ThemePreference,
 } from '@/lib/storage';
 
@@ -113,14 +114,22 @@ function AppContent() {
   useTabProgressIndicator();
 
   // Hydrate prefs from localStorage after mount (SSR-safe)
+  // ── Sync Historical Data & Theme ───────────────────────────────────────────
   useEffect(() => {
-    const pref = getThemePreference();
-    const mut  = getMutePreference();
-    setThemePref(pref);
-    setMuted(mut);
-    applyThemeToDom(pref);
-    setResolvedDark(resolveTheme(pref) === 'dark');
+    syncHistoricalData();
+    setMuted(getMutePreference());
+    const storedTheme = getThemePreference();
+    applyThemeToDom(storedTheme);
+    setThemePref(storedTheme);
+    setResolvedDark(resolveTheme(storedTheme) === 'dark');
 
+    const handleThemeChange = () => {
+      const current = getThemePreference();
+      if (current === 'system') {
+        applyThemeToDom('system');
+        setResolvedDark(resolveTheme('system') === 'dark');
+      }
+    };
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
     const handleOsThemeChange = () => {
       if (getThemePreference() === 'system') {

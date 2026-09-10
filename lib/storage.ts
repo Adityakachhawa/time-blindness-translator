@@ -9,7 +9,7 @@
 // ---------------------------------------------------------------------------
 
 import type { LifetimeStats } from '../types/timer';
-import type { UnlockedTrophy } from './trophies';
+import { TROPHIES, type UnlockedTrophy } from './trophies';
 
 export interface TaskRecord {
   id:             string;
@@ -35,6 +35,7 @@ const KEY_LIFETIME      = 'tbt_lifetime_stats';
 const KEY_DAILY_COUNTS  = 'tbt_daily_counts';
 export const KEY_UNLOCKED_TROPHIES = 'tbt_unlocked_trophies';
 const KEY_HAS_SEEN_QUIZ = 'tbt_has_seen_quiz';
+const KEY_HAS_SYNCED_HISTORY = 'tbt_has_synced_history';
 
 const MAX_HISTORY = 50;
 
@@ -253,6 +254,47 @@ export function getThemePreference(): ThemePreference {
 
 export function setThemePreference(pref: ThemePreference): void {
   safeWrite(KEY_THEME, pref);
+}
+
+// ---------------------------------------------------------------------------
+// Retroactive Sync Utility
+// ---------------------------------------------------------------------------
+
+export function syncHistoricalData(): void {
+  if (typeof window === 'undefined') return;
+  const hasSynced = safeRead<boolean>(KEY_HAS_SYNCED_HISTORY, false);
+  if (hasSynced) return;
+
+  const history = getTaskHistory();
+  if (history.length > 0) {
+    // Clear existing to avoid double-counting any tasks that were recently logged
+    safeWrite(KEY_DAILY_COUNTS, {});
+
+    // 1. Rebuild Heatmap counts
+    history.forEach((r) => {
+      incrementDailyCount(new Date(r.completedAt));
+    });
+
+    // 2. Retroactively Unlock Trophies
+    const totalTasks = history.length;
+    const currentStreak = getCurrentStreak();
+
+    TROPHIES.forEach((m) => {
+      let achieved = false;
+      if (m.type === 'lifetime-tasks' && totalTasks >= m.threshold) {
+        achieved = true;
+      } else if (m.type === 'streak' && currentStreak >= m.threshold) {
+        achieved = true;
+      }
+
+      if (achieved) {
+        unlockTrophy(m.id);
+      }
+    });
+  }
+
+  // Mark as synced so it never runs again
+  safeWrite(KEY_HAS_SYNCED_HISTORY, true);
 }
 
 // ---------------------------------------------------------------------------
