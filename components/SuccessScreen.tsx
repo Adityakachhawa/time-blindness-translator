@@ -7,7 +7,15 @@ import { toPng } from 'html-to-image';
 import confetti from 'canvas-confetti';
 import { useTimer } from '@/context/TimerContext';
 import { getAnchors } from '@/lib/calculations';
-import { saveCompletedTask, getMutePreference } from '@/lib/storage';
+import { 
+  saveCompletedTask, 
+  getMutePreference, 
+  getLifetimeStats, 
+  getCurrentStreak, 
+  getCelebratedMilestones, 
+  markMilestoneCelebrated 
+} from '@/lib/storage';
+import { MILESTONES, type Milestone } from '@/lib/milestones';
 import { playGentleBell } from '@/lib/audio';
 import type { CertTheme } from '@/types/timer';
 
@@ -37,6 +45,33 @@ function fireCelebrationConfetti() {
       colors:     warmColors,
       scalar:     1.1,
       gravity:    0.9,
+    });
+    if (Date.now() < end) requestAnimationFrame(frame);
+  })();
+}
+
+function fireMilestoneConfetti() {
+  const milestoneColors = ['#ffd700', '#ff8c00', '#ff0080', '#00ff00', '#00bfff', '#9400d3'];
+  const end = Date.now() + 6000; // 6 seconds for milestones
+
+  (function frame() {
+    confetti({
+      particleCount: 8, // Denser
+      angle: 60,
+      spread: 80,
+      origin: { x: 0, y: 0.8 },
+      colors: milestoneColors,
+      scalar: 1.2,
+      gravity: 0.8,
+    });
+    confetti({
+      particleCount: 8,
+      angle: 120,
+      spread: 80,
+      origin: { x: 1, y: 0.8 },
+      colors: milestoneColors,
+      scalar: 1.2,
+      gravity: 0.8,
     });
     if (Date.now() < end) requestAnimationFrame(frame);
   })();
@@ -144,10 +179,11 @@ interface CertificateProps {
   dateStr:   string;
   certRef:   React.RefObject<HTMLDivElement | null>;
   theme:     CertTheme;
+  milestone: Milestone | null;
 }
 
 function AdultingCertificate({
-  taskName, episodes, songs, tagline, dateStr, certRef, theme,
+  taskName, episodes, songs, tagline, dateStr, certRef, theme, milestone,
 }: CertificateProps) {
   const s = THEME_STYLES[theme] ?? THEME_STYLES.classic;
 
@@ -236,14 +272,28 @@ function AdultingCertificate({
         </div>
       </div>
 
-      {/* Tagline */}
+      {/* Tagline or Milestone Badge */}
       <div style={{ textAlign: 'center', marginBottom: 20 }}>
-        <p style={{
-          fontSize: 'clamp(14px, 3vw, 17px)', fontStyle: 'italic', color: s.tagline,
-          lineHeight: 1.5, margin: 0,
-        }}>
-          "{tagline}"
-        </p>
+        {milestone ? (
+          <div style={{ 
+            display: 'inline-block', 
+            background: 'linear-gradient(135deg, #f5a623 0%, #f2815a 100%)', 
+            color: 'white', 
+            padding: '8px 20px', 
+            borderRadius: 99, 
+            boxShadow: '0 4px 12px rgba(242,129,90,0.3)' 
+          }}>
+            <p style={{ margin: 0, fontSize: 13, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: 1 }}>🌟 {milestone.label}</p>
+            <p style={{ margin: '4px 0 0', fontSize: 14, fontStyle: 'italic', opacity: 0.95 }}>{milestone.tagline}</p>
+          </div>
+        ) : (
+          <p style={{
+            fontSize: 'clamp(14px, 3vw, 17px)', fontStyle: 'italic', color: s.tagline,
+            lineHeight: 1.5, margin: 0,
+          }}>
+            "{tagline}"
+          </p>
+        )}
       </div>
 
       {/* Footer */}
@@ -271,6 +321,7 @@ export default function SuccessScreen() {
   const [shareUrl,    setShareUrl]    = useState('');
   const [waShareUrl,  setWaShareUrl]  = useState('');
   const [canNativeShare, setCanNativeShare] = useState(false);
+  const [milestone,   setMilestone]   = useState<Milestone | null>(null);
 
   const anchors     = getAnchors(state.actualMinutes);
   const episodesStr = anchors.popCulture.value.toFixed(1);
@@ -296,8 +347,37 @@ export default function SuccessScreen() {
       tagline: state.tagline || undefined,
     });
     
-    playGentleBell(getMutePreference());
-    fireCelebrationConfetti();
+    // Evaluate Milestones
+    const currentStats = getLifetimeStats();
+    const currentStreak = getCurrentStreak();
+    const celebrated = getCelebratedMilestones();
+    
+    let hitMilestone: Milestone | null = null;
+    for (const m of MILESTONES) {
+      if (celebrated.includes(m.id)) continue;
+      
+      let achieved = false;
+      if (m.type === 'lifetime-tasks' && currentStats.totalTasks >= m.threshold) {
+        achieved = true;
+      } else if (m.type === 'streak' && currentStreak >= m.threshold) {
+        achieved = true;
+      }
+      
+      if (achieved) {
+        hitMilestone = m;
+        markMilestoneCelebrated(m.id);
+        break; // Celebrate the first matched milestone
+      }
+    }
+
+    if (hitMilestone) {
+      setMilestone(hitMilestone);
+      playGentleBell(getMutePreference());
+      fireMilestoneConfetti();
+    } else {
+      playGentleBell(getMutePreference());
+      fireCelebrationConfetti();
+    }
   }, [state]);
 
   // Build share URLs on mount (client-only — window.location)
@@ -430,6 +510,7 @@ export default function SuccessScreen() {
           tagline={tagline}
           dateStr={dateStr}
           theme={certTheme}
+          milestone={milestone}
         />
       </motion.div>
 

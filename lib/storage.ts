@@ -32,6 +32,7 @@ const KEY_MUTED         = 'tbt_muted';
 const KEY_THEME         = 'tbt_theme';
 const KEY_LIFETIME      = 'tbt_lifetime_stats';
 const KEY_DAILY_COUNTS  = 'tbt_daily_counts';
+export const KEY_CELEBRATED_MILESTONES = 'tbt_celebrated_milestones';
 
 const MAX_HISTORY = 50;
 
@@ -161,6 +162,59 @@ export function getDailyCounts(days: number): Record<string, number> {
     }
   }
   return result;
+}
+
+/**
+ * Returns the current streak of consecutive days with at least 1 task completed.
+ * It walks backwards from today. If today has 0, but yesterday has >=1, the streak 
+ * is still active and counted from yesterday backwards.
+ */
+export function getCurrentStreak(): number {
+  const all = safeRead<Record<string, number>>(KEY_DAILY_COUNTS, {});
+  let streak = 0;
+  
+  // Normalize to 12:00 PM local time to avoid any DST skip bugs when subtracting days
+  const now = new Date();
+  const noonToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 12, 0, 0);
+  
+  // Check today first
+  const todayKey = toISODate(noonToday);
+  if (typeof all[todayKey] === 'number' && all[todayKey] > 0) {
+    streak++;
+  }
+  
+  // Walk backwards from yesterday
+  // We use an arbitrary deep limit (e.g., 3650 days = 10 years) just to prevent infinite loops,
+  // though the break condition will catch the first gap anyway.
+  for (let i = 1; i < 3650; i++) {
+    const d = new Date(noonToday);
+    d.setDate(d.getDate() - i);
+    const key = toISODate(d);
+    
+    if (typeof all[key] === 'number' && all[key] > 0) {
+      streak++;
+    } else {
+      break; // first gap stops the streak
+    }
+  }
+  
+  return streak;
+}
+
+// ---------------------------------------------------------------------------
+// Milestones
+// ---------------------------------------------------------------------------
+
+export function getCelebratedMilestones(): string[] {
+  return safeRead<string[]>(KEY_CELEBRATED_MILESTONES, []);
+}
+
+export function markMilestoneCelebrated(id: string): void {
+  const list = getCelebratedMilestones();
+  if (!list.includes(id)) {
+    list.push(id);
+    safeWrite(KEY_CELEBRATED_MILESTONES, list);
+  }
 }
 
 // ---------------------------------------------------------------------------
