@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { motion, useReducedMotion, AnimatePresence } from 'framer-motion';
 import {
   Bath, Brush, Calculator, ChefHat, Clapperboard, CloudLightning, CloudRain, CloudSun,
   Coffee, Dices, Droplets, Dumbbell, Film, GraduationCap, LucideIcon,
@@ -16,7 +16,9 @@ import {
   TAX_LABELS,
 } from '@/lib/calculations';
 import { unlockAudio } from '@/lib/audio';
-import { getTodayCount } from '@/lib/storage';
+import { getTodayCount, getHasSeenQuiz, markQuizSeen, setMutePreference } from '@/lib/storage';
+import type { Track } from '@/hooks/useAmbientAudio';
+import OnboardingQuiz, { type QuizResult } from '@/components/OnboardingQuiz';
 
 // ---------------------------------------------------------------------------
 // Stagger animation variants
@@ -214,9 +216,34 @@ function MinuteStepper({
 // Main component
 // ---------------------------------------------------------------------------
 
-export default function SetupScreen() {
+export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => void }) {
   const { state, dispatch } = useTimer();
   const prefersReducedMotion = useReducedMotion();
+  const [hasSeenQuiz, setHasSeenQuiz] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    setHasSeenQuiz(getHasSeenQuiz());
+  }, []);
+
+  function handleQuizComplete(res: QuizResult) {
+    dispatch({ 
+      type: 'UPDATE_SETUP', 
+      payload: { taskName: res.taskName, initialEstimate: res.initialEstimate } 
+    });
+    
+    if (setTrack) setTrack(res.track);
+    setMutePreference(res.muted);
+    // Force mute preference to sync globally if other components rely on localStorage
+    window.dispatchEvent(new Event('storage'));
+
+    markQuizSeen();
+    setHasSeenQuiz(true);
+  }
+
+  function handleQuizSkip() {
+    markQuizSeen();
+    setHasSeenQuiz(true);
+  }
 
   const sliderPct =
     ((state.taxMultiplier - TAX_MULTIPLIER_MIN) /
@@ -251,14 +278,32 @@ export default function SetupScreen() {
     dispatch({ type: 'UPDATE_SETUP', payload: { taxMultiplier: preset.value } });
   }
 
+  // Hydration safety: do not render until we know whether they've seen the quiz
+  if (hasSeenQuiz === null) return null;
+
   return (
-    <motion.div
-      variants={containerVariants}
-      initial="hidden"
-      animate="show"
-      className="flex flex-col gap-7 w-full pb-4"
-    >
-      {/* ── Feature 2: Streak badge ─────────────────────────────────────── */}
+    <AnimatePresence mode="wait">
+      {!hasSeenQuiz ? (
+        <motion.div
+          key="quiz"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+        >
+          <OnboardingQuiz onComplete={handleQuizComplete} onSkip={handleQuizSkip} />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="setup"
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.3 }}
+          className="flex flex-col gap-7 w-full pb-4"
+        >
+          {/* ── Feature 2: Streak badge ─────────────────────────────────────── */}
       {todayCount > 0 && (
         <motion.div
           initial={{ opacity: 0, scale: 0.85 }}
@@ -649,7 +694,17 @@ export default function SetupScreen() {
             ↑ Give your task a name first
           </p>
         )}
+
+        <button
+          onClick={() => setHasSeenQuiz(false)}
+          className="w-full mt-6 text-sm font-semibold flex items-center justify-center gap-2 transition-colors hover:text-slate-600"
+          style={{ color: 'var(--muted)' }}
+        >
+          🎯 Need help starting?
+        </button>
       </motion.div>
     </motion.div>
+      )}
+    </AnimatePresence>
   );
 }

@@ -34,6 +34,7 @@ const KEY_THEME         = 'tbt_theme';
 const KEY_LIFETIME      = 'tbt_lifetime_stats';
 const KEY_DAILY_COUNTS  = 'tbt_daily_counts';
 export const KEY_UNLOCKED_TROPHIES = 'tbt_unlocked_trophies';
+const KEY_HAS_SEEN_QUIZ = 'tbt_has_seen_quiz';
 
 const MAX_HISTORY = 50;
 
@@ -216,6 +217,18 @@ export function unlockTrophy(id: string): void {
     list.push({ id, earnedAt: Date.now() });
     safeWrite(KEY_UNLOCKED_TROPHIES, list);
   }
+}
+
+// ---------------------------------------------------------------------------
+// Onboarding Quiz
+// ---------------------------------------------------------------------------
+
+export function getHasSeenQuiz(): boolean {
+  return safeRead<boolean>(KEY_HAS_SEEN_QUIZ, false);
+}
+
+export function markQuizSeen(): void {
+  safeWrite(KEY_HAS_SEEN_QUIZ, true);
 }
 
 // ---------------------------------------------------------------------------

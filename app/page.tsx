@@ -107,7 +107,7 @@ function AppContent() {
   const [historyOpen, setHistoryOpen] = useState(false);
 
   // ── Ambient audio ──────────────────────────────────────────────────────
-  const { currentTrack, cycleTrack } = useAmbientAudio();
+  const { currentTrack, cycleTrack, setTrack } = useAmbientAudio();
 
   // ── Tab progress ───────────────────────────────────────────────────────
   useTabProgressIndicator();
@@ -157,7 +157,7 @@ function AppContent() {
   // Screen router
   function renderScreen() {
     switch (state.status) {
-      case 'setup':   return <SetupScreen />;
+      case 'setup':   return <SetupScreen setTrack={setTrack} />;
       case 'active':  return <ActiveTimerScreen />;
       case 'success': return <SuccessScreen />;
       case 'expired': return <TimesUpScreen />;

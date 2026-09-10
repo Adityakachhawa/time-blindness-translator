@@ -58,5 +58,5 @@ export function useAmbientAudio() {
     });
   }, []);
 
-  return { currentTrack, cycleTrack } as const;
+  return { currentTrack, cycleTrack, setTrack: setCurrentTrack } as const;
 }
