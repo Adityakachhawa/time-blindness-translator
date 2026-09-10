@@ -36,6 +36,7 @@ const KEY_DAILY_COUNTS  = 'tbt_daily_counts';
 export const KEY_UNLOCKED_TROPHIES = 'tbt_unlocked_trophies';
 const KEY_HAS_SEEN_QUIZ = 'tbt_has_seen_quiz';
 const KEY_HAS_SYNCED_HISTORY = 'tbt_has_synced_history';
+const KEY_REPORT_LAST_VIEWED = 'tbt_report_last_viewed';
 
 const MAX_HISTORY = 50;
 
@@ -167,6 +168,57 @@ export function getDailyCounts(days: number): Record<string, number> {
   return result;
 }
 
+// ---------------------------------------------------------------------------
+// Weekly "Brain Budget" Stats
+// ---------------------------------------------------------------------------
+
+export interface WeeklyStats {
+  totalMissions: number;
+  minutesReclaimed: number;
+  streak: number;
+  mostUsedTask: string | null;
+  tagline: string | null;
+}
+
+export function getWeeklyStats(): WeeklyStats {
+  const now = new Date();
+  const sevenDaysAgo = now.getTime() - 7 * 24 * 60 * 60 * 1000;
+  
+  // 1. Total missions in trailing 7 days
+  const counts = getDailyCounts(7);
+  const totalMissions = Object.values(counts).reduce((sum, c) => sum + c, 0);
+  
+  // 2. Extract stats from recent history
+  const history = getTaskHistory().filter(r => r.completedAt >= sevenDaysAgo);
+  
+  let minutesReclaimed = 0;
+  const taskCounts: Record<string, number> = {};
+  let bestTask: string | null = null;
+  let bestCount = 0;
+  const taglines: string[] = [];
+  
+  history.forEach(r => {
+    minutesReclaimed += Math.max(0, r.allocatedMin - r.optimisticMin);
+    
+    const lowerName = r.taskName.toLowerCase().trim();
+    taskCounts[lowerName] = (taskCounts[lowerName] || 0) + 1;
+    if (taskCounts[lowerName] > bestCount) {
+      bestCount = taskCounts[lowerName];
+      bestTask = r.taskName; // keep original casing
+    }
+    
+    if (r.tagline) taglines.push(r.tagline);
+  });
+  
+  // 3. Current streak
+  const streak = getCurrentStreak();
+  
+  // 4. Random tagline
+  const tagline = taglines.length > 0 ? taglines[Math.floor(Math.random() * taglines.length)] : null;
+  
+  return { totalMissions, minutesReclaimed, streak, mostUsedTask: bestTask, tagline };
+}
+
 /**
  * Returns the current streak of consecutive days with at least 1 task completed.
  * It walks backwards from today. If today has 0, but yesterday has >=1, the streak 
@@ -254,6 +306,18 @@ export function getThemePreference(): ThemePreference {
 
 export function setThemePreference(pref: ThemePreference): void {
   safeWrite(KEY_THEME, pref);
+}
+
+// ---------------------------------------------------------------------------
+// Report Viewed State
+// ---------------------------------------------------------------------------
+
+export function getReportLastViewed(): number {
+  return safeRead<number>(KEY_REPORT_LAST_VIEWED, 0);
+}
+
+export function markReportViewed(): void {
+  safeWrite(KEY_REPORT_LAST_VIEWED, Date.now());
 }
 
 // ---------------------------------------------------------------------------

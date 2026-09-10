@@ -17,6 +17,8 @@ import {
   getMutePreference,
   setMutePreference,
   syncHistoricalData,
+  getWeeklyStats,
+  getReportLastViewed,
   type ThemePreference,
 } from '@/lib/storage';
 
@@ -106,6 +108,7 @@ function AppContent() {
 
   // ── History drawer ─────────────────────────────────────────────────────
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [hasWeeklyReport, setHasWeeklyReport] = useState(false);
 
   // ── Ambient audio ──────────────────────────────────────────────────────
   const { currentTrack, cycleTrack, setTrack } = useAmbientAudio();
@@ -117,6 +120,17 @@ function AppContent() {
   // ── Sync Historical Data & Theme ───────────────────────────────────────────
   useEffect(() => {
     syncHistoricalData();
+    
+    const checkReportBadge = () => {
+      const stats = getWeeklyStats();
+      const lastViewed = getReportLastViewed();
+      const isRecent = Date.now() - lastViewed < 24 * 60 * 60 * 1000;
+      setHasWeeklyReport(stats.totalMissions > 0 && !isRecent);
+    };
+    checkReportBadge();
+
+    window.addEventListener('tbt_report_viewed', checkReportBadge);
+
     setMuted(getMutePreference());
     const storedTheme = getThemePreference();
     applyThemeToDom(storedTheme);
@@ -139,7 +153,10 @@ function AppContent() {
       }
     };
     mq.addEventListener('change', handleOsThemeChange);
-    return () => mq.removeEventListener('change', handleOsThemeChange);
+    return () => {
+      mq.removeEventListener('change', handleOsThemeChange);
+      window.removeEventListener('tbt_report_viewed', checkReportBadge);
+    };
   }, []);
 
   // ── Toggle handlers ────────────────────────────────────────────────────
@@ -210,7 +227,14 @@ function AppContent() {
               onClick={() => setHistoryOpen(true)}
               label="View task history"
             >
-              <History className="w-5 h-5" strokeWidth={2} />
+              <div className="relative">
+                <History className="w-5 h-5" strokeWidth={2} />
+                {hasWeeklyReport && (
+                  <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2" 
+                       style={{ background: 'var(--color-coral-500)', borderColor: headerBg }} 
+                  />
+                )}
+              </div>
             </HeaderIconBtn>
 
             {/* Ambient audio cycle */}

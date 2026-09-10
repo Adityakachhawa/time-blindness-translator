@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { X, CheckCircle2, Clock, Heart } from 'lucide-react';
-import { getTaskHistory, getTodayCount, relativeTime, type TaskRecord } from '@/lib/storage';
+import { getTaskHistory, getTodayCount, relativeTime, markReportViewed, type TaskRecord } from '@/lib/storage';
 import CompletionHeatmap from '@/components/CompletionHeatmap';
 import TrophyCase from '@/components/TrophyCase';
+import WeeklyReport from '@/components/WeeklyReport';
 
 // ---------------------------------------------------------------------------
 // Props
@@ -82,7 +83,7 @@ function TaskRow({ record, index }: { record: TaskRecord; index: number }) {
 export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
   const [history, setHistory] = useState<TaskRecord[]>([]);
   const [todayCount, setTodayCount] = useState(0);
-  const [view, setView] = useState<'activity' | 'trophies'>('activity');
+  const [view, setView] = useState<'activity' | 'trophies' | 'this_week'>('activity');
   const prefersReducedMotion = useReducedMotion();
   const drawerRef = useRef<HTMLDivElement>(null);
 
@@ -93,6 +94,14 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
       setTodayCount(getTodayCount());
     }
   }, [open]);
+
+  // Mark report as viewed
+  useEffect(() => {
+    if (open && view === 'this_week') {
+      markReportViewed();
+      window.dispatchEvent(new Event('tbt_report_viewed'));
+    }
+  }, [open, view]);
 
   // Close on Escape key
   useEffect(() => {
@@ -195,6 +204,13 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
               >
                 Trophies
               </button>
+              <button
+                onClick={() => setView('this_week')}
+                className="flex-1 relative z-10 rounded-full py-1.5 text-sm font-semibold transition-colors"
+                style={{ color: view === 'this_week' ? 'white' : '#64748b' }}
+              >
+                This Week
+              </button>
               
               {/* Active Indicator Background */}
               <motion.div
@@ -202,8 +218,8 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
                 transition={prefersReducedMotion ? { duration: 0 } : undefined}
                 className="absolute inset-y-1 rounded-full"
                 style={{
-                  width: 'calc(50% - 4px)',
-                  left: view === 'activity' ? '4px' : 'calc(50%)',
+                  width: 'calc(33.333% - 4px)',
+                  left: view === 'activity' ? '4px' : view === 'trophies' ? 'calc(33.333% + 2px)' : 'calc(66.666%)',
                   background: 'linear-gradient(135deg, #f5a623 0%, #f2815a 100%)',
                   boxShadow: '0 2px 8px rgba(242,129,90,0.25)',
                 }}
@@ -212,7 +228,9 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto pb-3 pt-1">
-              {view === 'trophies' ? (
+              {view === 'this_week' ? (
+                <WeeklyReport />
+              ) : view === 'trophies' ? (
                 <TrophyCase />
               ) : (
                 <div className="px-5 py-3">

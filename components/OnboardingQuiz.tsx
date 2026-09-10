@@ -106,7 +106,7 @@ export default function OnboardingQuiz({ onComplete, onSkip }: OnboardingQuizPro
   const q = QUESTIONS[step];
 
   return (
-    <div className="w-full relative flex flex-col justify-center min-h-[420px]">
+    <div className="w-full relative flex flex-col justify-center min-h-105">
       {/* Header Row */}
       <div className="absolute -top-2 left-0 right-0 flex items-center justify-between z-20">
         <div className="w-10">
