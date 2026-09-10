@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
-import { X, ChevronLeft, BatteryWarning, Zap, Target, Coffee, VolumeX, Waves } from 'lucide-react';
+import { X, ChevronLeft, BatteryWarning, Zap, Target, Coffee, VolumeX, Waves, Headphones } from 'lucide-react';
 import type { Track } from '@/hooks/useAmbientAudio';
 
 export interface QuizResult {
@@ -27,6 +27,13 @@ type Question = {
   }[];
 };
 
+const VIBE_TO_TRACK = {
+  silence: { track: 'off' as Track, muted: true },
+  lofi:    { track: 'lofi' as Track, muted: false },
+  cafe:    { track: 'cafe' as Track, muted: false },
+  brown:   { track: 'brown-noise' as Track, muted: false },
+};
+
 const QUESTIONS: Question[] = [
   {
     title: "What's the main boss right now?",
@@ -47,9 +54,10 @@ const QUESTIONS: Question[] = [
   {
     title: "What kind of vibe do we need?",
     options: [
-      { label: 'Total silence', icon: <VolumeX className="w-5 h-5 text-slate-400" />, value: { track: 'off', muted: true } },
-      { label: 'Coffee shop chatter', icon: <Coffee className="w-5 h-5 text-amber-600" />, value: { track: 'cafe', muted: false } },
-      { label: 'Brown noise', icon: <Waves className="w-5 h-5 text-teal-500" />, value: { track: 'brown-noise', muted: false } },
+      { label: 'Total silence', sub: 'Just me and my thoughts', icon: <VolumeX className="w-5 h-5 text-slate-400" />, value: VIBE_TO_TRACK.silence },
+      { label: 'Lo-fi beats', sub: 'Chill instrumental', icon: <Headphones className="w-5 h-5 text-indigo-500" />, value: VIBE_TO_TRACK.lofi },
+      { label: 'Coffee shop chatter', sub: 'Background bustle', icon: <Coffee className="w-5 h-5 text-amber-600" />, value: VIBE_TO_TRACK.cafe },
+      { label: 'Brown noise', sub: 'Static focus wall', icon: <Waves className="w-5 h-5 text-teal-500" />, value: VIBE_TO_TRACK.brown },
     ],
   },
 ];
