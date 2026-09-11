@@ -333,6 +333,21 @@ export default function SuccessScreen() {
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
+  // Calculate prediction vs reality
+  const predictedMin = state.predictedSeconds ? Math.round(state.predictedSeconds / 60) : state.initialEstimate;
+  const actualMin = state.actualSeconds ? Math.round(state.actualSeconds / 60) : state.actualMinutes;
+  
+  let diffPercent = 0;
+  let diffText = "You were spot on.";
+  if (predictedMin > 0) {
+    diffPercent = Math.round(Math.abs(actualMin - predictedMin) / predictedMin * 100);
+    if (actualMin > predictedMin) {
+      diffText = `You underestimated by ${diffPercent}%.`;
+    } else if (actualMin < predictedMin) {
+      diffText = `You overestimated by ${diffPercent}%.`;
+    }
+  }
+
   // Save history, play sound, and fire confetti on mount
   const mounted = useRef(false);
   useEffect(() => {
@@ -469,6 +484,37 @@ export default function SuccessScreen() {
         </p>
       </motion.div>
 
+      {/* ── Reality Check (Prediction vs Reality) ─────────────────────────── */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.15 }}
+        className="w-full max-w-md mx-auto rounded-3xl p-6 text-center"
+        style={{
+          background: 'linear-gradient(135deg, var(--color-ink-900) 0%, var(--color-ink-800) 100%)',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
+          color: 'white',
+        }}
+      >
+        <p className="text-xs uppercase tracking-widest font-bold mb-4" style={{ color: 'var(--color-coral-400)' }}>
+          Reality Check
+        </p>
+        <div className="flex justify-center items-center gap-6 mb-4">
+          <div className="text-center">
+            <p className="text-4xl font-black">{predictedMin}</p>
+            <p className="text-xs uppercase tracking-widest mt-1 opacity-70">Predicted min</p>
+          </div>
+          <div className="w-px h-12 bg-white/20" />
+          <div className="text-center">
+            <p className="text-4xl font-black text-white">{actualMin}</p>
+            <p className="text-xs uppercase tracking-widest mt-1 opacity-70">Reality min</p>
+          </div>
+        </div>
+        <div className="inline-block px-4 py-2 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }}>
+          <p className="text-sm font-semibold">{diffText}</p>
+        </div>
+      </motion.div>
+
       {/* ── Quick-stat badges ─────────────────────────────────────────────── */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -479,21 +525,21 @@ export default function SuccessScreen() {
         {[
           { Icon: Tv2,    val: episodesStr,                   unit: 'episodes' },
           { Icon: Music,  val: songsStr,                      unit: 'songs'    },
-          { Icon: Timer,  val: `${state.actualMinutes}`,      unit: 'minutes'  },
+          { Icon: Timer,  val: `${state.actualMinutes}`,      unit: 'allocated'  },
         ].map(b => (
           <div
             key={b.unit}
-            className="flex flex-col items-center rounded-2xl px-5 py-3 glass-card"
-            style={{ border: '1.5px solid var(--color-cream-300)', minWidth: 88 }}
+            className="flex flex-col items-center rounded-2xl px-4 py-2 glass-card"
+            style={{ border: '1.5px solid var(--color-cream-300)', minWidth: 80, transform: 'scale(0.9)' }}
           >
-            <b.Icon className="w-6 h-6 mb-1" style={{ color: 'var(--color-coral-500)' }} strokeWidth={1.75} />
+            <b.Icon className="w-5 h-5 mb-1" style={{ color: 'var(--color-coral-500)' }} strokeWidth={1.75} />
             <span
-              className="text-2xl font-black tabular-nums"
+              className="text-xl font-black tabular-nums"
               style={{ color: 'var(--color-ink-900)' }}
             >
               {b.val}
             </span>
-            <span className="text-xs" style={{ color: 'var(--color-ink-400)' }}>
+            <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-ink-400)' }}>
               {b.unit}
             </span>
           </div>

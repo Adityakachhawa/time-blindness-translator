@@ -25,6 +25,7 @@ const initialState: TimerState = {
   status: 'setup',
   taskName: '',
   initialEstimate: INITIAL_ESTIMATE_DEFAULT,
+  predictedSeconds: INITIAL_ESTIMATE_DEFAULT * 60,
   optimisticMin: INITIAL_ESTIMATE_DEFAULT,
   taxMultiplier: TAX_MULTIPLIER_DEFAULT,
   actualMinutes: initialActual,
@@ -53,6 +54,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         ...state,
         taskName: nextTaskName,
         initialEstimate: nextEstimate,
+        predictedSeconds: nextEstimate * 60,
         optimisticMin: nextEstimate,
         taxMultiplier: nextTax,
         actualMinutes: nextActual,
@@ -67,6 +69,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         ...state,
         status: 'active',
         endTime: Date.now() + state.actualMinutes * 60_000,
+        startTime: Date.now(),
         extensionCount: 0,
       };
     }
@@ -74,10 +77,14 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
     case 'COMPLETE_MISSION': {
       if (state.status !== 'active') return state;
 
+      const now = Date.now();
+      const actualSeconds = state.startTime ? Math.floor((now - state.startTime) / 1000) : undefined;
+
       return {
         ...state,
         status: 'success',
-        completedAt: Date.now(),
+        completedAt: now,
+        actualSeconds,
         tagline: getRandomTagline(),
       };
     }
@@ -238,6 +245,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
         actualMinutes: allocatedMin,
         completedAt:   state.completedAt,
         tagline:       state.tagline ?? null,
+        predictedSeconds: state.predictedSeconds,
+        actualSeconds: state.actualSeconds,
       });
 
       // Cap at 50 entries
@@ -256,6 +265,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     state.allocatedMin,
     state.tagline,
     state.extensionCount,
+    state.predictedSeconds,
+    state.actualSeconds,
   ]);
 
   return (

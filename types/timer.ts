@@ -18,6 +18,9 @@ export interface TimerState {
   /** Raw estimate entered by the user (minutes). */
   initialEstimate: number;
 
+  /** The initial guess in seconds */
+  predictedSeconds?: number;
+
   /** Alias for initialEstimate for reporting */
   optimisticMin?: number;
 
@@ -39,11 +42,17 @@ export interface TimerState {
    */
   endTime: number | null;
 
+  /** Timestamp when the timer was started */
+  startTime?: number;
+
   /**
    * Timestamp when the user clicked "I Did It!".
    * Only populated while status === 'success'.
    */
   completedAt?: number;
+
+  /** Exact number of seconds the task ran for */
+  actualSeconds?: number;
 
   /**
    * A randomly selected humorous tagline shown on the Adulting Certificate.

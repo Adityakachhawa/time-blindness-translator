@@ -20,6 +20,8 @@ export interface TaskRecord {
   actualMinutes:  number;   // kept for backwards compat with existing records
   completedAt:    number;   // ms since epoch
   tagline?:       string;
+  predictedSeconds?: number;
+  actualSeconds?: number;
 }
 
 export type ThemePreference = 'system' | 'light' | 'dark';

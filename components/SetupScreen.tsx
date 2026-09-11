@@ -459,7 +459,7 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           className="text-sm font-semibold uppercase tracking-wide"
           style={{ color: 'var(--muted)' }}
         >
-          Your optimistic estimate
+          How long do you think it will take?
         </label>
         <div
           className="w-full rounded-2xl py-5 px-4"
