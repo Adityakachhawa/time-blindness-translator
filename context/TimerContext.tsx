@@ -50,9 +50,10 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       const nextTax = action.payload.taxMultiplier ?? state.taxMultiplier;
       const nextPersonalFactor = action.payload.personalFactor !== undefined ? action.payload.personalFactor : state.personalFactor;
       const nextOverride = action.payload.isManualOverride !== undefined ? action.payload.isManualOverride : state.isManualOverride;
+      const nextTransition = action.payload.transitionMinutes !== undefined ? action.payload.transitionMinutes : (state.transitionMinutes || 0);
 
       const effectiveMultiplier = (!nextOverride && nextPersonalFactor) ? nextPersonalFactor : nextTax;
-      const nextActual = calculateActualTime(nextEstimate, effectiveMultiplier);
+      const nextActual = calculateActualTime(nextEstimate, effectiveMultiplier) + nextTransition;
 
       return {
         ...state,
@@ -63,6 +64,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         taxMultiplier: nextTax,
         personalFactor: nextPersonalFactor,
         isManualOverride: nextOverride,
+        transitionMinutes: nextTransition,
         actualMinutes: nextActual,
         allocatedMin: nextActual,
       };

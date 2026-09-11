@@ -491,6 +491,35 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         </div>
       </motion.div>
 
+      {/* ── Transition Time Budgeting ─────────────────────────────────────── */}
+      <motion.div variants={itemVariants} className="flex flex-col gap-2 mt-1">
+        <label
+          className="text-xs font-semibold uppercase tracking-wide px-1"
+          style={{ color: 'var(--muted)' }}
+        >
+          Include setup / transition time?
+        </label>
+        <div className="flex items-center gap-2">
+          {[0, 5, 10].map((mins) => {
+            const isSelected = (state.transitionMinutes || 0) === mins;
+            return (
+              <button
+                key={mins}
+                onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { transitionMinutes: mins } })}
+                className="flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-colors border"
+                style={{
+                  backgroundColor: isSelected ? 'var(--color-ink-900)' : 'var(--card)',
+                  color: isSelected ? '#ffffff' : 'var(--fg)',
+                  borderColor: isSelected ? 'var(--color-ink-900)' : 'var(--card-border)',
+                }}
+              >
+                {mins === 0 ? 'No' : `+${mins} min`}
+              </button>
+            );
+          })}
+        </div>
+      </motion.div>
+
       {/* ── Smart Predictions or ADHD Tax Slider ───────────────────────── */}
       {state.personalFactor !== null && state.personalFactor !== undefined && !state.isManualOverride ? (
         <motion.div variants={itemVariants} className="flex flex-col gap-3">
@@ -804,7 +833,11 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
                 onClick={() =>
                   dispatch({
                     type: 'UPDATE_SETUP',
-                    payload: { taskName: t.taskName, initialEstimate: t.initialEstimate },
+                    payload: { 
+                      taskName: t.taskName, 
+                      initialEstimate: t.initialEstimate,
+                      transitionMinutes: t.transitionMinutes || 0
+                    },
                   })
                 }
                 className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors"

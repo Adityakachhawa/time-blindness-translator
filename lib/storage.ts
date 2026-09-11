@@ -22,6 +22,7 @@ export interface TaskRecord {
   tagline?:       string;
   predictedSeconds?: number;
   actualSeconds?: number;
+  transitionMinutes?: number;
 }
 
 export type ThemePreference = 'system' | 'light' | 'dark';
@@ -94,6 +95,7 @@ export function getTodayCount(): number {
 export interface RecentTask {
   taskName: string;
   initialEstimate: number; // minutes
+  transitionMinutes?: number;
 }
 
 /** Returns the last `limit` unique tasks completed by the user. */
@@ -109,7 +111,8 @@ export function getRecentUniqueTasks(limit: number = 3): RecentTask[] {
       const minutes = record.predictedSeconds ? Math.round(record.predictedSeconds / 60) : record.optimisticMin;
       results.push({
         taskName: record.taskName,
-        initialEstimate: minutes
+        initialEstimate: minutes,
+        transitionMinutes: record.transitionMinutes
       });
       if (results.length >= limit) break;
     }

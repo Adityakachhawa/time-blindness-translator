@@ -20,9 +20,13 @@ export function calculatePersonalFactor(taskName: string): number | null {
       : (session.optimisticMin ? session.optimisticMin * 60 : 0);
       
     // Determine actual time
-    const actual = session.actualSeconds 
+    const actualTotal = session.actualSeconds 
       ? session.actualSeconds 
       : (session.actualMinutes ? session.actualMinutes * 60 : 0);
+
+    // Subtract transition time to get core task time
+    const transition = session.transitionMinutes ? session.transitionMinutes * 60 : 0;
+    const actual = Math.max(0, actualTotal - transition);
 
     if (predicted > 0 && actual > 0) {
       ratios.push(actual / predicted);

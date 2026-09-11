@@ -36,6 +36,9 @@ export interface TimerState {
   /** True if the user hit 0 and chose to 'Keep going' in open-ended overtime */
   isOvertimeAcknowledged?: boolean;
 
+  /** Time buffered for setup / transitions before the core task */
+  transitionMinutes?: number;
+
   /**
    * Buffered time after applying the tax multiplier, rounded to the
    * nearest 5 minutes.  This is the real countdown duration.
@@ -98,7 +101,7 @@ export type CertTheme = 'classic' | 'dark' | 'chaos';
  */
 export interface UpdateSetupAction {
   type: 'UPDATE_SETUP';
-  payload: Partial<Pick<TimerState, 'taskName' | 'initialEstimate' | 'taxMultiplier' | 'personalFactor' | 'isManualOverride'>>;
+  payload: Partial<Pick<TimerState, 'taskName' | 'initialEstimate' | 'taxMultiplier' | 'personalFactor' | 'isManualOverride' | 'transitionMinutes'>>;
 }
 
 /** Transitions from setup → active, setting an absolute endTime. */

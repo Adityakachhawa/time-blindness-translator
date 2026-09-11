@@ -337,16 +337,23 @@ export default function SuccessScreen() {
   const predictedMin = state.predictedSeconds ? Math.round(state.predictedSeconds / 60) : state.initialEstimate;
   const actualMin = state.actualSeconds ? Math.round(state.actualSeconds / 60) : state.actualMinutes;
   
+  const transitionMin = state.transitionMinutes || 0;
+  const coreActualMin = Math.max(0, actualMin - transitionMin);
+  
   let diffPercent = 0;
   let diffText = "You were spot on.";
   if (predictedMin > 0) {
-    diffPercent = Math.round(Math.abs(actualMin - predictedMin) / predictedMin * 100);
-    if (actualMin > predictedMin) {
+    diffPercent = Math.round(Math.abs(coreActualMin - predictedMin) / predictedMin * 100);
+    if (coreActualMin > predictedMin) {
       diffText = `You underestimated by ${diffPercent}%.`;
-    } else if (actualMin < predictedMin) {
+    } else if (coreActualMin < predictedMin) {
       diffText = `You overestimated by ${diffPercent}%.`;
     }
   }
+
+  const realityBreakdown = transitionMin > 0
+    ? `You predicted ${predictedMin}m + ${transitionMin}m prep. Reality was ${actualMin}m total.`
+    : `You predicted ${predictedMin} min. Reality was ${actualMin} min.`;
 
   // Save history, play sound, and fire confetti on mount
   const mounted = useRef(false);
@@ -360,6 +367,9 @@ export default function SuccessScreen() {
       taxMultiplier: state.taxMultiplier,
       allocatedMin: state.allocatedMin ?? state.actualMinutes,
       actualMinutes: state.actualMinutes,
+      predictedSeconds: state.predictedSeconds,
+      actualSeconds: state.actualSeconds,
+      transitionMinutes: state.transitionMinutes,
       completedAt: Date.now(),
       tagline: state.tagline || undefined,
     });
@@ -501,7 +511,7 @@ export default function SuccessScreen() {
         </p>
         <div className="flex justify-center items-center gap-6 mb-4">
           <div className="text-center">
-            <p className="text-4xl font-black">{predictedMin}</p>
+            <p className="text-4xl font-black">{transitionMin > 0 ? `${predictedMin}+${transitionMin}` : predictedMin}</p>
             <p className="text-xs uppercase tracking-widest mt-1 opacity-70">Predicted min</p>
           </div>
           <div className="w-px h-12 bg-white/20" />
@@ -510,8 +520,11 @@ export default function SuccessScreen() {
             <p className="text-xs uppercase tracking-widest mt-1 opacity-70">Reality min</p>
           </div>
         </div>
-        <div className="inline-block px-4 py-2 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }}>
-          <p className="text-sm font-semibold">{diffText}</p>
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-sm font-medium opacity-90">{realityBreakdown}</p>
+          <div className="inline-block px-4 py-2 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }}>
+            <p className="text-sm font-semibold">{diffText}</p>
+          </div>
         </div>
       </motion.div>
 
