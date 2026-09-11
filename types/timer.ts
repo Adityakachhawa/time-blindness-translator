@@ -53,6 +53,9 @@ export interface TimerState {
 
   /** Number of extensions used during this mission. */
   extensionCount: number;
+
+  /** Whether the mission was announced via Witness Me. */
+  wasAnnounced?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -111,6 +114,13 @@ export interface AddMinutesAction {
   payload: { minutes: number } | number;
 }
 
+/**
+ * Marks the active mission as having been announced publicly.
+ */
+export interface AnnounceMissionAction {
+  type: 'ANNOUNCE_MISSION';
+}
+
 /** Discriminated union of every action the reducer handles. */
 export type TimerAction =
   | UpdateSetupAction
@@ -118,4 +128,5 @@ export type TimerAction =
   | CompleteMissionAction
   | ExpireTimerAction
   | AddTenMinutesAction
-  | AddMinutesAction;
+  | AddMinutesAction
+  | AnnounceMissionAction;

@@ -125,6 +125,14 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       };
     }
 
+    case 'ANNOUNCE_MISSION': {
+      if (state.status !== 'active') return state;
+      return {
+        ...state,
+        wasAnnounced: true,
+      };
+    }
+
     default:
       return state;
   }

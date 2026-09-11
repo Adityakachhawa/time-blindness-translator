@@ -220,10 +220,32 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
   const { state, dispatch } = useTimer();
   const prefersReducedMotion = useReducedMotion();
   const [hasSeenQuiz, setHasSeenQuiz] = useState<boolean | null>(null);
+  const [challengeData, setChallengeData] = useState<{taskName: string, min: number} | null>(null);
 
   useEffect(() => {
-    setHasSeenQuiz(getHasSeenQuiz());
-  }, []);
+    let bypassQuiz = false;
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const challenge = params.get('challenge');
+      const minStr = params.get('min');
+      if (challenge && minStr) {
+        const min = parseInt(minStr, 10);
+        if (!isNaN(min)) {
+          setChallengeData({ taskName: challenge, min });
+          dispatch({ type: 'UPDATE_SETUP', payload: { taskName: challenge, initialEstimate: min } });
+          bypassQuiz = true;
+          // Clean up the URL so it doesn't persist
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }
+    }
+    
+    if (bypassQuiz) {
+      setHasSeenQuiz(true);
+    } else {
+      setHasSeenQuiz(getHasSeenQuiz());
+    }
+  }, [dispatch]);
 
   function handleQuizComplete(res: QuizResult) {
     dispatch({ 
@@ -317,6 +339,24 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           <Trophy className="w-5 h-5 shrink-0" style={{ color: 'var(--color-amber-400)' }} />
           <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>
             {todayCount} {todayCount === 1 ? 'task' : 'tasks'} crushed today — keep going!
+          </p>
+        </motion.div>
+      )}
+
+      {/* ── Challenge Banner ───────────────────────────────────────────── */}
+      {challengeData && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center justify-center gap-2 rounded-2xl py-2.5 px-4"
+          style={{
+            background: 'linear-gradient(135deg, rgba(125,175,156,0.15), rgba(125,175,156,0.10))',
+            border: '1.5px solid rgba(125,175,156,0.4)',
+          }}
+        >
+          <Sparkles className="w-5 h-5 shrink-0" style={{ color: 'var(--color-sage-500)' }} />
+          <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>
+            Someone challenged you to do this in {challengeData.min} min. Up for it?
           </p>
         </motion.div>
       )}

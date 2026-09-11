@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useSpring, useMotionValue, AnimatePresence } from 'framer-motion';
+import { toPng, toBlob } from 'html-to-image';
 import { useTimer } from '@/context/TimerContext';
 import { computeBlockColor } from '@/lib/calculations';
 import { Brain, CheckCircle, Megaphone, PlusCircle, ScanEye, Undo2, Zap } from 'lucide-react';
@@ -16,6 +17,49 @@ function formatTime(ms: number): string {
   const min = Math.floor(totalSec / 60);
   const sec = totalSec % 60;
   return `${min}:${sec.toString().padStart(2, '0')}`;
+}
+
+// ---------------------------------------------------------------------------
+// Mission Launched Card (Off-Screen)
+// ---------------------------------------------------------------------------
+
+function MissionLaunchedCard({ taskName, allocatedMin, taxMultiplier, cardRef }: { taskName: string, allocatedMin: number, taxMultiplier: number, cardRef: React.RefObject<HTMLDivElement | null> }) {
+  return (
+    <div
+      ref={cardRef}
+      style={{
+        width: '100%',
+        maxWidth: 600,
+        background: 'linear-gradient(140deg, #1e293b 0%, #0f172a 100%)',
+        border: '3px solid #f2815a',
+        borderRadius: 24,
+        padding: 40,
+        fontFamily: 'system-ui, sans-serif',
+        position: 'relative',
+        boxSizing: 'border-box',
+      }}
+    >
+      <p style={{ fontSize: 16, letterSpacing: 2, textTransform: 'uppercase', color: '#f2815a', margin: '0 0 16px', fontWeight: 700 }}>
+        Mission Launched 🚀
+      </p>
+      <p style={{ fontSize: 36, fontWeight: 900, color: '#f8fafc', margin: '0 0 24px', lineHeight: 1.2, wordBreak: 'break-word' }}>
+        {taskName}
+      </p>
+      <div style={{ display: 'flex', gap: 24, marginBottom: 32 }}>
+        <div style={{ background: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 16, flex: 1 }}>
+          <p style={{ margin: 0, fontSize: 32, fontWeight: 800, color: '#f8fafc' }}>{allocatedMin}<span style={{ fontSize: 16, fontWeight: 600, color: '#94a3b8', marginLeft: 6 }}>min</span></p>
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>Allocated Time</p>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 16, flex: 1 }}>
+          <p style={{ margin: 0, fontSize: 32, fontWeight: 800, color: '#f8fafc' }}>{taxMultiplier.toFixed(1)}×</p>
+          <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>ADHD Tax Applied</p>
+        </div>
+      </div>
+      <p style={{ margin: 0, fontSize: 14, color: '#64748b', textAlign: 'right', fontWeight: 500 }}>
+        Time-Blindness Translator
+      </p>
+    </div>
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -35,11 +79,16 @@ export default function ActiveTimerScreen() {
   const completingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // "Witness Me" mission-start announcement toast (one-time dismissible)
-  const [showWitnessToast, setShowWitnessToast] = useState(true);
+  const [showWitnessToast, setShowWitnessToast] = useState(() => {
+    return state.actualMinutes >= 15 || state.taxMultiplier >= 1.5;
+  });
 
   // Halfway nudge state
   const [hasShownNudge, setHasShownNudge] = useState(false);
   const [showNudgeToast, setShowNudgeToast] = useState(false);
+
+  // Card reference for html-to-image capture
+  const cardRef = useRef<HTMLDivElement>(null);
 
   // Auto-dismiss the start toast after 10s if untouched
   useEffect(() => {
@@ -51,47 +100,77 @@ export default function ActiveTimerScreen() {
 
   const handleStartShare = useCallback(async () => {
     setShowWitnessToast(false);
+    dispatch({ type: 'ANNOUNCE_MISSION' });
 
     const shareText = `Just set a ${state.actualMinutes}-min timer for '${state.taskName}' using the ADHD Tax method on Time-Blindness Translator. Witness me. 👀 @Aditya_X_Writes`;
-    const shareUrl = 'https://time-blindness-translator.vercel.app';
-    const twitterIntentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
+    const shareUrl = `https://time-blindness-translator.vercel.app/?challenge=${encodeURIComponent(state.taskName)}&min=${state.actualMinutes}`;
+    const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
 
-    const isMobile =
-      typeof navigator !== 'undefined' &&
-      /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    const isMobile = typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches;
+    const canNativeShare = isMobile && typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
-    if (isMobile && typeof navigator.share === 'function') {
+    if (canNativeShare) {
+      console.warn('[DEV] Witness Me Branch: Mobile Native Share (Async Image Generation)');
       try {
-        await navigator.share({
+        if (!cardRef.current) throw new Error('No card ref');
+        const blob = await toBlob(cardRef.current, {
+          cacheBust: true,
+          pixelRatio: 2,
+          backgroundColor: '#0f172a',
+          fontEmbedCSS: '',
+        });
+        
+        let sharePayload: ShareData = {
           title: 'Time-Blindness Translator',
           text: shareText,
           url: shareUrl,
-        });
-        return;
-      } catch (err: unknown) {
-        // If user cancelled the share sheet, exit gracefully
-        if (err instanceof Error && err.name === 'AbortError') {
-          return;
+        };
+
+        if (blob) {
+          const file = new File([blob], 'mission-launched.png', { type: 'image/png' });
+          if (navigator.canShare && navigator.canShare({ files: [file] })) {
+             sharePayload.files = [file];
+          }
         }
-        // If mobile share failed for other reasons, fall through to desktop fallback
+        
+        await navigator.share(sharePayload);
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name === 'AbortError') return;
+        console.warn('[DEV] Witness Me Branch: Mobile Share Failed -> Fallback to Twitter Intent');
+        window.open(intentUrl, '_blank', 'noopener,noreferrer');
       }
+      return;
     }
 
-    // Desktop (PC / Mac) fallback OR mobile share failure fallback:
-    // 1. Copy to clipboard for easy pasting anywhere
-    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
-      try {
-        await navigator.clipboard.writeText(`${shareText} ${shareUrl}`);
-      } catch {
-        // Silently ignore clipboard write rejections (e.g. lack of focus/permissions)
-      }
-    }
-
-    // 2. Open Twitter intent in a new tab (never navigate current tab)
+    // Desktop (PC / Mac) fallback OR mobile without share support:
+    // Open Twitter intent immediately and synchronously to avoid popup blockers.
+    console.warn('[DEV] Witness Me Branch: Desktop Twitter Intent (Sync)');
     if (typeof window !== 'undefined') {
-      window.open(twitterIntentUrl, '_blank', 'noopener,noreferrer');
+      window.open(intentUrl, '_blank', 'noopener,noreferrer');
     }
-  }, [state.actualMinutes, state.taskName]);
+
+    // Fire-and-forget clipboard copy after window.open
+    if (typeof navigator !== 'undefined' && navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(`${shareText} ${shareUrl}`).catch(() => {});
+    }
+
+    // Generate and download image asynchronously
+    if (cardRef.current) {
+      toPng(cardRef.current, {
+        cacheBust: true,
+        pixelRatio: 2,
+        backgroundColor: '#0f172a',
+        fontEmbedCSS: '',
+      }).then((dataUrl) => {
+        const link = document.createElement('a');
+        link.download = `mission-launched-${Date.now()}.png`;
+        link.href = dataUrl;
+        link.click();
+      }).catch(err => {
+        console.warn('[DEV] Off-screen image capture failed:', err);
+      });
+    }
+  }, [state.actualMinutes, state.taskName, dispatch]);
 
   useEffect(() => {
     if (!isCompleting) return;
@@ -434,6 +513,16 @@ export default function ActiveTimerScreen() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Off-screen render of Mission Launched card for html-to-image capture */}
+      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', pointerEvents: 'none' }} aria-hidden="true">
+        <MissionLaunchedCard 
+          cardRef={cardRef} 
+          taskName={state.taskName} 
+          allocatedMin={state.actualMinutes} 
+          taxMultiplier={state.taxMultiplier} 
+        />
+      </div>
     </div>
   );
 }

@@ -385,10 +385,11 @@ export default function SuccessScreen() {
 
   // Build share URLs on mount (client-only — window.location)
   useEffect(() => {
-    const text =
-      `I just completed "${state.taskName}" in ${episodesStr} episodes of The Office! ✅\n\n` +
-      `Time-Blindness Translator keeps my ADHD brain honest 🧠⏳\n\n` +
-      `@Aditya_X_Writes`;
+    const text = state.wasAnnounced
+      ? `Said I'd do it in ${state.actualMinutes}. Witness me. ✅ Delivered.\n\n"${state.taskName}" complete.`
+      : `I just completed "${state.taskName}" in ${episodesStr} episodes of The Office! ✅\n\n` +
+        `Time-Blindness Translator keeps my ADHD brain honest 🧠⏳\n\n` +
+        `@Aditya_X_Writes`;
     setShareUrl(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`);
     setWaShareUrl(`https://wa.me/?text=${encodeURIComponent(text)}`);
     setCanNativeShare(typeof navigator !== 'undefined' && !!navigator.share);
@@ -396,9 +397,10 @@ export default function SuccessScreen() {
 
   // Native share handler
   const handleNativeShare = useCallback(async () => {
-    const text =
-      `I just completed "${state.taskName}" in ${episodesStr} episodes of The Office! ✅\n\n` +
-      `Time-Blindness Translator keeps my ADHD brain honest 🧠⏳`;
+    const text = state.wasAnnounced
+      ? `Said I'd do it in ${state.actualMinutes}. Witness me. ✅ Delivered.\n\n"${state.taskName}" complete.`
+      : `I just completed "${state.taskName}" in ${episodesStr} episodes of The Office! ✅\n\n` +
+        `Time-Blindness Translator keeps my ADHD brain honest 🧠⏳`;
     try {
       await navigator.share({ title: 'My Mission', text });
     } catch {
