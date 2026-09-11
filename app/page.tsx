@@ -99,6 +99,25 @@ const TRACK_LABELS: Record<Track, string> = {
 function AppContent() {
   const { state } = useTimer();
 
+  // ── Mission Counter ────────────────────────────────────────────────────
+  const [dailyCount, setDailyCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    async function fetchCount() {
+      try {
+        const res = await fetch('/api/mission-count');
+        if (!res.ok) return;
+        const data = await res.json();
+        if (typeof data.count === 'number' && data.count > 0) {
+          setDailyCount(data.count);
+        }
+      } catch {
+        // Silently ignore
+      }
+    }
+    fetchCount();
+  }, []);
+
   // ── Theme state ────────────────────────────────────────────────────────
   const [themePref,    setThemePref]    = useState<ThemePreference>('system');
   const [resolvedDark, setResolvedDark] = useState(false);
@@ -218,6 +237,16 @@ function AppContent() {
             <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted)' }}>
               for brains that think "15 minutes" is a social construct
             </p>
+            {dailyCount !== null && (
+              <motion.p 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                className="text-xs mt-0.5 font-medium" 
+                style={{ color: 'var(--color-coral-500)' }}
+              >
+                {dailyCount.toLocaleString()} missions completed today
+              </motion.p>
+            )}
           </div>
 
           {/* Controls */}
@@ -300,7 +329,7 @@ function AppContent() {
         {/* AdSense slot — activate by swapping YOUR_ADSENSE_ID */}
         {/* <ins className="adsbygoogle" data-ad-client="ca-pub-YOUR_ADSENSE_ID" data-ad-slot="XXXXXXXX" data-ad-format="auto" /> */}
         <p className="text-xs" style={{ color: subtitleClr }}>
-          Free forever · No accounts · Nothing stored remotely · Made with <Heart className="inline w-3 h-3 mb-0.5 mx-0.5 fill-current" style={{ color: 'var(--color-coral-500)' }} />
+          Free forever · No accounts · No personal data stored remotely · Made with <Heart className="inline w-3 h-3 mb-0.5 mx-0.5 fill-current" style={{ color: 'var(--color-coral-500)' }} />
         </p>
       </footer>
 

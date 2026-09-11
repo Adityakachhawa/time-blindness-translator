@@ -201,6 +201,13 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     incrementLifetimeStats(minutesSaved, state.extensionCount);
     incrementDailyCount(new Date(state.completedAt));
 
+    // Fire-and-forget mission counter increment
+    try {
+      fetch('/api/mission-count', { method: 'POST' }).catch(() => {});
+    } catch {
+      // Silently fail
+    }
+
     const KEY = 'tbt_history';
 
     try {
