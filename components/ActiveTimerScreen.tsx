@@ -210,14 +210,19 @@ export default function ActiveTimerScreen() {
   const scaleSpring = useSpring(fillMV, { stiffness: 28, damping: 16 });
 
   useEffect(() => {
-    if (!state.endTime) return;
+    if (!state.endTime || state.status !== 'active') return;
     const endTime = state.endTime as number;
     const totalMs = state.actualMinutes * 60_000;
 
     const id = setInterval(() => {
-      const remaining = Math.max(0, endTime - Date.now());
+      const diff = endTime - Date.now();
+      const remaining = Math.max(0, diff);
       setMsLeft(remaining);
-      fillMV.set(Math.min(1, remaining / totalMs));
+      fillMV.set(Math.max(0, Math.min(1, remaining / totalMs)));
+
+      if (diff <= 0 && !state.isOvertimeAcknowledged) {
+        dispatch({ type: 'EXPIRE_TIMER' });
+      }
 
       // Halfway check: elapsed time has crossed 50% of the total actualMinutes
       const elapsed = totalMs - remaining;
@@ -227,176 +232,203 @@ export default function ActiveTimerScreen() {
     }, 100);
 
     return () => clearInterval(id);
-  }, [state.endTime, state.actualMinutes, fillMV, hasShownNudge]);
+  }, [state.endTime, state.actualMinutes, state.status, state.isOvertimeAcknowledged, fillMV, hasShownNudge, dispatch]);
 
   // Derived display values
   const totalMs = state.actualMinutes * 60_000;
   const fillRatio = Math.min(1, Math.max(0, msLeft / totalMs));
   const pctLeft = Math.round(fillRatio * 100);
-  const isLow = fillRatio < 0.22;
+  const isLow = fillRatio < 0.22 && !state.isOvertimeAcknowledged && msLeft > 0;
   const timeLabel = formatTime(msLeft);
   const blockBg = useMemo(() => computeBlockColor(fillRatio), [fillRatio]);
 
   return (
-    <div className="flex flex-col items-center gap-8 w-full">
-
-      {/* ── Task banner ───────────────────────────────────────────────────── */}
+    <div className="flex flex-col items-center justify-between w-full min-h-[85vh] relative">
+      {/* ── Immersive Full-Screen Background ───────────────────────────────── */}
+      <div className="fixed inset-0 z-0 bg-slate-900 pointer-events-none" />
       <motion.div
-        initial={{ opacity: 0, y: -14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4 }}
-        className="w-full text-center"
-      >
-        <p
-          className="text-xs uppercase tracking-widest font-semibold mb-1"
-          style={{ color: 'var(--color-ink-400)' }}
-        >
-          Currently tackling
-        </p>
-        <h2
-          className="text-2xl font-bold leading-snug"
-          style={{ color: 'var(--color-ink-900)' }}
-        >
-          {state.taskName || 'Your mission'}
-        </h2>
-        <p className="text-sm mt-1" style={{ color: 'var(--color-ink-500)' }}>
-          {state.actualMinutes} min allocated · ADHD tax included ✓
-        </p>
-      </motion.div>
+        className="fixed inset-0 z-0 pointer-events-none"
+        style={{
+          scaleY: scaleSpring,
+          originY: 1,
+          backgroundColor: blockBg,
+        }}
+      />
 
-      {/* ── Melting-block visual ───────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, scale: 0.88 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ delay: 0.12, duration: 0.4 }}
-        className="flex flex-col items-center"
-      >
-        {/* Vessel (outer container) */}
-        <div
-          className="relative w-44 rounded-3xl overflow-hidden"
-          style={{
-            height: 340,
-            background: 'var(--color-cream-200)',
-            boxShadow:
-              'inset 0 2px 14px rgba(0,0,0,0.09), 0 6px 28px rgba(0,0,0,0.07)',
-          }}
-          role="progressbar"
-          aria-valuenow={pctLeft}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-label={`${pctLeft}% time remaining for ${state.taskName}`}
+      {/* ── Main Content ─────────────────────────────────────────── */}
+      <div className="relative z-10 flex flex-col items-center w-full flex-1">
+        {/* ── Task banner ───────────────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: -14 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4 }}
+          className="w-full text-center mt-4"
         >
-          {/* Coloured fill — scaleY shrinks from the top, like a melting ice block */}
-          <motion.div
-            className="absolute inset-x-0 top-0 rounded-3xl"
-            style={{
-              height: '100%',
-              scaleY: scaleSpring,
-              originY: 0,
-              backgroundColor: blockBg,
-              // Soft glow intensifies when running low
-              boxShadow: isLow
-                ? `0 0 32px ${blockBg}99, 0 0 8px ${blockBg}66`
-                : `0 0 14px ${blockBg}55`,
-            }}
-          />
+          <p
+            className="text-xs uppercase tracking-widest font-semibold mb-1"
+            style={{ color: 'rgba(255,255,255,0.6)' }}
+          >
+            Currently tackling
+          </p>
+          <h2
+            className="text-2xl font-bold leading-snug text-white"
+          >
+            {state.taskName || 'Your mission'}
+          </h2>
+          <p className="text-sm mt-1 font-medium" style={{ color: 'rgba(255,255,255,0.8)' }}>
+            {state.actualMinutes} min allocated
+          </p>
+        </motion.div>
 
-          {/* Percentage label centred inside the block */}
-          <div className="absolute inset-0 flex flex-col items-center justify-center z-10 pointer-events-none">
-            <span
-              className="text-5xl font-black tabular-nums select-none leading-none"
-              style={{
-                color: fillRatio > 0.25
-                  ? 'rgba(255,255,255,0.92)'
-                  : 'var(--color-ink-800)',
-                textShadow:
-                  fillRatio > 0.25 ? '0 1px 6px rgba(0,0,0,0.22)' : 'none',
-              }}
+        {/* ── Central Timer Display ───────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.88 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.12, duration: 0.4 }}
+          className="flex flex-col items-center justify-center flex-1 my-12"
+        >
+          {state.isOvertimeAcknowledged ? (
+            <div className="flex flex-col items-center gap-3">
+              <div className="px-5 py-2.5 rounded-full border-[1.5px] border-dashed border-white/40 text-white/90 font-bold tracking-widest uppercase text-xs">
+                Overtime Active
+              </div>
+              <p className="text-sm text-white/70 max-w-62.5 text-center">
+                Take as long as you need. No pressure.
+              </p>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center">
+              <p
+                className="text-7xl font-black tabular-nums tracking-tighter text-white"
+                style={{
+                  textShadow: '0 4px 32px rgba(0,0,0,0.15)',
+                }}
+              >
+                {timeLabel}
+              </p>
+              <p 
+                className="text-lg mt-3 font-semibold" 
+                style={{ color: 'rgba(255,255,255,0.7)' }}
+              >
+                {pctLeft}% remaining
+              </p>
+            </div>
+          )}
+        </motion.div>
+
+        {/* ── Motivational micro-copy ───────────────────────────────────────── */}
+        <div className="w-full mb-6 mt-auto">
+          {isLow ? (
+            <motion.p
+              animate={{ opacity: [0.65, 1, 0.65] }}
+              transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+              className="text-base font-semibold text-center px-4 text-white"
             >
-              {pctLeft}
-            </span>
-            <span
-              className="text-lg font-semibold mt-1 select-none"
-              style={{
-                color: fillRatio > 0.25
-                  ? 'rgba(255,255,255,0.7)'
-                  : 'var(--color-ink-500)',
-              }}
+              Almost there — you're doing great! <Zap className="inline w-4 h-4 mb-0.5 ml-0.5" strokeWidth={2.5} />
+            </motion.p>
+          ) : (
+            <p
+              className="text-sm text-center px-4"
+              style={{ color: 'rgba(255,255,255,0.7)' }}
             >
-              %
-            </span>
-          </div>
+              Stay with it. Your brain is doing the thing. <Brain className="inline w-4 h-4 mb-0.5 ml-0.5" strokeWidth={1.75} />
+            </p>
+          )}
         </div>
 
-        {/* Small faded numerical countdown — reference only */}
-        <p
-          className="mt-5 text-3xl font-mono font-light tabular-nums select-none"
-          style={{ color: 'var(--fg)' }}
-          aria-live="off"
+        {/* ── I Did It! CTA ─────────────────────────────────────────────────── */}
+        <motion.button
+          whileHover={{ scale: 1.03, y: -3 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={handleCompleteTap}
+          id="complete-mission-btn"
+          className="w-full flex items-center justify-center gap-3 rounded-2xl py-5 text-xl font-bold text-white shadow-2xl relative z-10"
+          style={{
+            background: isCompleting
+              ? 'linear-gradient(135deg, #f5a623 0%, #d8880a 100%)'
+              : 'rgba(255,255,255,0.15)',
+            backdropFilter: 'blur(12px)',
+            border: isCompleting ? 'none' : '1.5px solid rgba(255,255,255,0.3)',
+            minHeight: 72,
+            transition: 'all 300ms ease',
+          }}
+          aria-label={isCompleting ? 'Undo — cancel completion' : 'I completed the task'}
         >
-          {timeLabel}
-        </p>
-        <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
-          left on the clock
-        </p>
-      </motion.div>
+          {isCompleting ? (
+            <>
+              <Undo2 className="w-7 h-7 shrink-0" strokeWidth={2.5} />
+              Completing… Tap to Undo
+            </>
+          ) : (
+            <>
+              <CheckCircle className="w-7 h-7 shrink-0" strokeWidth={2.5} />
+              I Did It!
+            </>
+          )}
+        </motion.button>
 
-      {/* Motivational micro-copy — pulses gently when low */}
-      {isLow ? (
-        <motion.p
-          animate={{ opacity: [0.65, 1, 0.65] }}
-          transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
-          className="text-base font-semibold text-center px-4"
-          style={{ color: 'var(--color-coral-600)' }}
-        >
-          Almost there — you're doing great! <Zap className="inline w-4 h-4 mb-0.5 ml-0.5" strokeWidth={2.5} />
-        </motion.p>
-      ) : (
-        <p
-          className="text-sm text-center px-4"
-          style={{ color: 'var(--color-ink-500)' }}
-        >
-          Stay with it. Your brain is doing the thing. <Brain className="inline w-4 h-4 mb-0.5 ml-0.5" strokeWidth={1.75} />
+        <p className="text-xs text-center pt-3" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          {isCompleting
+            ? 'Changed your mind? Tap the button above to cancel.'
+            : 'Tap any time you finish — even before the timer ends.'}
         </p>
-      )}
+      </div>
 
-      {/* ── I Did It! CTA (with 3-second undo grace period) ────────────────── */}
-      <motion.button
-        whileHover={{ scale: 1.03, y: -3 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={handleCompleteTap}
-        id="complete-mission-btn"
-        className="w-full flex items-center justify-center gap-3 rounded-2xl py-5 text-xl font-bold text-white"
-        style={{
-          background: isCompleting
-            ? 'linear-gradient(135deg, #f5a623 0%, #d8880a 100%)'
-            : 'linear-gradient(135deg, var(--color-sage-500) 0%, var(--color-sage-600) 100%)',
-          boxShadow: isCompleting
-            ? '0 6px 24px rgba(245,166,35,0.45), 0 2px 6px rgba(0,0,0,0.08)'
-            : '0 6px 24px rgba(125,175,156,0.45), 0 2px 6px rgba(0,0,0,0.08)',
-          minHeight: 72,
-          transition: 'background 300ms ease, box-shadow 300ms ease',
-        }}
-        aria-label={isCompleting ? 'Undo — cancel completion' : 'I completed the task'}
-      >
-        {isCompleting ? (
-          <>
-            <Undo2 className="w-7 h-7 shrink-0" strokeWidth={2.5} />
-            Completing… Tap to Undo
-          </>
-        ) : (
-          <>
-            <CheckCircle className="w-7 h-7 shrink-0" strokeWidth={2.5} />
-            I Did It!
-          </>
+      {/* ── Overtime / Hyperfocus Pattern Interrupt ───────────────────────── */}
+      <AnimatePresence>
+        {state.status === 'expired' && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center p-6"
+            style={{
+              background: 'rgba(15, 23, 42, 0.85)',
+              backdropFilter: 'blur(16px)',
+              WebkitBackdropFilter: 'blur(16px)',
+            }}
+          >
+            <motion.div
+              initial={{ scale: 0.9, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              className="w-full max-w-sm bg-white rounded-[32px] p-8 text-center shadow-2xl flex flex-col gap-6"
+              style={{ border: '4px solid var(--color-amber-400)' }}
+            >
+              <div>
+                <h3 className="text-3xl font-black text-slate-900 leading-tight">
+                  Still on track?
+                </h3>
+                <p className="text-slate-500 font-medium mt-2">
+                  Your planned time is up. No stress — just checking in to see what you need next.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-3 mt-2">
+                <button
+                  onClick={() => dispatch({ type: 'ACKNOWLEDGE_OVERTIME' })}
+                  className="w-full py-4 rounded-2xl font-bold text-lg transition-transform active:scale-95 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                >
+                  Keep going
+                </button>
+                <button
+                  onClick={() => dispatch({ type: 'ADD_TEN_MINUTES' })}
+                  className="w-full py-4 rounded-2xl font-bold text-lg transition-transform active:scale-95 text-slate-900"
+                  style={{ background: 'linear-gradient(135deg, var(--color-amber-300) 0%, var(--color-amber-400) 100%)' }}
+                >
+                  Need 10 more min
+                </button>
+                <button
+                  onClick={() => dispatch({ type: 'COMPLETE_MISSION' })}
+                  className="w-full py-4 rounded-2xl font-bold text-lg transition-transform active:scale-95 text-white"
+                  style={{ background: 'linear-gradient(135deg, var(--color-sage-500) 0%, var(--color-sage-600) 100%)' }}
+                >
+                  I'm finished!
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
-      </motion.button>
-
-      <p className="text-xs text-center pb-4" style={{ color: 'var(--color-ink-300)' }}>
-        {isCompleting
-          ? 'Changed your mind? Tap the button above to cancel.'
-          : 'Tap any time you finish — even before the timer ends.'}
-      </p>
+      </AnimatePresence>
 
       {/* ── Halfway Nudge Toast / Notification ───────────────────────── */}
       <AnimatePresence>

@@ -77,6 +77,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         endTime: Date.now() + state.actualMinutes * 60_000,
         startTime: Date.now(),
         extensionCount: 0,
+        isOvertimeAcknowledged: false,
       };
     }
 
@@ -104,6 +105,14 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       };
     }
 
+    case 'ACKNOWLEDGE_OVERTIME': {
+      return {
+        ...state,
+        status: 'active',
+        isOvertimeAcknowledged: true,
+      };
+    }
+
     case 'ADD_TEN_MINUTES': {
       if (state.status !== 'expired') return state;
 
@@ -120,6 +129,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         allocatedMin: nextActual,
         endTime: Date.now() + bonusMinutes * 60_000,
         extensionCount: state.extensionCount + 1,
+        isOvertimeAcknowledged: false,
       };
     }
 

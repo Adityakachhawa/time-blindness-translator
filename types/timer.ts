@@ -33,6 +33,9 @@ export interface TimerState {
   /** Whether the user has chosen to override the smart factor manually */
   isManualOverride?: boolean;
 
+  /** True if the user hit 0 and chose to 'Keep going' in open-ended overtime */
+  isOvertimeAcknowledged?: boolean;
+
   /**
    * Buffered time after applying the tax multiplier, rounded to the
    * nearest 5 minutes.  This is the real countdown duration.
@@ -136,6 +139,11 @@ export interface AnnounceMissionAction {
   type: 'ANNOUNCE_MISSION';
 }
 
+/** User clicked 'Keep going' when the timer hit zero. */
+export interface AcknowledgeOvertimeAction {
+  type: 'ACKNOWLEDGE_OVERTIME';
+}
+
 /** Discriminated union of every action the reducer handles. */
 export type TimerAction =
   | UpdateSetupAction
@@ -144,4 +152,5 @@ export type TimerAction =
   | ExpireTimerAction
   | AddTenMinutesAction
   | AddMinutesAction
-  | AnnounceMissionAction;
+  | AnnounceMissionAction
+  | AcknowledgeOvertimeAction;
