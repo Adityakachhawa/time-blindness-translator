@@ -16,7 +16,7 @@ import {
   TAX_LABELS,
 } from '@/lib/calculations';
 import { unlockAudio } from '@/lib/audio';
-import { getTodayCount, getHasSeenQuiz, markQuizSeen, setMutePreference } from '@/lib/storage';
+import { getTodayCount, getHasSeenQuiz, markQuizSeen, setMutePreference, getRecentUniqueTasks, type RecentTask } from '@/lib/storage';
 import type { Track } from '@/hooks/useAmbientAudio';
 import OnboardingQuiz, { type QuizResult } from '@/components/OnboardingQuiz';
 
@@ -292,7 +292,11 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
 
   // Feature 2: today's streak count
   const [todayCount, setTodayCount] = useState(0);
-  useEffect(() => { setTodayCount(getTodayCount()); }, []);
+  const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
+  useEffect(() => { 
+    setTodayCount(getTodayCount()); 
+    setRecentTasks(getRecentUniqueTasks(4));
+  }, []);
 
   // Feature 5: Surprise Me
   function handleSurpriseMe() {
@@ -743,6 +747,45 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           🎯 Need help starting?
         </button>
       </motion.div>
+
+      {/* ── Recent Missions ─────────────────────────────────────────────── */}
+      {recentTasks.length > 0 && (
+        <motion.div variants={itemVariants} className="mt-2 flex flex-col gap-3 border-t pt-6" style={{ borderColor: 'var(--card-border)' }}>
+          <p
+            className="text-xs uppercase tracking-widest font-semibold text-center"
+            style={{ color: 'var(--muted)' }}
+          >
+            Recent Missions
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            {recentTasks.map((t, i) => (
+              <motion.button
+                key={i}
+                whileHover={{ scale: 1.05, y: -2 }}
+                whileTap={{ scale: 0.96 }}
+                onClick={() =>
+                  dispatch({
+                    type: 'UPDATE_SETUP',
+                    payload: { taskName: t.taskName, initialEstimate: t.initialEstimate },
+                  })
+                }
+                className="flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold shadow-sm transition-colors"
+                style={{
+                  background: 'var(--card)',
+                  border: '1.5px solid var(--card-border)',
+                  color: 'var(--fg)',
+                }}
+                aria-label={`Start again: ${t.taskName}, ${t.initialEstimate} minutes`}
+              >
+                <span>{t.taskName}</span>
+                <span className="text-xs font-medium opacity-60">
+                  {t.initialEstimate}m
+                </span>
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+      )}
     </motion.div>
       )}
     </AnimatePresence>

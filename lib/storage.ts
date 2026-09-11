@@ -91,6 +91,32 @@ export function getTodayCount(): number {
   return history.filter(r => new Date(r.completedAt).toDateString() === today).length;
 }
 
+export interface RecentTask {
+  taskName: string;
+  initialEstimate: number; // minutes
+}
+
+/** Returns the last `limit` unique tasks completed by the user. */
+export function getRecentUniqueTasks(limit: number = 3): RecentTask[] {
+  const history = getTaskHistory();
+  const seen = new Set<string>();
+  const results: RecentTask[] = [];
+
+  for (const record of history) {
+    const key = record.taskName.toLowerCase().trim();
+    if (!seen.has(key) && record.taskName.trim().length > 0) {
+      seen.add(key);
+      const minutes = record.predictedSeconds ? Math.round(record.predictedSeconds / 60) : record.optimisticMin;
+      results.push({
+        taskName: record.taskName,
+        initialEstimate: minutes
+      });
+      if (results.length >= limit) break;
+    }
+  }
+  return results;
+}
+
 // ---------------------------------------------------------------------------
 // Lifetime stats
 // ---------------------------------------------------------------------------
