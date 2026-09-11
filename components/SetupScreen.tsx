@@ -18,6 +18,7 @@ import {
 import { unlockAudio } from '@/lib/audio';
 import { getTodayCount, getHasSeenQuiz, markQuizSeen, setMutePreference, getRecentUniqueTasks, type RecentTask } from '@/lib/storage';
 import { calculatePersonalFactor, formatConfidenceRange } from '@/lib/calibration';
+import { getTinyTemplates } from '@/lib/templates';
 import type { Track } from '@/hooks/useAmbientAudio';
 import OnboardingQuiz, { type QuizResult } from '@/components/OnboardingQuiz';
 
@@ -293,6 +294,9 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
 
   const canStart = state.taskName.trim().length > 0;
 
+  // Feature 6: Make it tiny
+  const [showTinyMode, setShowTinyMode] = useState(false);
+
   // Feature 2: today's streak count
   const [todayCount, setTodayCount] = useState(0);
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
@@ -460,9 +464,68 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           autoComplete="off"
           enterKeyHint="done"
         />
+        {canStart && (
+          <div className="flex justify-end px-1 mt-1">
+            <button
+              onClick={() => setShowTinyMode(!showTinyMode)}
+              className="text-xs font-semibold uppercase tracking-wide opacity-70 hover:opacity-100 transition-opacity flex items-center gap-1"
+              style={{ color: 'var(--color-coral-500)' }}
+            >
+              <Sparkles className="w-3 h-3" />
+              {showTinyMode ? 'Cancel tiny mode' : 'Feeling stuck?'}
+            </button>
+          </div>
+        )}
       </motion.div>
 
-      {/* ── Minute stepper ─────────────────────────────────────────────── */}
+      {/* ── Feature 6: Make it tiny ──────────────────────────────────────── */}
+      {showTinyMode ? (
+        <motion.div variants={itemVariants} className="flex flex-col gap-3">
+          <p className="text-sm font-semibold uppercase tracking-wide text-center" style={{ color: 'var(--muted)' }}>
+            Make it tiny (1-tap start)
+          </p>
+          <div className="flex gap-3">
+            {[
+              { min: 5, template: getTinyTemplates(state.taskName).min5 },
+              { min: 15, template: getTinyTemplates(state.taskName).min15 }
+            ].map((tiny) => (
+              <motion.button
+                key={tiny.min}
+                whileHover={{ scale: 1.02, y: -2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => {
+                  dispatch({
+                    type: 'UPDATE_SETUP',
+                    payload: { 
+                      taskName: `${state.taskName.trim()} (${tiny.min}-Min Starter)`, 
+                      initialEstimate: tiny.min, 
+                      taxMultiplier: 1.0, 
+                      isManualOverride: true, 
+                      transitionMinutes: 0 
+                    },
+                  });
+                  // Immediately start the mission
+                  setTimeout(() => dispatch({ type: 'START_MISSION' }), 50);
+                }}
+                className="flex-1 flex flex-col gap-2 rounded-2xl p-4 text-left transition-colors border"
+                style={{
+                  background: 'var(--card)',
+                  borderColor: 'var(--color-coral-400)',
+                  boxShadow: '0 4px 12px rgba(242,129,90,0.1)',
+                }}
+              >
+                <div className="flex items-center gap-2">
+                  <Timer className="w-4 h-4" style={{ color: 'var(--color-coral-500)' }} />
+                  <span className="font-black text-lg" style={{ color: 'var(--fg)' }}>{tiny.min} min</span>
+                </div>
+                <p className="text-sm leading-snug" style={{ color: 'var(--muted)' }}>{tiny.template}</p>
+              </motion.button>
+            ))}
+          </div>
+        </motion.div>
+      ) : (
+        <>
+          {/* ── Minute stepper ─────────────────────────────────────────────── */}
       <motion.div variants={itemVariants} className="flex flex-col gap-2">
         <label
           htmlFor="estimate-input"
@@ -679,6 +742,8 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
             </span>
           </p>
         </motion.div>
+      )}
+      </>
       )}
 
       {/* ── Anchor Cards ───────────────────────────────────────────────── */}
