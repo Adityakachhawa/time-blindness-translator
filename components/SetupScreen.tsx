@@ -17,6 +17,7 @@ import {
 } from '@/lib/calculations';
 import { unlockAudio } from '@/lib/audio';
 import { getTodayCount, getHasSeenQuiz, markQuizSeen, setMutePreference, getRecentUniqueTasks, type RecentTask } from '@/lib/storage';
+import { calculatePersonalFactor, formatConfidenceRange } from '@/lib/calibration';
 import type { Track } from '@/hooks/useAmbientAudio';
 import OnboardingQuiz, { type QuizResult } from '@/components/OnboardingQuiz';
 
@@ -232,7 +233,8 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         const min = parseInt(minStr, 10);
         if (!isNaN(min)) {
           setChallengeData({ taskName: challenge, min });
-          dispatch({ type: 'UPDATE_SETUP', payload: { taskName: challenge, initialEstimate: min } });
+          const factor = calculatePersonalFactor(challenge);
+          dispatch({ type: 'UPDATE_SETUP', payload: { taskName: challenge, initialEstimate: min, personalFactor: factor, isManualOverride: false } });
           bypassQuiz = true;
           // Clean up the URL so it doesn't persist
           window.history.replaceState({}, '', window.location.pathname);
@@ -248,9 +250,10 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
   }, [dispatch]);
 
   function handleQuizComplete(res: QuizResult) {
+    const factor = calculatePersonalFactor(res.taskName);
     dispatch({ 
       type: 'UPDATE_SETUP', 
-      payload: { taskName: res.taskName, initialEstimate: res.initialEstimate } 
+      payload: { taskName: res.taskName, initialEstimate: res.initialEstimate, personalFactor: factor, isManualOverride: false } 
     });
     
     if (setTrack) setTrack(res.track);
@@ -394,12 +397,13 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
               key={t.label}
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.96 }}
-              onClick={() =>
+              onClick={() => {
+                const factor = calculatePersonalFactor(t.label);
                 dispatch({
                   type: 'UPDATE_SETUP',
-                  payload: { taskName: t.label, initialEstimate: t.minutes },
-                })
-              }
+                  payload: { taskName: t.label, initialEstimate: t.minutes, personalFactor: factor, isManualOverride: false },
+                });
+              }}
               className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium shrink-0 whitespace-nowrap"
               style={{
                 background: 'var(--card)',
@@ -429,12 +433,14 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           type="text"
           placeholder="e.g. Fold laundry, write that email…"
           value={state.taskName}
-          onChange={e =>
+          onChange={e => {
+            const nextName = e.target.value;
+            const factor = calculatePersonalFactor(nextName);
             dispatch({
               type: 'UPDATE_SETUP',
-              payload: { taskName: e.target.value },
-            })
-          }
+              payload: { taskName: nextName, personalFactor: factor, isManualOverride: false },
+            });
+          }}
           className="w-full rounded-2xl px-5 py-4 text-lg font-medium placeholder-shown:italic"
           style={{
             background: 'var(--card)',
@@ -485,134 +491,166 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         </div>
       </motion.div>
 
-      {/* ── ADHD Tax Slider ────────────────────────────────────────────── */}
-      <motion.div variants={itemVariants} className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
+      {/* ── Smart Predictions or ADHD Tax Slider ───────────────────────── */}
+      {state.personalFactor !== null && state.personalFactor !== undefined && !state.isManualOverride ? (
+        <motion.div variants={itemVariants} className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
             <label
-              htmlFor="tax-slider"
-              className="text-sm font-semibold uppercase tracking-wide"
+              className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2"
+              style={{ color: 'var(--color-coral-500)' }}
+            >
+              <Sparkles className="w-4 h-4" />
+              Based on your history
+            </label>
+            <button
+              onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { isManualOverride: true } })}
+              className="text-xs font-medium underline opacity-70 hover:opacity-100 transition-opacity"
               style={{ color: 'var(--muted)' }}
             >
-              ADHD Tax
-            </label>
-            <motion.button
-              whileHover={{ scale: 1.1, rotate: 15 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleSurpriseMe}
-              className="p-1 rounded-lg transition-colors flex items-center justify-center shadow-sm border"
-              style={{ color: 'var(--color-coral-500)', borderColor: 'var(--card-border)', background: 'var(--card)' }}
-              aria-label="Surprise me with a random tax multiplier"
-            >
-              <Dices className="w-4 h-4" strokeWidth={2.5} />
-            </motion.button>
+              Override manually
+            </button>
           </div>
-          <span
-            className="text-base font-black tabular-nums"
-            style={{ color: 'var(--color-coral-500)' }}
+          <div
+            className="w-full rounded-2xl px-5 py-5 flex items-center justify-center"
+            style={{
+              background: 'var(--card)',
+              border: '2px solid var(--color-coral-400)',
+              boxShadow: '0 4px 20px rgba(242,129,90,0.1)',
+              backdropFilter: 'blur(8px)',
+            }}
           >
-            {state.taxMultiplier.toFixed(1)}×
-          </span>
-        </div>
-
-        <div
-          className="w-full rounded-2xl px-5 py-5 flex flex-col gap-3"
-          style={{
-            background: 'var(--card)',
-            border: '2px solid var(--card-border)',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          {/* Mood badge */}
-          <div className="flex items-center gap-2">
-            <LucideIconComponent
-              name={taxLabel.icon}
-              className="w-6 h-6 shrink-0"
-              strokeWidth={1.75}
-            />
-            <div>
-              <p
-                className="font-semibold text-sm"
-                style={{ color: 'var(--fg)' }}
+             <span className="text-2xl font-black" style={{ color: 'var(--fg)' }}>
+                {formatConfidenceRange(state.actualMinutes)}
+             </span>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div variants={itemVariants} className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor="tax-slider"
+                className="text-sm font-semibold uppercase tracking-wide"
+                style={{ color: 'var(--muted)' }}
               >
-                {taxLabel.description}
-              </p>
-              <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                Today feels like a{' '}
-                <strong>{state.taxMultiplier.toFixed(1)}×</strong> day
-              </p>
+                {state.personalFactor ? 'Manual Override' : 'Starter estimate'}
+              </label>
+              <motion.button
+                whileHover={{ scale: 1.1, rotate: 15 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleSurpriseMe}
+                className="p-1 rounded-lg transition-colors flex items-center justify-center shadow-sm border"
+                style={{ color: 'var(--color-coral-500)', borderColor: 'var(--card-border)', background: 'var(--card)' }}
+                aria-label="Surprise me with a random tax multiplier"
+              >
+                <Dices className="w-4 h-4" strokeWidth={2.5} />
+              </motion.button>
+            </div>
+            <span
+              className="text-base font-black tabular-nums"
+              style={{ color: 'var(--color-coral-500)' }}
+            >
+              {state.taxMultiplier.toFixed(1)}×
+            </span>
+          </div>
+
+          <div
+            className="w-full rounded-2xl px-5 py-5 flex flex-col gap-3"
+            style={{
+              background: 'var(--card)',
+              border: '2px solid var(--card-border)',
+              backdropFilter: 'blur(8px)',
+            }}
+          >
+            {/* Mood badge */}
+            <div className="flex items-center gap-2">
+              <LucideIconComponent
+                name={taxLabel.icon}
+                className="w-6 h-6 shrink-0"
+                strokeWidth={1.75}
+              />
+              <div>
+                <p
+                  className="font-semibold text-sm"
+                  style={{ color: 'var(--fg)' }}
+                >
+                  {taxLabel.description}
+                </p>
+                <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                  Today feels like a{' '}
+                  <strong>{state.taxMultiplier.toFixed(1)}×</strong> day
+                </p>
+              </div>
+            </div>
+
+            {/* Slider with gradient fill */}
+            <input
+              id="tax-slider"
+              type="range"
+              min={TAX_MULTIPLIER_MIN}
+              max={TAX_MULTIPLIER_MAX}
+              step={0.1}
+              value={state.taxMultiplier}
+              onChange={e =>
+                dispatch({
+                  type: 'UPDATE_SETUP',
+                  payload: { taxMultiplier: parseFloat(e.target.value), isManualOverride: true },
+                })
+              }
+              style={{
+                background: `linear-gradient(to right, var(--color-coral-500) ${sliderPct}%, var(--color-cream-300) ${sliderPct}%)`,
+              }}
+              aria-label="ADHD tax multiplier"
+              aria-valuenow={state.taxMultiplier}
+              aria-valuemin={TAX_MULTIPLIER_MIN}
+              aria-valuemax={TAX_MULTIPLIER_MAX}
+            />
+
+            {/* Tick labels */}
+            <div className="flex justify-between px-1">
+              {TAX_LABELS.map(tl => (
+                <span
+                  key={tl.value}
+                  className="text-xs font-mono"
+                  style={{
+                    color:
+                      Math.abs(tl.value - state.taxMultiplier) < 0.06
+                        ? 'var(--color-coral-500)'
+                        : 'var(--color-ink-300)',
+                    fontWeight:
+                      Math.abs(tl.value - state.taxMultiplier) < 0.06
+                        ? 700
+                        : 400,
+                  }}
+                >
+                  {tl.label}
+                </span>
+              ))}
             </div>
           </div>
-
-          {/* Slider with gradient fill */}
-          <input
-            id="tax-slider"
-            type="range"
-            min={TAX_MULTIPLIER_MIN}
-            max={TAX_MULTIPLIER_MAX}
-            step={0.1}
-            value={state.taxMultiplier}
-            onChange={e =>
-              dispatch({
-                type: 'UPDATE_SETUP',
-                payload: { taxMultiplier: parseFloat(e.target.value) },
-              })
-            }
-            style={{
-              background: `linear-gradient(to right, var(--color-coral-500) ${sliderPct}%, var(--color-cream-300) ${sliderPct}%)`,
-            }}
-            aria-label="ADHD tax multiplier"
-            aria-valuenow={state.taxMultiplier}
-            aria-valuemin={TAX_MULTIPLIER_MIN}
-            aria-valuemax={TAX_MULTIPLIER_MAX}
-          />
-
-          {/* Tick labels */}
-          <div className="flex justify-between px-1">
-            {TAX_LABELS.map(tl => (
-              <span
-                key={tl.value}
-                className="text-xs font-mono"
-                style={{
-                  color:
-                    Math.abs(tl.value - state.taxMultiplier) < 0.06
-                      ? 'var(--color-coral-500)'
-                      : 'var(--color-ink-300)',
-                  fontWeight:
-                    Math.abs(tl.value - state.taxMultiplier) < 0.06
-                      ? 700
-                      : 400,
-                }}
-              >
-                {tl.label}
-              </span>
-            ))}
-          </div>
-        </div>
-      </motion.div>
+        </motion.div>
+      )}
 
       {/* ── Reality Check pill ─────────────────────────────────────────── */}
-      <motion.div
-        variants={itemVariants}
-        className="flex items-center justify-center gap-3 rounded-2xl py-3 px-5"
-        style={{
-          background:
-            'linear-gradient(135deg, var(--color-amber-300)44, var(--color-amber-400)22)',
-          border: '1.5px solid var(--color-amber-400)',
-        }}
-      >
-        <Calculator className="w-5 h-5 shrink-0" style={{ color: 'var(--color-amber-500)' }} strokeWidth={1.75} />
-        <p style={{ color: 'var(--fg)' }}>
-          <span className="font-medium">Reality check: </span>
-          <span className="font-black text-xl">
-            {state.actualMinutes} minutes
-          </span>{' '}
-          <span className="text-sm">
-            ({state.initialEstimate} × {state.taxMultiplier.toFixed(1)}×,
-            rounded to 5)
-          </span>
-        </p>
-      </motion.div>
+      {(!state.personalFactor || state.isManualOverride) && (
+        <motion.div
+          variants={itemVariants}
+          className="flex items-center justify-center gap-3 rounded-2xl py-3 px-5"
+          style={{
+            background:
+              'linear-gradient(135deg, var(--color-amber-300)44, var(--color-amber-400)22)',
+            border: '1.5px solid var(--color-amber-400)',
+          }}
+        >
+          <Calculator className="w-5 h-5 shrink-0" style={{ color: 'var(--color-amber-500)' }} strokeWidth={1.75} />
+          <p style={{ color: 'var(--fg)' }}>
+            <span className="font-medium">Starter estimate: </span>
+            <span className="font-black text-xl">
+              {formatConfidenceRange(state.actualMinutes)}
+            </span>
+          </p>
+        </motion.div>
+      )}
 
       {/* ── Anchor Cards ───────────────────────────────────────────────── */}
       <motion.div variants={itemVariants} className="flex flex-col gap-3">

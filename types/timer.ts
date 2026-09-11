@@ -27,6 +27,12 @@ export interface TimerState {
   /** ADHD Tax multiplier – 1.0 (mild) to 2.5 (severe). */
   taxMultiplier: number;
 
+  /** Personalized learning factor based on user history */
+  personalFactor?: number | null;
+
+  /** Whether the user has chosen to override the smart factor manually */
+  isManualOverride?: boolean;
+
   /**
    * Buffered time after applying the tax multiplier, rounded to the
    * nearest 5 minutes.  This is the real countdown duration.
@@ -89,7 +95,7 @@ export type CertTheme = 'classic' | 'dark' | 'chaos';
  */
 export interface UpdateSetupAction {
   type: 'UPDATE_SETUP';
-  payload: Partial<Pick<TimerState, 'taskName' | 'initialEstimate' | 'taxMultiplier'>>;
+  payload: Partial<Pick<TimerState, 'taskName' | 'initialEstimate' | 'taxMultiplier' | 'personalFactor' | 'isManualOverride'>>;
 }
 
 /** Transitions from setup → active, setting an absolute endTime. */
