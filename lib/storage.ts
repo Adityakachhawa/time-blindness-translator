@@ -233,7 +233,9 @@ export function getWeeklyStats(): WeeklyStats {
   const taglines: string[] = [];
   
   history.forEach(r => {
-    minutesReclaimed += Math.max(0, r.allocatedMin - r.optimisticMin);
+    const alloc = r.allocatedMin || 0;
+    const opt = r.optimisticMin || 0;
+    minutesReclaimed += Math.max(0, alloc - opt);
     
     const lowerName = r.taskName.toLowerCase().trim();
     taskCounts[lowerName] = (taskCounts[lowerName] || 0) + 1;

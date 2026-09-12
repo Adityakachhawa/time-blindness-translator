@@ -87,18 +87,16 @@ export default function WeeklyReport() {
   const s = {
     containerBg:     'linear-gradient(135deg, #fdfbfb 0%, #ebedee 100%)',
     containerBorder: '3px solid #d6d3d1',
-    innerBorder:     '1px solid rgba(120, 113, 108, 0.2)',
     headerSub:       '#78716c',
     divider:         '#d6d3d1',
     statsBg:         'rgba(255, 255, 255, 0.7)',
-    statsBorder:     '1px solid rgba(120, 113, 108, 0.2)',
     statsVal:        '#292524',
     statsLabel:      '#57534e',
     footer:          '#78716c',
   };
 
   return (
-    <div className="w-full flex flex-col items-center gap-6 pb-8">
+    <div className="w-full flex flex-col items-center gap-6 pb-24">
       <div className="w-full relative px-2 max-w-110 mx-auto">
         {/* The exportable container */}
         <div
@@ -111,22 +109,14 @@ export default function WeeklyReport() {
             border: s.containerBorder,
             borderRadius: 32,
             padding: '48px 32px',
-            fontFamily: 'Georgia, "Times New Roman", serif',
+            fontFamily: 'inherit',
             position: 'relative',
-            overflow: 'hidden',
+            overflow: 'visible',
             boxSizing: 'border-box',
             display: 'flex',
             flexDirection: 'column',
           }}
         >
-          {/* Inner border line */}
-          <div style={{
-            position: 'absolute', inset: 12,
-            border: s.innerBorder,
-            borderRadius: 22,
-            pointerEvents: 'none',
-          }} />
-
           {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: 40, marginTop: 8 }}>
              <p style={{
@@ -145,7 +135,7 @@ export default function WeeklyReport() {
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 16 }}>
             
             <div style={{
-              background: s.statsBg, border: s.statsBorder, borderRadius: 20, padding: '24px',
+              background: s.statsBg, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderRadius: 20, padding: '24px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center'
             }}>
               <div>
@@ -156,7 +146,7 @@ export default function WeeklyReport() {
             </div>
 
             <div style={{
-              background: s.statsBg, border: s.statsBorder, borderRadius: 20, padding: '24px',
+              background: s.statsBg, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderRadius: 20, padding: '24px',
               display: 'flex', justifyContent: 'space-between', alignItems: 'center'
             }}>
               <div>
@@ -168,7 +158,7 @@ export default function WeeklyReport() {
 
             <div style={{ display: 'flex', gap: 16 }}>
               <div style={{
-                flex: 1, background: s.statsBg, border: s.statsBorder, borderRadius: 20, padding: '20px 16px', textAlign: 'center'
+                flex: 1, background: s.statsBg, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderRadius: 20, padding: '20px 16px', textAlign: 'center'
               }}>
                 <p style={{ margin: '0 0 6px', fontSize: 12, color: s.statsLabel, textTransform: 'uppercase', letterSpacing: 1 }}>Streak</p>
                 <p style={{ margin: 0, fontSize: 26, fontWeight: 'bold', color: s.statsVal }}>{stats.streak} <span style={{ fontSize: 16 }}>days</span></p>
@@ -176,7 +166,7 @@ export default function WeeklyReport() {
               
               {stats.mostUsedTask ? (
                 <div style={{
-                  flex: 1, background: s.statsBg, border: s.statsBorder, borderRadius: 20, padding: '20px 16px', textAlign: 'center',
+                  flex: 1, background: s.statsBg, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderRadius: 20, padding: '20px 16px', textAlign: 'center',
                   display: 'flex', flexDirection: 'column', justifyContent: 'center'
                 }}>
                   <p style={{ margin: '0 0 6px', fontSize: 11, color: s.statsLabel, textTransform: 'uppercase', letterSpacing: 1 }}>Top Mission</p>
@@ -185,7 +175,7 @@ export default function WeeklyReport() {
                   </p>
                 </div>
               ) : (
-                <div style={{ flex: 1, background: s.statsBg, border: s.statsBorder, borderRadius: 20 }} />
+                <div style={{ flex: 1, background: s.statsBg, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', borderRadius: 20 }} />
               )}
             </div>
           </div>
