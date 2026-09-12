@@ -480,13 +480,10 @@ export default function SuccessScreen() {
             className="w-16 h-16 block mb-3 mx-auto"
             style={{ color: 'var(--color-amber-400)', filter: 'drop-shadow(0 4px 12px rgba(245,166,35,0.4))' }}
           />
-        <h2
-          className="text-3xl font-black leading-tight"
-          style={{ color: 'var(--color-ink-900)' }}
-        >
+        <h2 className="text-3xl font-black leading-tight text-white">
           You actually did it.
         </h2>
-        <p className="mt-2 text-base" style={{ color: 'var(--color-ink-500)' }}>
+        <p className="mt-2 text-base text-gray-200">
           <strong style={{ color: 'var(--color-coral-500)' }}>
             {state.taskName}
           </strong>{' '}
@@ -546,13 +543,10 @@ export default function SuccessScreen() {
             style={{ border: '1.5px solid var(--color-cream-300)', minWidth: 80, transform: 'scale(0.9)' }}
           >
             <b.Icon className="w-5 h-5 mb-1" style={{ color: 'var(--color-coral-500)' }} strokeWidth={1.75} />
-            <span
-              className="text-xl font-black tabular-nums"
-              style={{ color: 'var(--color-ink-900)' }}
-            >
+            <span className="text-xl font-black tabular-nums text-white">
               {b.val}
             </span>
-            <span className="text-[10px] uppercase tracking-wider" style={{ color: 'var(--color-ink-400)' }}>
+            <span className="text-[10px] uppercase tracking-wider text-gray-300">
               {b.unit}
             </span>
           </div>
