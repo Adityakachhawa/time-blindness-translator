@@ -1,14 +1,15 @@
+/// <reference lib="webworker" />
 // Ensure the file is treated as a module
 export {};
 
 declare let self: ServiceWorkerGlobalScope;
 
-self.addEventListener('notificationclick', (event) => {
+self.addEventListener('notificationclick', (event: any) => {
   event.notification.close();
 
   // Focus the window or open a new one
   event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients: any) => {
       // Check if there is already a window/tab open with the target URL
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
@@ -22,7 +23,7 @@ self.addEventListener('notificationclick', (event) => {
       // If not, open a new one.
       const urlToOpen = event.notification.data?.url || '/';
       if (self.clients.openWindow) {
-        return self.clients.openWindow(urlToOpen).then((newClient) => {
+        return self.clients.openWindow(urlToOpen).then((newClient: any) => {
           if (newClient) {
             // Need a slight delay to allow the new window to spin up its listener, 
             // though URL params would be strictly better for cold starts.

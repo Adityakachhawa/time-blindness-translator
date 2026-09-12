@@ -68,7 +68,7 @@ export function sendCatchUpNotification(mission: ActiveMission): void {
         data: {
           url: '/'
         }
-      });
+      } as NotificationOptions & { vibrate?: number[] });
       // Mark as acknowledged so we don't spam them on next reconcile
       markEventAcknowledged(eventId);
     }).catch((err) => {
