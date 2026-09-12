@@ -20,8 +20,8 @@ import {
   extendMission,
   reconcileMission,
 } from '../lib/mission/actions';
-import { setAppBadge } from '../notifications/badgeManager';
-import { trackEvent, getRetentionMetrics, getAccuracyImprovement } from '../analytics/localAnalytics';
+import { setAppBadge } from '../lib/notifications/badgeManager';
+import { trackEvent, getRetentionMetrics, getAccuracyImprovement } from '../lib/analytics/localAnalytics';
 
 // ---------------------------------------------------------------------------
 // Initial state

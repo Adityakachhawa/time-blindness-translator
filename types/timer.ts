@@ -179,6 +179,11 @@ export interface RecoverMissionAction {
   payload: any;
 }
 
+/** Minimize a mission back to the setup view. */
+export interface MinimizeMissionAction {
+  type: 'MINIMIZE_MISSION';
+}
+
 /** Discriminated union of every action the reducer handles. */
 export type TimerAction =
   | UpdateSetupAction
@@ -191,4 +196,5 @@ export type TimerAction =
   | AcknowledgeOvertimeAction
   | PauseMissionAction
   | ResumeMissionAction
-  | RecoverMissionAction;
+  | RecoverMissionAction
+  | MinimizeMissionAction;
