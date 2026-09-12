@@ -215,14 +215,16 @@ export default function ActiveTimerScreen() {
     const totalMs = state.actualMinutes * 60_000;
 
     const id = setInterval(() => {
-      const diff = endTime - Date.now();
+      let diff = 0;
+      if (state.activeMission?.status === 'paused' && state.activeMission.pausedAt) {
+         diff = endTime - state.activeMission.pausedAt;
+      } else {
+         diff = endTime - Date.now();
+      }
+      
       const remaining = Math.max(0, diff);
       setMsLeft(remaining);
       fillMV.set(Math.max(0, Math.min(1, remaining / totalMs)));
-
-      if (diff <= 0 && !state.isOvertimeAcknowledged) {
-        dispatch({ type: 'EXPIRE_TIMER' });
-      }
 
       // Halfway check: elapsed time has crossed 50% of the total actualMinutes
       const elapsed = totalMs - remaining;
@@ -232,15 +234,16 @@ export default function ActiveTimerScreen() {
     }, 100);
 
     return () => clearInterval(id);
-  }, [state.endTime, state.actualMinutes, state.status, state.isOvertimeAcknowledged, fillMV, hasShownNudge, dispatch]);
+  }, [state.endTime, state.actualMinutes, state.status, state.isOvertimeAcknowledged, state.activeMission?.status, state.activeMission?.pausedAt, fillMV, hasShownNudge, dispatch]);
 
-  // Derived display values
   const totalMs = state.actualMinutes * 60_000;
   const fillRatio = Math.min(1, Math.max(0, msLeft / totalMs));
   const pctLeft = Math.round(fillRatio * 100);
   const isLow = fillRatio < 0.22 && !state.isOvertimeAcknowledged && msLeft > 0;
   const timeLabel = formatTime(msLeft);
   const blockBg = useMemo(() => computeBlockColor(fillRatio), [fillRatio]);
+  
+  const isPaused = state.activeMission?.status === 'paused';
 
   return (
     <div className="flex flex-col items-center justify-between w-full min-h-[85vh] relative">
@@ -336,36 +339,56 @@ export default function ActiveTimerScreen() {
           )}
         </div>
 
-        {/* ── I Did It! CTA ─────────────────────────────────────────────────── */}
-        <motion.button
-          whileHover={{ scale: 1.03, y: -3 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={handleCompleteTap}
-          id="complete-mission-btn"
-          className="w-full flex items-center justify-center gap-3 rounded-2xl py-5 text-xl font-bold text-white shadow-2xl relative z-10"
-          style={{
-            background: isCompleting
-              ? 'linear-gradient(135deg, #f5a623 0%, #d8880a 100%)'
-              : 'rgba(255,255,255,0.15)',
-            backdropFilter: 'blur(12px)',
-            border: isCompleting ? 'none' : '1.5px solid rgba(255,255,255,0.3)',
-            minHeight: 72,
-            transition: 'all 300ms ease',
-          }}
-          aria-label={isCompleting ? 'Undo — cancel completion' : 'I completed the task'}
-        >
-          {isCompleting ? (
-            <>
-              <Undo2 className="w-7 h-7 shrink-0" strokeWidth={2.5} />
-              Completing… Tap to Undo
-            </>
-          ) : (
-            <>
-              <CheckCircle className="w-7 h-7 shrink-0" strokeWidth={2.5} />
-              I Did It!
-            </>
-          )}
-        </motion.button>
+        {/* ── Action Buttons ─────────────────────────────────────────────────── */}
+        <div className="w-full flex gap-3 z-10">
+          <motion.button
+            whileHover={{ scale: 1.03, y: -3 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => dispatch({ type: isPaused ? 'RESUME_MISSION' : 'PAUSE_MISSION' })}
+            className="flex items-center justify-center rounded-2xl text-lg font-bold text-white shadow-2xl relative"
+            style={{
+              flex: 1,
+              background: 'rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(12px)',
+              border: '1.5px solid rgba(255,255,255,0.3)',
+              minHeight: 72,
+              transition: 'all 300ms ease',
+            }}
+          >
+            {isPaused ? 'Resume' : 'Pause'}
+          </motion.button>
+
+          <motion.button
+            whileHover={{ scale: 1.03, y: -3 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={handleCompleteTap}
+            id="complete-mission-btn"
+            className="flex items-center justify-center gap-3 rounded-2xl text-xl font-bold text-white shadow-2xl relative"
+            style={{
+              flex: 2,
+              background: isCompleting
+                ? 'linear-gradient(135deg, #f5a623 0%, #d8880a 100%)'
+                : 'rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(12px)',
+              border: isCompleting ? 'none' : '1.5px solid rgba(255,255,255,0.4)',
+              minHeight: 72,
+              transition: 'all 300ms ease',
+            }}
+            aria-label={isCompleting ? 'Undo — cancel completion' : 'I completed the task'}
+          >
+            {isCompleting ? (
+              <>
+                <Undo2 className="w-7 h-7 shrink-0" strokeWidth={2.5} />
+                Undo
+              </>
+            ) : (
+              <>
+                <CheckCircle className="w-7 h-7 shrink-0" strokeWidth={2.5} />
+                I Did It!
+              </>
+            )}
+          </motion.button>
+        </div>
 
         <p className="text-xs text-center pt-3" style={{ color: 'rgba(255,255,255,0.5)' }}>
           {isCompleting

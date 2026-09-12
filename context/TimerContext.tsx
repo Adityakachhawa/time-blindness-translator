@@ -10,8 +10,15 @@ import {
   type ReactNode,
 } from 'react';
 import type { TimerAction, TimerState } from '../types/timer';
-import { calculateActualTime, getRandomTagline, TAX_MULTIPLIER_DEFAULT } from '../lib/calculations';
-import { incrementLifetimeStats, incrementDailyCount } from '../lib/storage';
+import { calculateActualTime, TAX_MULTIPLIER_DEFAULT } from '../lib/calculations';
+import { getActiveMission } from '../lib/mission/storage';
+import {
+  startMission,
+  pauseMission,
+  resumeMission,
+  completeMission,
+  extendMission,
+} from '../lib/mission/actions';
 
 // ---------------------------------------------------------------------------
 // Initial state
@@ -40,9 +47,38 @@ const initialState: TimerState = {
 
 function timerReducer(state: TimerState, action: TimerAction): TimerState {
   switch (action.type) {
+    case 'RECOVER_MISSION': {
+      const activeMission = action.payload;
+      if (!activeMission) return state;
+      
+      let newStatus = state.status;
+      if (activeMission.status === 'running') newStatus = 'active';
+      else if (activeMission.status === 'paused') newStatus = 'active';
+      else if (activeMission.status === 'completed') newStatus = 'success';
+
+      // Check if it's expired/overtime
+      if (newStatus === 'active' && activeMission.status === 'running') {
+        if (Date.now() >= activeMission.expectedEndAt) {
+          newStatus = 'expired';
+        }
+      }
+
+      return {
+        ...state,
+        status: newStatus as any,
+        taskName: activeMission.taskName,
+        category: activeMission.category,
+        initialEstimate: activeMission.optimisticMin, // mapping best effort
+        optimisticMin: activeMission.optimisticMin,
+        taxMultiplier: activeMission.taxMultiplier,
+        actualMinutes: activeMission.allocatedMin,
+        allocatedMin: activeMission.allocatedMin,
+        endTime: activeMission.expectedEndAt,
+        activeMission,
+      };
+    }
+
     case 'UPDATE_SETUP': {
-      // Only meaningful while in setup — ignore stray updates otherwise
-      // (e.g. a stale input firing after the mission already started).
       if (state.status !== 'setup') return state;
 
       const nextTaskName = action.payload.taskName ?? state.taskName;
@@ -75,34 +111,63 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
     case 'START_MISSION': {
       if (state.status !== 'setup') return state;
 
+      const plannedDurationMs = state.actualMinutes * 60_000;
+      
+      const newMission = startMission(
+        state.taskName,
+        plannedDurationMs,
+        state.initialEstimate,
+        state.taxMultiplier,
+        state.actualMinutes,
+        state.transitionMinutes,
+        state.category
+      );
+
       return {
         ...state,
         status: 'active',
-        endTime: Date.now() + state.actualMinutes * 60_000,
-        startTime: Date.now(),
+        endTime: newMission.expectedEndAt,
+        startTime: newMission.startedAt,
         extensionCount: 0,
         isOvertimeAcknowledged: false,
+        activeMission: newMission,
+      };
+    }
+
+    case 'PAUSE_MISSION': {
+      if (state.status !== 'active' || !state.activeMission) return state;
+      const pausedMission = pauseMission(state.activeMission);
+      return {
+        ...state,
+        activeMission: pausedMission
+      };
+    }
+
+    case 'RESUME_MISSION': {
+      if (state.status !== 'active' || !state.activeMission) return state;
+      const resumedMission = resumeMission(state.activeMission);
+      return {
+        ...state,
+        activeMission: resumedMission,
+        endTime: resumedMission.expectedEndAt
       };
     }
 
     case 'COMPLETE_MISSION': {
-      if (state.status !== 'active') return state;
-
-      const now = Date.now();
-      const actualSeconds = state.startTime ? Math.floor((now - state.startTime) / 1000) : undefined;
-
+      if (!state.activeMission) return state;
+      
+      completeMission(state.activeMission, state.tagline);
+      
       return {
         ...state,
         status: 'success',
-        completedAt: now,
-        actualSeconds,
-        tagline: getRandomTagline(),
+        completedAt: Date.now(),
+        activeMission: null, // Clear from React state
       };
     }
 
     case 'EXPIRE_TIMER': {
       if (state.status !== 'active') return state;
-
       return {
         ...state,
         status: 'expired',
@@ -118,37 +183,35 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
     }
 
     case 'ADD_TEN_MINUTES': {
-      if (state.status !== 'expired') return state;
-
-      const bonusMinutes = 10;
-      const nextActual = state.actualMinutes + bonusMinutes;
-
+      if (!state.activeMission) return state;
+      
+      const updatedMission = extendMission(state.activeMission, 10);
+      
       return {
         ...state,
         status: 'active',
-        // "No shame" — extend the total so the certificate/anchors still
-        // reflect reality, and give a fresh 10-minute window from *now*
-        // rather than re-adding to the old (already expired) endTime.
-        actualMinutes: nextActual,
-        allocatedMin: nextActual,
-        endTime: Date.now() + bonusMinutes * 60_000,
+        activeMission: updatedMission,
+        actualMinutes: updatedMission.allocatedMin,
+        allocatedMin: updatedMission.allocatedMin,
+        endTime: updatedMission.expectedEndAt,
         extensionCount: state.extensionCount + 1,
         isOvertimeAcknowledged: false,
       };
     }
 
     case 'ADD_MINUTES': {
-      if (state.status !== 'active' || !state.endTime) return state;
+      if (state.status !== 'active' || !state.endTime || !state.activeMission) return state;
 
       const minutes = typeof action.payload === 'number' ? action.payload : action.payload.minutes;
-      const nextActual = state.actualMinutes + minutes;
+      const updatedMission = extendMission(state.activeMission, minutes);
 
       return {
         ...state,
-        actualMinutes: nextActual,
-        allocatedMin: nextActual,
-        endTime: state.endTime + minutes * 60_000,
+        actualMinutes: updatedMission.allocatedMin,
+        allocatedMin: updatedMission.allocatedMin,
+        endTime: updatedMission.expectedEndAt,
         extensionCount: state.extensionCount + 1,
+        activeMission: updatedMission,
       };
     }
 
@@ -179,18 +242,24 @@ const TimerContext = createContext<TimerContextValue | undefined>(undefined);
 export function TimerProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(timerReducer, initialState);
 
-  // Self-correcting expiry watcher: scheduled off the absolute `endTime`
-  // (not a decrementing counter), so backgrounding/foregrounding the tab
-  // can't cause drift — on wake, we immediately re-check Date.now() against
-  // endTime rather than trusting elapsed setInterval ticks.
+  // SSR-safe startup recovery
   useEffect(() => {
-    if (state.status !== 'active') return;
+    if (typeof window !== 'undefined') {
+      const recovered = getActiveMission();
+      if (recovered) {
+        dispatch({ type: 'RECOVER_MISSION', payload: recovered });
+      }
+    }
+  }, []);
 
-    // Captured as a plain number so the closure below doesn't rely on
-    // TypeScript narrowing `state.endTime` across a nested function boundary.
-    // Non-null assertion is safe: status === 'active' guarantees endTime is set.
-    const endTime = state.endTime as number;
-    const msRemaining = endTime - Date.now();
+  // Self-correcting expiry watcher
+  useEffect(() => {
+    if (state.status !== 'active' || !state.endTime) return;
+    
+    // If it's paused, we don't automatically expire it
+    if (state.activeMission && state.activeMission.status === 'paused') return;
+
+    const msRemaining = state.endTime - Date.now();
 
     if (msRemaining <= 0) {
       dispatch({ type: 'EXPIRE_TIMER' });
@@ -201,11 +270,11 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'EXPIRE_TIMER' });
     }, msRemaining);
 
-    // Reconcile immediately if the user returns to the tab after the
-    // browser throttled background timers.
     function handleVisibilityChange() {
-      if (document.visibilityState === 'visible' && Date.now() >= endTime) {
-        dispatch({ type: 'EXPIRE_TIMER' });
+      if (document.visibilityState === 'visible') {
+         if (Date.now() >= state.endTime!) {
+           dispatch({ type: 'EXPIRE_TIMER' });
+         }
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange);
@@ -214,82 +283,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       window.clearTimeout(timeoutId);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.status, state.endTime]);
-
-  // -------------------------------------------------------------------
-  // Silent history & lifetime stats tracking — persist on completion
-  // Uses `completedAt` as a unique key to prevent React Strict Mode
-  // (or any re-render) from writing a duplicate entry or incrementing stats twice.
-  // -------------------------------------------------------------------
-  const lastRecordedCompletionRef = useRef<number | null>(null);
-
-  useEffect(() => {
-    if (state.status !== 'success' || !state.completedAt) return;
-    if (lastRecordedCompletionRef.current === state.completedAt) return;
-    lastRecordedCompletionRef.current = state.completedAt;
-
-    const optimisticMin = state.optimisticMin ?? state.initialEstimate;
-    const allocatedMin  = state.allocatedMin  ?? state.actualMinutes;
-    const minutesSaved  = allocatedMin - optimisticMin;
-
-    incrementLifetimeStats(minutesSaved, state.extensionCount);
-    incrementDailyCount(new Date(state.completedAt));
-
-    // Fire-and-forget mission counter increment
-    try {
-      fetch('/api/mission-count', { method: 'POST' }).catch(() => {});
-    } catch {
-      // Silently fail
-    }
-
-    const KEY = 'tbt_history';
-
-    try {
-      const raw = typeof window !== 'undefined'
-        ? window.localStorage.getItem(KEY)
-        : null;
-      const history: Record<string, unknown>[] = raw ? JSON.parse(raw) : [];
-
-      // Dedup: skip if a record with this completedAt already exists
-      if (history.some((r) => r.id === state.completedAt || r.completedAt === state.completedAt)) {
-        return;
-      }
-
-      history.unshift({
-        id:            state.completedAt,
-        taskName:      state.taskName,
-        category:      state.category,
-        optimisticMin,
-        taxMultiplier: state.taxMultiplier,
-        allocatedMin,
-        actualMinutes: allocatedMin,
-        completedAt:   state.completedAt,
-        tagline:       state.tagline ?? null,
-        predictedSeconds: state.predictedSeconds,
-        actualSeconds: state.actualSeconds,
-      });
-
-      // Cap at 50 entries
-      window.localStorage.setItem(KEY, JSON.stringify(history.slice(0, 50)));
-    } catch {
-      // localStorage unavailable — silently ignore
-    }
-  }, [
-    state.status,
-    state.completedAt,
-    state.taskName,
-    state.category,
-    state.initialEstimate,
-    state.optimisticMin,
-    state.taxMultiplier,
-    state.actualMinutes,
-    state.allocatedMin,
-    state.tagline,
-    state.extensionCount,
-    state.predictedSeconds,
-    state.actualSeconds,
-  ]);
+  }, [state.status, state.endTime, state.activeMission?.status]);
 
   return (
     <TimerContext.Provider value={{ state, dispatch }}>
@@ -298,7 +292,6 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   );
 }
 
-/** Access the timer state machine from any descendant of <TimerProvider>. */
 export function useTimer(): TimerContextValue {
   const context = useContext(TimerContext);
   if (context === undefined) {

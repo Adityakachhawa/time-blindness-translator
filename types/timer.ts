@@ -84,6 +84,9 @@ export interface TimerState {
 
   /** Whether the mission was announced via Witness Me. */
   wasAnnounced?: boolean;
+
+  /** The durable active mission object. Only present if a mission is started. */
+  activeMission?: any;
 }
 
 // ---------------------------------------------------------------------------
@@ -154,6 +157,28 @@ export interface AcknowledgeOvertimeAction {
   type: 'ACKNOWLEDGE_OVERTIME';
 }
 
+/**
+ * Mark mission as paused.
+ */
+export interface PauseMissionAction {
+  type: 'PAUSE_MISSION';
+}
+
+/**
+ * Resume a paused mission.
+ */
+export interface ResumeMissionAction {
+  type: 'RESUME_MISSION';
+}
+
+/**
+ * Load recovered mission on startup
+ */
+export interface RecoverMissionAction {
+  type: 'RECOVER_MISSION';
+  payload: any;
+}
+
 /** Discriminated union of every action the reducer handles. */
 export type TimerAction =
   | UpdateSetupAction
@@ -163,4 +188,7 @@ export type TimerAction =
   | AddTenMinutesAction
   | AddMinutesAction
   | AnnounceMissionAction
-  | AcknowledgeOvertimeAction;
+  | AcknowledgeOvertimeAction
+  | PauseMissionAction
+  | ResumeMissionAction
+  | RecoverMissionAction;
