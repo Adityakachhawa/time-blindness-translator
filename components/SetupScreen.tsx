@@ -6,7 +6,7 @@ import {
   Bath, Brush, Calculator, ChefHat, Clapperboard, CloudLightning, CloudRain, CloudSun,
   Coffee, Dices, Droplets, Dumbbell, Film, GraduationCap, LucideIcon,
   Mail, MessageSquare, Minus, Moon, Music, Pill, Plus, Rocket,
-  Sparkles, Star, Sun, Timer, Trophy, Tv2, UtensilsCrossed, Clock,
+  Sparkles, Star, Sun, Timer, Trophy, Tv2, UtensilsCrossed, Clock, CalendarClock,
 } from 'lucide-react';
 import { useTimer } from '@/context/TimerContext';
 import {
@@ -23,6 +23,7 @@ import type { Track } from '@/hooks/useAmbientAudio';
 import OnboardingQuiz, { type QuizResult } from '@/components/OnboardingQuiz';
 import WeeklyReportModal from '@/components/WeeklyReportModal';
 import FitCheckModal from '@/components/FitCheckModal';
+import DeadlineModal from '@/components/DeadlineModal';
 import { generateWeeklyReport } from '@/lib/analytics';
 import { BarChart } from 'lucide-react';
 
@@ -309,8 +310,9 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
   const [showWeeklyReport, setShowWeeklyReport] = useState(false);
   const [hasWeeklyMissions, setHasWeeklyMissions] = useState(false);
 
-  // Fit Check
+  // Fit Check & Deadline
   const [showFitCheck, setShowFitCheck] = useState(false);
+  const [showDeadline, setShowDeadline] = useState(false);
 
   useEffect(() => { 
     setTodayCount(getTodayCount()); 
@@ -391,21 +393,39 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           </motion.button>
         )}
 
-        <motion.button
-          initial={{ opacity: 0, scale: 0.85 }}
-          animate={{ opacity: 1, scale: 1 }}
-          onClick={() => setShowFitCheck(true)}
-          className="flex items-center justify-center gap-2 rounded-2xl py-2.5 px-4 cursor-pointer hover:opacity-90 transition-opacity"
-          style={{
-            background: 'transparent',
-            border: '1.5px dashed var(--card-border)',
-          }}
-        >
-          <Clock className="w-5 h-5 shrink-0" style={{ color: 'var(--muted)' }} />
-          <p className="font-bold text-sm" style={{ color: 'var(--muted)' }}>
-            Can I fit this in?
-          </p>
-        </motion.button>
+        <div className="flex gap-2 w-full">
+          <motion.button
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={() => setShowFitCheck(true)}
+            className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-2.5 px-3 cursor-pointer hover:opacity-90 transition-opacity"
+            style={{
+              background: 'transparent',
+              border: '1.5px dashed var(--card-border)',
+            }}
+          >
+            <Clock className="w-4 h-4 shrink-0" style={{ color: 'var(--muted)' }} />
+            <p className="font-bold text-xs" style={{ color: 'var(--muted)' }}>
+              Fit this in?
+            </p>
+          </motion.button>
+          
+          <motion.button
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={() => setShowDeadline(true)}
+            className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-2.5 px-3 cursor-pointer hover:opacity-90 transition-opacity"
+            style={{
+              background: 'transparent',
+              border: '1.5px dashed var(--card-border)',
+            }}
+          >
+            <CalendarClock className="w-4 h-4 shrink-0" style={{ color: 'var(--muted)' }} />
+            <p className="font-bold text-xs" style={{ color: 'var(--muted)' }}>
+              When to start?
+            </p>
+          </motion.button>
+        </div>
       </div>
 
       {/* ── Challenge Banner ───────────────────────────────────────────── */}
@@ -981,6 +1001,7 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
     </AnimatePresence>
     <WeeklyReportModal isOpen={showWeeklyReport} onClose={() => setShowWeeklyReport(false)} />
     <FitCheckModal isOpen={showFitCheck} onClose={() => setShowFitCheck(false)} />
+    <DeadlineModal isOpen={showDeadline} onClose={() => setShowDeadline(false)} />
     </>
   );
 }
