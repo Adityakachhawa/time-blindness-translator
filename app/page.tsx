@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
 import { Moon, Sun, Volume2, VolumeX, History, Headphones, Waves, Brain, Coffee, Heart } from 'lucide-react';
 import { useAmbientAudio, type Track } from '@/hooks/useAmbientAudio';
 import { TimerProvider, useTimer } from '@/context/TimerContext';
@@ -11,6 +11,7 @@ import ActiveTimerScreen from '@/components/ActiveTimerScreen';
 import SuccessScreen from '@/components/SuccessScreen';
 import TimesUpScreen from '@/components/TimesUpScreen';
 import HistoryDrawer from '@/components/HistoryDrawer';
+import ActiveMissionBanner from '@/components/ActiveMissionBanner';
 import {
   getThemePreference,
   setThemePreference,
@@ -205,7 +206,7 @@ function AppContent() {
       case 'setup':   return <SetupScreen setTrack={setTrack} />;
       case 'active':  return <ActiveTimerScreen />;
       case 'success': return <SuccessScreen />;
-      case 'expired': return <TimesUpScreen />;
+      case 'expired': return <ActiveTimerScreen />;
     }
   }
 
@@ -216,6 +217,7 @@ function AppContent() {
 
   return (
     <div className="min-h-dvh flex flex-col" style={{ background: bg }}>
+      <ActiveMissionBanner />
 
       {/* ── Sticky header ───────────────────────────────────────────── */}
       <header
@@ -349,7 +351,9 @@ function AppContent() {
 export default function Home() {
   return (
     <TimerProvider>
-      <AppContent />
+      <MotionConfig reducedMotion="user">
+        <AppContent />
+      </MotionConfig>
     </TimerProvider>
   );
 }

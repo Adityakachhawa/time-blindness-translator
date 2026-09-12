@@ -1,7 +1,9 @@
 import { ActiveMission } from './types';
-import { setActiveMission, clearActiveMission } from './storage';
+import { setActiveMission, clearActiveMission, getActiveMission } from './storage';
 import { saveCompletedTask, incrementLifetimeStats, incrementDailyCount } from '../storage';
 import { getRandomTagline } from '../calculations';
+import { sendCatchUpNotification } from '../notifications/notificationManager';
+import { setAppBadge, clearAppBadge } from '../notifications/badgeManager';
 
 export function startMission(
   taskName: string,
@@ -46,6 +48,7 @@ export function pauseMission(mission: ActiveMission): ActiveMission {
   };
   
   setActiveMission(updated);
+  clearAppBadge();
   return updated;
 }
 
@@ -82,6 +85,7 @@ export function extendMission(mission: ActiveMission, extraMinutes: number): Act
   };
   
   setActiveMission(updated);
+  clearAppBadge();
   return updated;
 }
 
@@ -116,6 +120,7 @@ export function completeMission(mission: ActiveMission, tagline?: string): void 
   } catch {}
   
   clearActiveMission();
+  clearAppBadge();
 }
 
 /**
@@ -127,13 +132,12 @@ export function reconcileMission(): ActiveMission | null {
   if (!mission) return null;
 
   const now = Date.now();
-  
   // If the mission is running and has passed expectedEndAt, we could mark
   // a local flag to ensure we only process the expiry once (e.g. notifications).
-  // For Phase 2, we just return the active mission so the UI can snap to the correct state.
-  
-  // In the future (Phase 3+), we will check notification delivery state here
-  // and process expiry exactly once without corrupting the mission state.
+  if (mission.status === 'running' && now >= mission.expectedEndAt) {
+    sendCatchUpNotification(mission);
+    setAppBadge(1);
+  }
   
   return mission;
 }

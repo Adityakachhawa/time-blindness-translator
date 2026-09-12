@@ -5,8 +5,9 @@ import { motion, useSpring, useMotionValue, AnimatePresence } from 'framer-motio
 import { toPng, toBlob } from 'html-to-image';
 import { useTimer } from '@/context/TimerContext';
 import { useWakeLock } from '@/hooks/useWakeLock';
+import { clearAppBadge } from '@/lib/notifications/badgeManager';
 import { computeBlockColor } from '@/lib/calculations';
-import { Brain, CheckCircle, Megaphone, PlusCircle, ScanEye, Undo2, Zap } from 'lucide-react';
+import { Brain, CheckCircle, Megaphone, PlusCircle, ScanEye, Undo2, Zap, ChevronDown, Timer } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -264,6 +265,19 @@ export default function ActiveTimerScreen() {
 
       {/* ── Main Content ─────────────────────────────────────────── */}
       <div className="relative z-10 flex flex-col items-center w-full flex-1">
+        
+        {/* Minimize Button */}
+        <div className="w-full flex justify-start p-2">
+          <button 
+            onClick={() => dispatch({ type: 'MINIMIZE_MISSION' })}
+            className="p-3 rounded-full hover:bg-white/10 transition-colors"
+            style={{ color: 'rgba(255,255,255,0.7)' }}
+            aria-label="Minimize mission"
+          >
+            <ChevronDown className="w-6 h-6" />
+          </button>
+        </div>
+
         {/* ── Task banner ───────────────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: -14 }}
@@ -305,6 +319,12 @@ export default function ActiveTimerScreen() {
             </div>
           ) : (
             <div className="flex flex-col items-center">
+              <div className="flex items-center gap-2 mb-2 bg-black/10 px-3 py-1 rounded-full">
+                <Timer className="w-3.5 h-3.5 text-white/80" />
+                <span className="text-[10px] tracking-widest uppercase text-white/90 font-bold">
+                  {msLeft <= 0 ? "Time's Up" : "On Time"}
+                </span>
+              </div>
               <p
                 className="text-7xl font-black tabular-nums tracking-tighter text-white"
                 style={{
@@ -432,7 +452,10 @@ export default function ActiveTimerScreen() {
 
               <div className="flex flex-col gap-3 mt-2">
                 <button
-                  onClick={() => dispatch({ type: 'ACKNOWLEDGE_OVERTIME' })}
+                  onClick={() => {
+                    clearAppBadge();
+                    dispatch({ type: 'ACKNOWLEDGE_OVERTIME' });
+                  }}
                   className="w-full py-4 rounded-2xl font-bold text-lg transition-transform active:scale-95 bg-slate-100 text-slate-700 hover:bg-slate-200"
                 >
                   Keep going

@@ -20,6 +20,7 @@ import {
   extendMission,
   reconcileMission,
 } from '../lib/mission/actions';
+import { setAppBadge } from '../notifications/badgeManager';
 
 // ---------------------------------------------------------------------------
 // Initial state
@@ -145,12 +146,33 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
     }
 
     case 'RESUME_MISSION': {
-      if (state.status !== 'active' || !state.activeMission) return state;
-      const resumedMission = resumeMission(state.activeMission);
+      if (state.activeMission) {
+        // If we were minimized (status === 'setup'), just resume the view and active state
+        if (state.status === 'setup' || state.status === 'success') {
+          return {
+            ...state,
+            status: 'active',
+            endTime: state.activeMission.expectedEndAt
+          };
+        }
+        // Otherwise handle actual mission un-pausing
+        if (state.status === 'active') {
+          const resumedMission = resumeMission(state.activeMission);
+          return {
+            ...state,
+            activeMission: resumedMission,
+            endTime: resumedMission.expectedEndAt
+          };
+        }
+      }
+      return state;
+    }
+
+    case 'MINIMIZE_MISSION': {
+      if (!state.activeMission) return state;
       return {
         ...state,
-        activeMission: resumedMission,
-        endTime: resumedMission.expectedEndAt
+        status: 'setup' // returning to setup view reveals the banner
       };
     }
 
@@ -285,11 +307,13 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     const msRemaining = state.endTime - Date.now();
 
     if (msRemaining <= 0) {
+      setAppBadge(1);
       dispatch({ type: 'EXPIRE_TIMER' });
       return;
     }
 
     const timeoutId = window.setTimeout(() => {
+      setAppBadge(1);
       dispatch({ type: 'EXPIRE_TIMER' });
     }, msRemaining);
 

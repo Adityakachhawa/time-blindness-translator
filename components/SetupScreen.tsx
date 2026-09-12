@@ -26,6 +26,7 @@ import WeeklyReportModal from '@/components/WeeklyReportModal';
 import FitCheckModal from '@/components/FitCheckModal';
 import DeadlineModal from '@/components/DeadlineModal';
 import { generateWeeklyReport } from '@/lib/analytics';
+import { requestNotificationPermission } from '@/lib/notifications/notificationManager';
 import { BarChart } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
@@ -643,7 +644,10 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
                     },
                   });
                   // Immediately start the mission
-                  setTimeout(() => dispatch({ type: 'START_MISSION' }), 50);
+                  setTimeout(() => {
+                    requestNotificationPermission().catch(() => {});
+                    dispatch({ type: 'START_MISSION' });
+                  }, 50);
                 }}
                 className="flex-1 flex flex-col gap-2 rounded-2xl p-4 text-left transition-colors border"
                 style={{
@@ -977,6 +981,7 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           onClick={() => {
             if (canStart) {
               unlockAudio(); // pre-unlock AudioContext during this user gesture
+              requestNotificationPermission().catch(() => {});
               dispatch({ type: 'START_MISSION' });
             }
           }}
