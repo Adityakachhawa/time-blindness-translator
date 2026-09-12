@@ -15,13 +15,23 @@ self.addEventListener('notificationclick', (event) => {
         
         // If so, just focus it.
         if (client.url.includes(self.registration.scope) && 'focus' in client) {
+          client.postMessage({ type: 'NOTIFICATION_CLICKED', payload: { action: event.action, tag: event.notification.tag } });
           return client.focus();
         }
       }
       // If not, open a new one.
       const urlToOpen = event.notification.data?.url || '/';
       if (self.clients.openWindow) {
-        return self.clients.openWindow(urlToOpen);
+        return self.clients.openWindow(urlToOpen).then((newClient) => {
+          if (newClient) {
+            // Need a slight delay to allow the new window to spin up its listener, 
+            // though URL params would be strictly better for cold starts.
+            setTimeout(() => {
+              newClient.postMessage({ type: 'NOTIFICATION_CLICKED', payload: { action: event.action, tag: event.notification.tag } });
+            }, 1000);
+          }
+          return newClient;
+        });
       }
     })
   );

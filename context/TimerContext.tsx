@@ -21,6 +21,7 @@ import {
   reconcileMission,
 } from '../lib/mission/actions';
 import { setAppBadge } from '../notifications/badgeManager';
+import { trackEvent, getRetentionMetrics, getAccuracyImprovement } from '../analytics/localAnalytics';
 
 // ---------------------------------------------------------------------------
 // Initial state
@@ -265,9 +266,20 @@ const TimerContext = createContext<TimerContextValue | undefined>(undefined);
 export function TimerProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(timerReducer, initialState);
 
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   // SSR-safe startup and lifecycle reconciliation
   useEffect(() => {
     if (typeof window === 'undefined') return;
+
+    // Log metrics on initial mount for debugging
+    console.group('📊 Time-Blindness Translator Local Analytics');
+    console.table(getRetentionMetrics());
+    console.table(getAccuracyImprovement());
+    console.groupEnd();
 
     function handleReconcile() {
       const recovered = reconcileMission();
@@ -286,14 +298,30 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     function handleVisibilityChange() {
       if (document.visibilityState === 'visible') {
         handleReconcile();
+        const currentState = stateRef.current;
+        if (currentState.activeMission && (currentState.activeMission.status === 'running' || currentState.activeMission.status === 'paused')) {
+          trackEvent('return_to_mission', { taskName: currentState.activeMission.taskName });
+        }
       }
     }
     document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    function handleMessage(event: MessageEvent) {
+      if (event.data && event.data.type === 'NOTIFICATION_CLICKED') {
+        trackEvent('notification_clicked', event.data.payload);
+      }
+    }
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleMessage);
+    }
 
     return () => {
       window.removeEventListener('focus', handleReconcile);
       window.removeEventListener('pageshow', handleReconcile);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleMessage);
+      }
     };
   }, []);
 

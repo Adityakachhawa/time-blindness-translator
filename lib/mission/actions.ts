@@ -4,6 +4,7 @@ import { saveCompletedTask, incrementLifetimeStats, incrementDailyCount } from '
 import { getRandomTagline } from '../calculations';
 import { sendCatchUpNotification } from '../notifications/notificationManager';
 import { setAppBadge, clearAppBadge } from '../notifications/badgeManager';
+import { trackEvent } from '../analytics/localAnalytics';
 
 export function startMission(
   taskName: string,
@@ -33,6 +34,12 @@ export function startMission(
   };
   
   setActiveMission(mission);
+  trackEvent('mission_started', { 
+    taskName, 
+    plannedDurationMs, 
+    optimisticMin, 
+    allocatedMin 
+  });
   return mission;
 }
 
@@ -122,6 +129,13 @@ export function completeMission(mission: ActiveMission, tagline?: string): void 
     originalEstimateMs,
     predictionErrorSignedMs,
     predictionErrorAbsoluteMs,
+  });
+  
+  trackEvent('mission_completed', { 
+    taskName: mission.taskName, 
+    actualDurationMs,
+    predictionErrorSignedMs,
+    predictionErrorAbsoluteMs
   });
   
   incrementLifetimeStats(mission.allocatedMin - mission.optimisticMin, 0); // extensions are not strictly tracked yet in ActiveMission, we pass 0 for now.
