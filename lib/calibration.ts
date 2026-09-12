@@ -4,7 +4,7 @@ import type { TaskCategory } from '../types/timer';
 export interface CalibrationResult {
   factor: number;
   sampleCount: number;
-  isCategoryMatch: boolean;
+  tier: 'exact' | 'category' | 'global';
 }
 
 function calculateMedianRatio(sessions: any[]): number | null {
@@ -51,7 +51,7 @@ export function calculatePersonalFactor(taskName: string, category: TaskCategory
   if (exactSessions.length >= 2) {
     const factor = calculateMedianRatio(exactSessions);
     if (factor !== null) {
-      return { factor, sampleCount: exactSessions.length, isCategoryMatch: false };
+      return { factor, sampleCount: exactSessions.length, tier: 'exact' };
     }
   }
 
@@ -64,8 +64,16 @@ export function calculatePersonalFactor(taskName: string, category: TaskCategory
     if (categorySessions.length >= 3) {
       const factor = calculateMedianRatio(categorySessions);
       if (factor !== null) {
-        return { factor, sampleCount: categorySessions.length, isCategoryMatch: true };
+        return { factor, sampleCount: categorySessions.length, tier: 'category' };
       }
+    }
+  }
+  
+  // Priority 3: Global fallback
+  if (history.length >= 5) {
+    const factor = calculateMedianRatio(history);
+    if (factor !== null) {
+      return { factor, sampleCount: history.length, tier: 'global' };
     }
   }
 
@@ -77,7 +85,7 @@ export function formatConfidenceRange(minutes: number): string {
   const rounded = Math.round(minutes / 5) * 5;
   const lower = Math.max(5, rounded - 5);
   const upper = rounded + 5;
-  return `Likely: ${lower}–${upper} min`;
+  return `${lower}–${upper} min`;
 }
 
 export interface TaskRange {

@@ -95,7 +95,16 @@ export function completeMission(mission: ActiveMission, tagline?: string): void 
   // Calculate total duration discounting paused time
   const elapsedSinceStart = now - mission.startedAt;
   const totalPaused = (mission.totalPausedMs || 0) + (mission.status === 'paused' && mission.pausedAt ? (now - mission.pausedAt) : 0);
-  const actualSeconds = Math.floor((elapsedSinceStart - totalPaused) / 1000);
+  const actualDurationMs = elapsedSinceStart - totalPaused;
+  const actualSeconds = Math.floor(actualDurationMs / 1000);
+  
+  // Calculate errors
+  const originalEstimateMs = mission.optimisticMin * 60_000;
+  // If originalEstimateMs was passed, we'd use it, but ActiveMission currently infers it from optimisticMin
+  const calibratedEstimateMs = mission.plannedDurationMs;
+  
+  const predictionErrorSignedMs = actualDurationMs - calibratedEstimateMs;
+  const predictionErrorAbsoluteMs = Math.abs(predictionErrorSignedMs);
   
   // Record history
   saveCompletedTask({
@@ -107,9 +116,12 @@ export function completeMission(mission: ActiveMission, tagline?: string): void 
     actualMinutes: mission.allocatedMin, // Backwards compat
     completedAt: now,
     tagline,
-    predictedSeconds: mission.originalEstimateMs ? Math.floor(mission.originalEstimateMs / 1000) : (mission.optimisticMin * 60),
+    predictedSeconds: Math.floor(calibratedEstimateMs / 1000),
     actualSeconds,
     transitionMinutes: mission.transitionMinutes,
+    originalEstimateMs,
+    predictionErrorSignedMs,
+    predictionErrorAbsoluteMs,
   });
   
   incrementLifetimeStats(mission.allocatedMin - mission.optimisticMin, 0); // extensions are not strictly tracked yet in ActiveMission, we pass 0 for now.

@@ -24,6 +24,9 @@ export interface TaskRecord {
   predictedSeconds?: number;
   actualSeconds?: number;
   transitionMinutes?: number;
+  originalEstimateMs?: number;
+  predictionErrorSignedMs?: number;
+  predictionErrorAbsoluteMs?: number;
 }
 
 export type ThemePreference = 'system' | 'light' | 'dark';

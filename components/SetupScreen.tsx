@@ -317,8 +317,9 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
   const [showFitCheck, setShowFitCheck] = useState(false);
   const [showDeadline, setShowDeadline] = useState(false);
   
-  // Track if current factor came from category match
-  const [isCategoryMatch, setIsCategoryMatch] = useState(false);
+  // Track calibration tier and samples
+  const [calibrationTier, setCalibrationTier] = useState<'exact' | 'category' | 'global' | null>(null);
+  const [calibrationSamples, setCalibrationSamples] = useState<number>(0);
 
   // PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
@@ -499,7 +500,8 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
               onClick={() => {
                 const category = guessCategory(t.label);
                 const cal = calculatePersonalFactor(t.label, category);
-                setIsCategoryMatch(cal?.isCategoryMatch ?? false);
+                setCalibrationTier(cal?.tier ?? null);
+                setCalibrationSamples(cal?.sampleCount ?? 0);
                 dispatch({
                   type: 'UPDATE_SETUP',
                   payload: { taskName: t.label, category, initialEstimate: t.minutes, personalFactor: cal?.factor ?? null, isManualOverride: false },
@@ -539,7 +541,8 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
             const category = guessCategory(nextName);
             const cal = calculatePersonalFactor(nextName, category);
             
-            setIsCategoryMatch(cal?.isCategoryMatch ?? false);
+            setCalibrationTier(cal?.tier ?? null);
+            setCalibrationSamples(cal?.sampleCount ?? 0);
 
             dispatch({
               type: 'UPDATE_SETUP',
@@ -578,7 +581,8 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
               key={cat}
               onClick={() => {
                 const cal = calculatePersonalFactor(state.taskName, cat);
-                setIsCategoryMatch(cal?.isCategoryMatch ?? false);
+                setCalibrationTier(cal?.tier ?? null);
+                setCalibrationSamples(cal?.sampleCount ?? 0);
                 dispatch({
                   type: 'UPDATE_SETUP',
                   payload: {
@@ -734,9 +738,11 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
               style={{ color: 'var(--color-coral-500)' }}
             >
               <Sparkles className="w-4 h-4" />
-              {isCategoryMatch && state.category && state.category !== 'other' 
+              {calibrationTier === 'exact' 
+                ? `High Confidence (based on ${calibrationSamples} past tasks)`
+                : calibrationTier === 'category'
                 ? `Based on your '${state.category === 'gettingReady' ? 'getting ready' : state.category}' history`
-                : 'Based on your history'}
+                : `Rough Estimate (based on global average)`}
             </label>
             <button
               onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { isManualOverride: true } })}
