@@ -18,6 +18,7 @@ import {
   resumeMission,
   completeMission,
   extendMission,
+  reconcileMission,
 } from '../lib/mission/actions';
 
 // ---------------------------------------------------------------------------
@@ -242,14 +243,36 @@ const TimerContext = createContext<TimerContextValue | undefined>(undefined);
 export function TimerProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(timerReducer, initialState);
 
-  // SSR-safe startup recovery
+  // SSR-safe startup and lifecycle reconciliation
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      const recovered = getActiveMission();
+    if (typeof window === 'undefined') return;
+
+    function handleReconcile() {
+      const recovered = reconcileMission();
       if (recovered) {
         dispatch({ type: 'RECOVER_MISSION', payload: recovered });
       }
     }
+
+    // Initial startup
+    handleReconcile();
+
+    // Browser lifecycle events
+    window.addEventListener('focus', handleReconcile);
+    window.addEventListener('pageshow', handleReconcile);
+    
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible') {
+        handleReconcile();
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener('focus', handleReconcile);
+      window.removeEventListener('pageshow', handleReconcile);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   // Self-correcting expiry watcher
@@ -270,18 +293,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       dispatch({ type: 'EXPIRE_TIMER' });
     }, msRemaining);
 
-    function handleVisibilityChange() {
-      if (document.visibilityState === 'visible') {
-         if (Date.now() >= state.endTime!) {
-           dispatch({ type: 'EXPIRE_TIMER' });
-         }
-      }
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-
     return () => {
       window.clearTimeout(timeoutId);
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, [state.status, state.endTime, state.activeMission?.status]);
 

@@ -117,3 +117,23 @@ export function completeMission(mission: ActiveMission, tagline?: string): void 
   
   clearActiveMission();
 }
+
+/**
+ * Idempotent lifecycle reconciliation function.
+ * Called on startup, visibilitychange, focus, and pageshow.
+ */
+export function reconcileMission(): ActiveMission | null {
+  const mission = getActiveMission();
+  if (!mission) return null;
+
+  const now = Date.now();
+  
+  // If the mission is running and has passed expectedEndAt, we could mark
+  // a local flag to ensure we only process the expiry once (e.g. notifications).
+  // For Phase 2, we just return the active mission so the UI can snap to the correct state.
+  
+  // In the future (Phase 3+), we will check notification delivery state here
+  // and process expiry exactly once without corrupting the mission state.
+  
+  return mission;
+}

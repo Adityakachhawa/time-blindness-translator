@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion, useSpring, useMotionValue, AnimatePresence } from 'framer-motion';
 import { toPng, toBlob } from 'html-to-image';
 import { useTimer } from '@/context/TimerContext';
+import { useWakeLock } from '@/hooks/useWakeLock';
 import { computeBlockColor } from '@/lib/calculations';
 import { Brain, CheckCircle, Megaphone, PlusCircle, ScanEye, Undo2, Zap } from 'lucide-react';
 
@@ -244,6 +245,9 @@ export default function ActiveTimerScreen() {
   const blockBg = useMemo(() => computeBlockColor(fillRatio), [fillRatio]);
   
   const isPaused = state.activeMission?.status === 'paused';
+  const isActive = state.status === 'active' && !isPaused;
+
+  useWakeLock(isActive);
 
   return (
     <div className="flex flex-col items-center justify-between w-full min-h-[85vh] relative">
