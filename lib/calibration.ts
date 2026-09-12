@@ -1,30 +1,23 @@
 import { getTaskHistory } from './storage';
+import type { TaskCategory } from '../types/timer';
 
-export function calculatePersonalFactor(taskName: string): number | null {
-  if (!taskName.trim()) return null;
-  
-  const history = getTaskHistory();
-  const searchName = taskName.toLowerCase().trim();
-  
-  const relevantSessions = history.filter(
-    (record) => record.taskName.toLowerCase().trim() === searchName
-  );
+export interface CalibrationResult {
+  factor: number;
+  sampleCount: number;
+  isCategoryMatch: boolean;
+}
 
-  if (relevantSessions.length < 2) return null;
-
+function calculateMedianRatio(sessions: any[]): number | null {
   const ratios: number[] = [];
-  for (const session of relevantSessions) {
-    // Determine predicted time
+  for (const session of sessions) {
     const predicted = session.predictedSeconds 
       ? session.predictedSeconds 
       : (session.optimisticMin ? session.optimisticMin * 60 : 0);
       
-    // Determine actual time
     const actualTotal = session.actualSeconds 
       ? session.actualSeconds 
       : (session.actualMinutes ? session.actualMinutes * 60 : 0);
 
-    // Subtract transition time to get core task time
     const transition = session.transitionMinutes ? session.transitionMinutes * 60 : 0;
     const actual = Math.max(0, actualTotal - transition);
 
@@ -33,19 +26,50 @@ export function calculatePersonalFactor(taskName: string): number | null {
     }
   }
 
-  if (ratios.length < 2) return null;
+  if (ratios.length === 0) return null;
 
-  // Calculate median
   ratios.sort((a, b) => a - b);
   const mid = Math.floor(ratios.length / 2);
   let median = ratios.length % 2 !== 0 
     ? ratios[mid] 
     : (ratios[mid - 1] + ratios[mid]) / 2;
 
-  // Clamp factor to reasonable bounds (e.g., 1.0 to 5.0)
-  median = Math.max(1.0, Math.min(median, 5.0));
+  return Math.max(1.0, Math.min(median, 5.0));
+}
+
+export function calculatePersonalFactor(taskName: string, category: TaskCategory = 'other'): CalibrationResult | null {
+  if (!taskName.trim()) return null;
   
-  return median;
+  const history = getTaskHistory();
+  const searchName = taskName.toLowerCase().trim();
+  
+  // Priority 1: Exact match
+  const exactSessions = history.filter(
+    (record) => record.taskName.toLowerCase().trim() === searchName
+  );
+
+  if (exactSessions.length >= 2) {
+    const factor = calculateMedianRatio(exactSessions);
+    if (factor !== null) {
+      return { factor, sampleCount: exactSessions.length, isCategoryMatch: false };
+    }
+  }
+
+  // Priority 2: Category match
+  if (category && category !== 'other') {
+    const categorySessions = history.filter(
+      (record) => record.category === category
+    );
+
+    if (categorySessions.length >= 3) {
+      const factor = calculateMedianRatio(categorySessions);
+      if (factor !== null) {
+        return { factor, sampleCount: categorySessions.length, isCategoryMatch: true };
+      }
+    }
+  }
+
+  return null;
 }
 
 export function formatConfidenceRange(minutes: number): string {

@@ -4,6 +4,9 @@
 
 export type TimerStatus = 'setup' | 'active' | 'success' | 'expired';
 
+export type TaskCategory = 'work' | 'cleaning' | 'gettingReady' | 'study' | 'health' | 'other';
+
+
 // ---------------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------------
@@ -14,6 +17,10 @@ export interface TimerState {
 
   /** What the user is working on. */
   taskName: string;
+
+  /** The broad category of the task. */
+  category?: TaskCategory;
+
 
   /** Raw estimate entered by the user (minutes). */
   initialEstimate: number;
@@ -101,7 +108,7 @@ export type CertTheme = 'classic' | 'dark' | 'chaos';
  */
 export interface UpdateSetupAction {
   type: 'UPDATE_SETUP';
-  payload: Partial<Pick<TimerState, 'taskName' | 'initialEstimate' | 'taxMultiplier' | 'personalFactor' | 'isManualOverride' | 'transitionMinutes'>>;
+  payload: Partial<Pick<TimerState, 'taskName' | 'category' | 'initialEstimate' | 'taxMultiplier' | 'personalFactor' | 'isManualOverride' | 'transitionMinutes'>>;
 }
 
 /** Transitions from setup → active, setting an absolute endTime. */

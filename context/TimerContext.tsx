@@ -46,6 +46,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       if (state.status !== 'setup') return state;
 
       const nextTaskName = action.payload.taskName ?? state.taskName;
+      const nextCategory = action.payload.category ?? state.category;
       const nextEstimate = action.payload.initialEstimate ?? state.initialEstimate;
       const nextTax = action.payload.taxMultiplier ?? state.taxMultiplier;
       const nextPersonalFactor = action.payload.personalFactor !== undefined ? action.payload.personalFactor : state.personalFactor;
@@ -58,6 +59,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       return {
         ...state,
         taskName: nextTaskName,
+        category: nextCategory,
         initialEstimate: nextEstimate,
         predictedSeconds: nextEstimate * 60,
         optimisticMin: nextEstimate,
@@ -257,6 +259,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       history.unshift({
         id:            state.completedAt,
         taskName:      state.taskName,
+        category:      state.category,
         optimisticMin,
         taxMultiplier: state.taxMultiplier,
         allocatedMin,
@@ -276,6 +279,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     state.status,
     state.completedAt,
     state.taskName,
+    state.category,
     state.initialEstimate,
     state.optimisticMin,
     state.taxMultiplier,

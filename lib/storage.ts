@@ -8,12 +8,13 @@
 // Types
 // ---------------------------------------------------------------------------
 
-import type { LifetimeStats } from '../types/timer';
+import type { LifetimeStats, TaskCategory } from '../types/timer';
 import { TROPHIES, type UnlockedTrophy } from './trophies';
 
 export interface TaskRecord {
   id:             string;
   taskName:       string;
+  category?:      TaskCategory;
   optimisticMin:  number;   // user's original estimate before ADHD tax
   taxMultiplier:  number;   // ADHD tax multiplier applied
   allocatedMin:   number;   // actual minutes after tax (renamed from actualMinutes)

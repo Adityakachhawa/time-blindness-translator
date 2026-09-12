@@ -1,3 +1,5 @@
+import type { TaskCategory } from '../types/timer';
+
 export interface TinyTemplate {
   min5: string;
   min15: string;
@@ -68,4 +70,26 @@ export function getTinyTemplates(taskName: string): TinyTemplate {
   }
   
   return DEFAULT_TEMPLATE;
+}
+
+export function guessCategory(taskName: string): TaskCategory {
+  if (!taskName) return 'other';
+  
+  const normalized = taskName.toLowerCase().trim();
+  
+  const rules: { keywords: string[], category: TaskCategory }[] = [
+    { keywords: ['clean', 'wash', 'laundry', 'dishes', 'sweep', 'vacuum', 'tidy', 'organize'], category: 'cleaning' },
+    { keywords: ['work', 'email', 'inbox', 'report', 'code', 'meeting', 'admin'], category: 'work' },
+    { keywords: ['study', 'read', 'homework', 'assignment', 'book', 'textbook'], category: 'study' },
+    { keywords: ['workout', 'exercise', 'gym', 'run', 'meditate', 'pill', 'meds', 'water'], category: 'health' },
+    { keywords: ['shower', 'bath', 'dress', 'makeup', 'teeth', 'morning', 'routine', 'ready'], category: 'gettingReady' },
+  ];
+
+  for (const rule of rules) {
+    if (rule.keywords.some(kw => normalized.includes(kw))) {
+      return rule.category;
+    }
+  }
+
+  return 'other';
 }

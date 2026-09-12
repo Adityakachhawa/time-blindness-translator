@@ -18,8 +18,9 @@ import {
 import { unlockAudio } from '@/lib/audio';
 import { getTodayCount, getHasSeenQuiz, markQuizSeen, setMutePreference, getRecentUniqueTasks, type RecentTask } from '@/lib/storage';
 import { calculatePersonalFactor, formatConfidenceRange } from '@/lib/calibration';
-import { getTinyTemplates } from '@/lib/templates';
+import { getTinyTemplates, guessCategory } from '@/lib/templates';
 import type { Track } from '@/hooks/useAmbientAudio';
+import type { TaskCategory } from '@/types/timer';
 import OnboardingQuiz, { type QuizResult } from '@/components/OnboardingQuiz';
 import WeeklyReportModal from '@/components/WeeklyReportModal';
 import FitCheckModal from '@/components/FitCheckModal';
@@ -239,8 +240,9 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         const min = parseInt(minStr, 10);
         if (!isNaN(min)) {
           setChallengeData({ taskName: challenge, min });
-          const factor = calculatePersonalFactor(challenge);
-          dispatch({ type: 'UPDATE_SETUP', payload: { taskName: challenge, initialEstimate: min, personalFactor: factor, isManualOverride: false } });
+          const category = guessCategory(challenge);
+          const cal = calculatePersonalFactor(challenge, category);
+          dispatch({ type: 'UPDATE_SETUP', payload: { taskName: challenge, category, initialEstimate: min, personalFactor: cal?.factor ?? null, isManualOverride: false } });
           bypassQuiz = true;
           // Clean up the URL so it doesn't persist
           window.history.replaceState({}, '', window.location.pathname);
@@ -256,10 +258,11 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
   }, [dispatch]);
 
   function handleQuizComplete(res: QuizResult) {
-    const factor = calculatePersonalFactor(res.taskName);
+    const category = guessCategory(res.taskName);
+    const cal = calculatePersonalFactor(res.taskName, category);
     dispatch({ 
       type: 'UPDATE_SETUP', 
-      payload: { taskName: res.taskName, initialEstimate: res.initialEstimate, personalFactor: factor, isManualOverride: false } 
+      payload: { taskName: res.taskName, category, initialEstimate: res.initialEstimate, personalFactor: cal?.factor ?? null, isManualOverride: false } 
     });
     
     if (setTrack) setTrack(res.track);
@@ -306,13 +309,15 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
   const [todayCount, setTodayCount] = useState(0);
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
   
-  // Weekly Report
   const [showWeeklyReport, setShowWeeklyReport] = useState(false);
   const [hasWeeklyMissions, setHasWeeklyMissions] = useState(false);
 
   // Fit Check & Deadline
   const [showFitCheck, setShowFitCheck] = useState(false);
   const [showDeadline, setShowDeadline] = useState(false);
+  
+  // Track if current factor came from category match
+  const [isCategoryMatch, setIsCategoryMatch] = useState(false);
 
   useEffect(() => { 
     setTodayCount(getTodayCount()); 
@@ -476,10 +481,12 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
               whileHover={{ scale: 1.05, y: -2 }}
               whileTap={{ scale: 0.96 }}
               onClick={() => {
-                const factor = calculatePersonalFactor(t.label);
+                const category = guessCategory(t.label);
+                const cal = calculatePersonalFactor(t.label, category);
+                setIsCategoryMatch(cal?.isCategoryMatch ?? false);
                 dispatch({
                   type: 'UPDATE_SETUP',
-                  payload: { taskName: t.label, initialEstimate: t.minutes, personalFactor: factor, isManualOverride: false },
+                  payload: { taskName: t.label, category, initialEstimate: t.minutes, personalFactor: cal?.factor ?? null, isManualOverride: false },
                 });
               }}
               className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium shrink-0 whitespace-nowrap"
@@ -513,10 +520,19 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           value={state.taskName}
           onChange={e => {
             const nextName = e.target.value;
-            const factor = calculatePersonalFactor(nextName);
+            const category = guessCategory(nextName);
+            const cal = calculatePersonalFactor(nextName, category);
+            
+            setIsCategoryMatch(cal?.isCategoryMatch ?? false);
+
             dispatch({
               type: 'UPDATE_SETUP',
-              payload: { taskName: nextName, personalFactor: factor, isManualOverride: false },
+              payload: { 
+                taskName: nextName, 
+                category,
+                personalFactor: cal?.factor ?? null, 
+                isManualOverride: false 
+              },
             });
           }}
           className="w-full rounded-2xl px-5 py-4 text-lg font-medium placeholder-shown:italic"
@@ -538,6 +554,36 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           autoComplete="off"
           enterKeyHint="done"
         />
+
+        {/* ── Category Chips ──────────────────────────────────────────────── */}
+        <div className="flex flex-wrap gap-2 mt-1 px-1">
+          {(['work', 'cleaning', 'study', 'health', 'gettingReady', 'other'] as TaskCategory[]).map(cat => (
+            <button
+              key={cat}
+              onClick={() => {
+                const cal = calculatePersonalFactor(state.taskName, cat);
+                setIsCategoryMatch(cal?.isCategoryMatch ?? false);
+                dispatch({
+                  type: 'UPDATE_SETUP',
+                  payload: {
+                    category: cat,
+                    personalFactor: cal?.factor ?? null,
+                    isManualOverride: false
+                  }
+                });
+              }}
+              className="px-3 py-1 rounded-full text-xs font-semibold transition-colors border"
+              style={{
+                background: state.category === cat ? 'var(--color-sage-500)' : 'transparent',
+                color: state.category === cat ? '#ffffff' : 'var(--muted)',
+                borderColor: state.category === cat ? 'var(--color-sage-500)' : 'var(--card-border)',
+              }}
+            >
+              {cat === 'gettingReady' ? 'getting ready' : cat}
+            </button>
+          ))}
+        </div>
+
         {canStart && (
           <div className="flex justify-end px-1 mt-1">
             <button
@@ -568,10 +614,13 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
                 whileHover={{ scale: 1.02, y: -2 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => {
+                  const quickTaskName = `${state.taskName.trim()} (${tiny.min}-Min Starter)`;
+                  const category = guessCategory(quickTaskName);
                   dispatch({
                     type: 'UPDATE_SETUP',
                     payload: { 
-                      taskName: `${state.taskName.trim()} (${tiny.min}-Min Starter)`, 
+                      taskName: quickTaskName, 
+                      category,
                       initialEstimate: tiny.min, 
                       taxMultiplier: 1.0, 
                       isManualOverride: true, 
@@ -666,7 +715,9 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
               style={{ color: 'var(--color-coral-500)' }}
             >
               <Sparkles className="w-4 h-4" />
-              Based on your history
+              {isCategoryMatch && state.category && state.category !== 'other' 
+                ? `Based on your '${state.category === 'gettingReady' ? 'getting ready' : state.category}' history`
+                : 'Based on your history'}
             </label>
             <button
               onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { isManualOverride: true } })}
