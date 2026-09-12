@@ -55,3 +55,44 @@ export function formatConfidenceRange(minutes: number): string {
   const upper = rounded + 5;
   return `Likely: ${lower}–${upper} min`;
 }
+
+export interface TaskRange {
+  lower: number;
+  upper: number;
+  median: number;
+}
+
+export function getTaskHistoricalRange(taskName: string): TaskRange | null {
+  if (!taskName.trim()) return null;
+  const history = getTaskHistory();
+  const searchName = taskName.toLowerCase().trim();
+  
+  const relevantSessions = history.filter(
+    (record) => record.taskName.toLowerCase().trim() === searchName
+  );
+
+  if (relevantSessions.length === 0) return null;
+
+  const actualTimes = relevantSessions.map(session => {
+     const actualTotalSeconds = session.actualSeconds 
+      ? session.actualSeconds 
+      : (session.actualMinutes ? session.actualMinutes * 60 : 0);
+     return actualTotalSeconds / 60;
+  }).filter(t => t > 0);
+
+  if (actualTimes.length === 0) return null;
+
+  actualTimes.sort((a, b) => a - b);
+  const mid = Math.floor(actualTimes.length / 2);
+  const median = actualTimes.length % 2 !== 0 
+    ? actualTimes[mid] 
+    : (actualTimes[mid - 1] + actualTimes[mid]) / 2;
+
+  // Create a 10-minute spread around the median (rounded to nearest 5)
+  const rounded = Math.round(median / 5) * 5;
+  const lower = Math.max(1, rounded - 5); // Don't go below 1 min
+  const upper = rounded + 5;
+
+  return { lower, upper, median };
+}
+

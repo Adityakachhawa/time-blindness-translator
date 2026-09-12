@@ -6,7 +6,7 @@ import {
   Bath, Brush, Calculator, ChefHat, Clapperboard, CloudLightning, CloudRain, CloudSun,
   Coffee, Dices, Droplets, Dumbbell, Film, GraduationCap, LucideIcon,
   Mail, MessageSquare, Minus, Moon, Music, Pill, Plus, Rocket,
-  Sparkles, Star, Sun, Timer, Trophy, Tv2, UtensilsCrossed,
+  Sparkles, Star, Sun, Timer, Trophy, Tv2, UtensilsCrossed, Clock,
 } from 'lucide-react';
 import { useTimer } from '@/context/TimerContext';
 import {
@@ -21,6 +21,10 @@ import { calculatePersonalFactor, formatConfidenceRange } from '@/lib/calibratio
 import { getTinyTemplates } from '@/lib/templates';
 import type { Track } from '@/hooks/useAmbientAudio';
 import OnboardingQuiz, { type QuizResult } from '@/components/OnboardingQuiz';
+import WeeklyReportModal from '@/components/WeeklyReportModal';
+import FitCheckModal from '@/components/FitCheckModal';
+import { generateWeeklyReport } from '@/lib/analytics';
+import { BarChart } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Stagger animation variants
@@ -300,9 +304,22 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
   // Feature 2: today's streak count
   const [todayCount, setTodayCount] = useState(0);
   const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
+  
+  // Weekly Report
+  const [showWeeklyReport, setShowWeeklyReport] = useState(false);
+  const [hasWeeklyMissions, setHasWeeklyMissions] = useState(false);
+
+  // Fit Check
+  const [showFitCheck, setShowFitCheck] = useState(false);
+
   useEffect(() => { 
     setTodayCount(getTodayCount()); 
     setRecentTasks(getRecentUniqueTasks(4));
+    
+    const { totalMissions } = generateWeeklyReport();
+    if (totalMissions > 0) {
+      setHasWeeklyMissions(true);
+    }
   }, []);
 
   // Feature 5: Surprise Me
@@ -315,6 +332,7 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
   if (hasSeenQuiz === null) return null;
 
   return (
+    <>
     <AnimatePresence mode="wait">
       {!hasSeenQuiz ? (
         <motion.div
@@ -337,22 +355,58 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           className="flex flex-col gap-7 w-full pb-4"
         >
           {/* ── Feature 2: Streak badge ─────────────────────────────────────── */}
-      {todayCount > 0 && (
-        <motion.div
+      <div className="flex flex-col gap-2">
+        {todayCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="flex items-center justify-center gap-2 rounded-2xl py-2.5 px-4"
+            style={{
+              background: 'linear-gradient(135deg, rgba(245,166,35,0.15), rgba(242,129,90,0.10))',
+              border: '1.5px solid rgba(245,166,35,0.4)',
+            }}
+          >
+            <Trophy className="w-5 h-5 shrink-0" style={{ color: 'var(--color-amber-400)' }} />
+            <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>
+              {todayCount} {todayCount === 1 ? 'task' : 'tasks'} crushed today — keep going!
+            </p>
+          </motion.div>
+        )}
+        
+        {hasWeeklyMissions && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.85 }}
+            animate={{ opacity: 1, scale: 1 }}
+            onClick={() => setShowWeeklyReport(true)}
+            className="flex items-center justify-center gap-2 rounded-2xl py-2.5 px-4 cursor-pointer hover:opacity-90 transition-opacity"
+            style={{
+              background: 'linear-gradient(135deg, rgba(125,175,156,0.15), rgba(125,175,156,0.10))',
+              border: '1.5px solid rgba(125,175,156,0.4)',
+            }}
+          >
+            <BarChart className="w-5 h-5 shrink-0" style={{ color: 'var(--color-sage-500)' }} />
+            <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>
+              Your Week in Time
+            </p>
+          </motion.button>
+        )}
+
+        <motion.button
           initial={{ opacity: 0, scale: 0.85 }}
           animate={{ opacity: 1, scale: 1 }}
-          className="flex items-center justify-center gap-2 rounded-2xl py-2.5 px-4"
+          onClick={() => setShowFitCheck(true)}
+          className="flex items-center justify-center gap-2 rounded-2xl py-2.5 px-4 cursor-pointer hover:opacity-90 transition-opacity"
           style={{
-            background: 'linear-gradient(135deg, rgba(245,166,35,0.15), rgba(242,129,90,0.10))',
-            border: '1.5px solid rgba(245,166,35,0.4)',
+            background: 'transparent',
+            border: '1.5px dashed var(--card-border)',
           }}
         >
-          <Trophy className="w-5 h-5 shrink-0" style={{ color: 'var(--color-amber-400)' }} />
-          <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>
-            {todayCount} {todayCount === 1 ? 'task' : 'tasks'} crushed today — keep going!
+          <Clock className="w-5 h-5 shrink-0" style={{ color: 'var(--muted)' }} />
+          <p className="font-bold text-sm" style={{ color: 'var(--muted)' }}>
+            Can I fit this in?
           </p>
-        </motion.div>
-      )}
+        </motion.button>
+      </div>
 
       {/* ── Challenge Banner ───────────────────────────────────────────── */}
       {challengeData && (
@@ -925,5 +979,8 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
     </motion.div>
       )}
     </AnimatePresence>
+    <WeeklyReportModal isOpen={showWeeklyReport} onClose={() => setShowWeeklyReport(false)} />
+    <FitCheckModal isOpen={showFitCheck} onClose={() => setShowFitCheck(false)} />
+    </>
   );
 }
