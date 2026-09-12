@@ -62,6 +62,7 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <head>
+        <link rel="manifest" href="/manifest.json" />
         {/* Google AdSense — replace YOUR_ADSENSE_ID with your publisher ID */}
         {/* <script
           async

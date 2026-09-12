@@ -6,7 +6,7 @@ import {
   Bath, Brush, Calculator, ChefHat, Clapperboard, CloudLightning, CloudRain, CloudSun,
   Coffee, Dices, Droplets, Dumbbell, Film, GraduationCap, LucideIcon,
   Mail, MessageSquare, Minus, Moon, Music, Pill, Plus, Rocket,
-  Sparkles, Star, Sun, Timer, Trophy, Tv2, UtensilsCrossed, Clock, CalendarClock,
+  Sparkles, Star, Sun, Timer, Trophy, Tv2, UtensilsCrossed, Clock, CalendarClock, Download,
 } from 'lucide-react';
 import { useTimer } from '@/context/TimerContext';
 import {
@@ -318,6 +318,21 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
   
   // Track if current factor came from category match
   const [isCategoryMatch, setIsCategoryMatch] = useState(false);
+
+  // PWA Install Prompt
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  useEffect(() => { 
+    const handleBeforeInstallPrompt = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
 
   useEffect(() => { 
     setTodayCount(getTodayCount()); 
@@ -1003,6 +1018,20 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         >
           🎯 Need help starting?
         </button>
+
+        {deferredPrompt && (
+          <button
+            onClick={async () => {
+              deferredPrompt.prompt();
+              const { outcome } = await deferredPrompt.userChoice;
+              if (outcome === 'accepted') setDeferredPrompt(null);
+            }}
+            className="w-full mt-4 text-sm font-semibold flex items-center justify-center gap-2 transition-colors hover:text-slate-600"
+            style={{ color: 'var(--color-sage-600)' }}
+          >
+            <Download className="w-4 h-4" /> Install App to save history
+          </button>
+        )}
       </motion.div>
 
       {/* ── Recent Missions ─────────────────────────────────────────────── */}
