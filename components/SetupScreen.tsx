@@ -7,6 +7,7 @@ import {
   Coffee, Dices, Droplets, Dumbbell, Film, GraduationCap, LucideIcon,
   Mail, MessageSquare, Minus, Moon, Music, Pill, Plus, Rocket,
   Sparkles, Star, Sun, Timer, Trophy, Tv2, UtensilsCrossed, Clock, CalendarClock, Download,
+  Bell, BellOff,
 } from 'lucide-react';
 import { useTimer } from '@/context/TimerContext';
 import {
@@ -323,6 +324,32 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
 
   // PWA Install Prompt
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+
+  // Background Push Notifications State
+  const [pushOptIn, setPushOptIn] = useState(false);
+
+  useEffect(() => { 
+     if (typeof window !== 'undefined') {
+       setPushOptIn(localStorage.getItem('pushOptIn') === 'true');
+     }
+  }, []);
+
+  const handlePushToggle = async () => {
+     if (pushOptIn) {
+       import('@/lib/notifications/pushManager').then(m => m.unsubscribeFromPush());
+       localStorage.setItem('pushOptIn', 'false');
+       setPushOptIn(false);
+     } else {
+       const m = await import('@/lib/notifications/pushManager');
+       const success = await m.subscribeToPush();
+       if (success) {
+         localStorage.setItem('pushOptIn', 'true');
+         setPushOptIn(true);
+       } else {
+         alert("Could not enable push notifications. Please check your browser permissions.");
+       }
+     }
+  };
 
   useEffect(() => { 
     const handleBeforeInstallPrompt = (e: any) => {
@@ -649,7 +676,9 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
                   });
                   // Immediately start the mission
                   setTimeout(() => {
-                    requestNotificationPermission().catch(() => {});
+                    if (!pushOptIn) {
+                      requestNotificationPermission().catch(() => {});
+                    }
                     dispatch({ type: 'START_MISSION' });
                   }, 50);
                 }}
@@ -979,6 +1008,28 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         </div>
       </motion.div>
 
+      {/* ── Background Alarms Toggle ────────────────────────────────────── */}
+      <motion.div variants={itemVariants} className="flex items-center justify-between px-2 pt-2">
+        <div className="flex items-center gap-2">
+          <div className="p-1.5 rounded-lg" style={{ background: pushOptIn ? 'var(--color-sage-500)' : 'var(--card-border)', color: pushOptIn ? '#fff' : 'var(--muted)' }}>
+            {pushOptIn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
+          </div>
+          <div>
+            <p className="text-sm font-semibold" style={{ color: 'var(--fg)' }}>Background Alarms</p>
+            <p className="text-[11px]" style={{ color: 'var(--muted)' }}>Notify me even when the app is closed</p>
+          </div>
+        </div>
+        <button
+          onClick={handlePushToggle}
+          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
+          style={{ background: pushOptIn ? 'var(--color-sage-500)' : 'var(--card-border)' }}
+        >
+          <span
+            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${pushOptIn ? 'translate-x-6' : 'translate-x-1'}`}
+          />
+        </button>
+      </motion.div>
+
       {/* ── Start Mission CTA ──────────────────────────────────────────── */}
       <motion.div variants={itemVariants} className="pt-2">
         <motion.button
@@ -987,7 +1038,9 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           onClick={() => {
             if (canStart) {
               unlockAudio(); // pre-unlock AudioContext during this user gesture
-              requestNotificationPermission().catch(() => {});
+              if (!pushOptIn) {
+                requestNotificationPermission().catch(() => {});
+              }
               dispatch({ type: 'START_MISSION' });
             }
           }}

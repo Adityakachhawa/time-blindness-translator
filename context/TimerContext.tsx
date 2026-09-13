@@ -247,6 +247,14 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       };
     }
 
+    case 'SET_NOTIFICATION_MESSAGE_ID': {
+      if (!state.activeMission) return state;
+      return {
+        ...state,
+        activeMission: { ...state.activeMission, notificationMessageId: action.payload }
+      };
+    }
+
     default:
       return state;
   }
@@ -349,6 +357,59 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       window.clearTimeout(timeoutId);
     };
   }, [state.status, state.endTime, state.activeMission?.status]);
+
+  // Push Notification QStash Scheduler
+  const prevMissionRef = useRef<any>(null);
+  
+  useEffect(() => {
+    const prev = prevMissionRef.current;
+    const curr = state.activeMission;
+    prevMissionRef.current = curr;
+
+    import('../lib/notifications/pushManager').then(({ scheduleMissionNotification, cancelMissionNotification }) => {
+      // 1. If mission was cleared (completed/cancelled)
+      if (!curr && prev && prev.notificationMessageId) {
+        cancelMissionNotification(prev.notificationMessageId);
+        return;
+      }
+
+      if (!curr) return;
+
+      // 2. If mission was paused, or expired
+      if (curr.status === 'paused' || state.status === 'expired') {
+         if (curr.notificationMessageId) {
+            cancelMissionNotification(curr.notificationMessageId);
+         }
+         return;
+      }
+
+      // 3. If mission is running, check if expectedEndAt changed
+      if (curr.status === 'running' && state.status === 'active') {
+         const needsSchedule = !prev || prev.expectedEndAt !== curr.expectedEndAt || prev.status !== 'running';
+         
+         if (needsSchedule) {
+            // Cancel the old one if it exists
+            if (prev?.notificationMessageId) {
+               cancelMissionNotification(prev.notificationMessageId);
+            }
+
+            // Only schedule if the user has opted-in via PushManager, handled gracefully if not supported/subscribed.
+            scheduleMissionNotification(curr.id, curr.expectedEndAt).then((messageId) => {
+               if (messageId && stateRef.current.activeMission?.id === curr.id) {
+                 import('../lib/mission/storage').then(m => {
+                   const latestMission = m.getActiveMission();
+                   if (latestMission && latestMission.id === curr.id) {
+                     latestMission.notificationMessageId = messageId;
+                     m.setActiveMission(latestMission);
+                     dispatch({ type: 'SET_NOTIFICATION_MESSAGE_ID', payload: messageId });
+                   }
+                 });
+               }
+            });
+         }
+      }
+    });
+  }, [state.activeMission, state.status]);
 
   return (
     <TimerContext.Provider value={{ state, dispatch }}>

@@ -184,6 +184,12 @@ export interface MinimizeMissionAction {
   type: 'MINIMIZE_MISSION';
 }
 
+/** Update the notification message ID from QStash */
+export interface SetNotificationMessageIdAction {
+  type: 'SET_NOTIFICATION_MESSAGE_ID';
+  payload: string;
+}
+
 /** Discriminated union of every action the reducer handles. */
 export type TimerAction =
   | UpdateSetupAction
@@ -197,4 +203,5 @@ export type TimerAction =
   | PauseMissionAction
   | ResumeMissionAction
   | RecoverMissionAction
-  | MinimizeMissionAction;
+  | MinimizeMissionAction
+  | SetNotificationMessageIdAction;

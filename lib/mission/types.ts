@@ -31,4 +31,6 @@ export interface ActiveMission {
   taxMultiplier: number;
   allocatedMin: number;
   transitionMinutes?: number;
+
+  notificationMessageId?: string;
 }
