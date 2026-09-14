@@ -337,6 +337,9 @@ export function TimerProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (state.status !== 'active' || !state.endTime) return;
     
+    // Check for overtime flag BEFORE expiring
+    if (state.isOvertimeAcknowledged) return; 
+
     // If it's paused, we don't automatically expire it
     if (state.activeMission && state.activeMission.status === 'paused') return;
 
@@ -356,7 +359,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     return () => {
       window.clearTimeout(timeoutId);
     };
-  }, [state.status, state.endTime, state.activeMission?.status]);
+  }, [state.status, state.endTime, state.activeMission?.status, state.isOvertimeAcknowledged]);
 
   // Push Notification QStash Scheduler
   const prevMissionRef = useRef<any>(null);
