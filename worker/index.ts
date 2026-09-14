@@ -27,7 +27,8 @@ self.addEventListener('push', (event: any) => {
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png',
       data: { url, missionId: data.missionId },
-      vibrate: [200, 100, 200]
+      requireInteraction: true,
+      vibrate: [500, 200, 500, 200, 500, 200, 500, 200, 500, 200, 500]
     };
 
     event.waitUntil(self.registration.showNotification(title, options));
