@@ -39,36 +39,60 @@ self.addEventListener('push', (event: any) => {
 self.addEventListener('notificationclick', (event: any) => {
   event.notification.close();
 
-  const urlToOpen = event.notification.data?.url || (event.notification.data?.missionId ? `/mission/${event.notification.data.missionId}` : '/');
+  // Safely resolve URL, handling cases where data might be missing or explicitly "undefined" (stringified)
+  let urlPath = '/';
+  const data = event.notification.data;
+  
+  if (data) {
+    if (data.url && data.url !== 'undefined' && data.url !== 'null') {
+      urlPath = data.url;
+    } else if (data.missionId && data.missionId !== 'undefined' && data.missionId !== 'null') {
+      urlPath = `/mission/${data.missionId}`;
+    }
+  }
 
-  // Focus the window or open a new one
+  // Ensure absolute URL
+  const targetUrl = new URL(urlPath, self.location.origin).href;
+
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients: any) => {
-      // Check if there is already a window/tab open with the target URL
+      // Find an existing client for the app
+      let matchingClient = null;
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
-        
-        // If so, navigate and focus it.
         if (client.url.includes(self.registration.scope) && 'focus' in client) {
-          client.postMessage({ type: 'NOTIFICATION_CLICKED', payload: { action: event.action, tag: event.notification.tag, missionId: event.notification.data?.missionId } });
-          
-          if ('navigate' in client && client.url !== new URL(urlToOpen, self.location.origin).href) {
-            return client.navigate(urlToOpen).then((c: any) => c ? c.focus() : client.focus());
-          }
-          return client.focus();
+          matchingClient = client;
+          break; // Use the first matching window/tab
         }
       }
-      // If not, open a new one.
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(urlToOpen).then((newClient: any) => {
-          if (newClient) {
-            // Need a slight delay to allow the new window to spin up its listener
-            setTimeout(() => {
-              newClient.postMessage({ type: 'NOTIFICATION_CLICKED', payload: { action: event.action, tag: event.notification.tag, missionId: event.notification.data?.missionId } });
-            }, 1000);
-          }
-          return newClient;
-        });
+      
+      const payload = { 
+        action: event.action, 
+        tag: event.notification.tag, 
+        missionId: data?.missionId !== 'undefined' ? data?.missionId : undefined 
+      };
+
+      if (matchingClient) {
+        // If app is already open, post message, navigate if needed, and focus
+        matchingClient.postMessage({ type: 'NOTIFICATION_CLICKED', payload });
+        
+        if ('navigate' in matchingClient && matchingClient.url !== targetUrl) {
+          return matchingClient.navigate(targetUrl).then((c: any) => c ? c.focus() : matchingClient.focus());
+        }
+        return matchingClient.focus();
+      } else {
+        // If not open, launch it
+        if (self.clients.openWindow) {
+          return self.clients.openWindow(targetUrl).then((newClient: any) => {
+            if (newClient) {
+              // Need a slight delay to allow the new window to spin up its listener
+              setTimeout(() => {
+                newClient.postMessage({ type: 'NOTIFICATION_CLICKED', payload });
+              }, 1000);
+            }
+            return newClient;
+          });
+        }
       }
     })
   );
