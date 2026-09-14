@@ -205,6 +205,13 @@ export default function ActiveTimerScreen() {
     setHasShownNudge(true);
   }, [dispatch]);
 
+  // Auto-hide the halfway nudge if the mission expires or enters overtime
+  useEffect(() => {
+    if (state.status === 'expired' || state.isOvertimeAcknowledged) {
+      setShowNudgeToast(false);
+    }
+  }, [state.status, state.isOvertimeAcknowledged]);
+
   // A MotionValue fed into a spring for silky-smooth scaleY transitions
   const fillMV = useMotionValue(
     Math.min(1, msLeft / (state.actualMinutes * 60_000)),

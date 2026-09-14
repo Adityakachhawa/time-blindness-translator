@@ -61,7 +61,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
 
       // Check if it's expired/overtime
       if (newStatus === 'active' && activeMission.status === 'running') {
-        if (Date.now() >= activeMission.expectedEndAt) {
+        if (Date.now() >= activeMission.expectedEndAt && !state.isOvertimeAcknowledged) {
           newStatus = 'expired';
         }
       }
