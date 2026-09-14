@@ -87,15 +87,15 @@ export default function FitCheckModal({
                     placeholder="e.g. Fold laundry..."
                     value={taskName}
                     onChange={(e) => setTaskName(e.target.value)}
-                    className="w-full rounded-2xl px-5 py-4 text-lg font-medium placeholder-shown:italic"
+                    className="w-full rounded-2xl px-5 py-4 text-lg font-medium placeholder-shown:italic placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     style={{
-                      background: 'var(--color-cream-300)',
-                      border: '2px solid transparent',
+                      background: 'var(--card)',
+                      border: '2px solid var(--card-border)',
                       color: 'var(--fg)',
                       outline: 'none',
                     }}
                     onFocus={e => (e.target.style.borderColor = 'var(--color-coral-400)')}
-                    onBlur={e => (e.target.style.borderColor = 'transparent')}
+                    onBlur={e => (e.target.style.borderColor = 'var(--card-border)')}
                   />
                 </div>
 
@@ -109,15 +109,15 @@ export default function FitCheckModal({
                     value={timeAvailableStr}
                     onChange={(e) => setTimeAvailableStr(e.target.value)}
                     min={1}
-                    className="w-full rounded-2xl px-5 py-4 text-lg font-medium"
+                    className="w-full rounded-2xl px-5 py-4 text-lg font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     style={{
-                      background: 'var(--color-cream-300)',
-                      border: '2px solid transparent',
+                      background: 'var(--card)',
+                      border: '2px solid var(--card-border)',
                       color: 'var(--fg)',
                       outline: 'none',
                     }}
                     onFocus={e => (e.target.style.borderColor = 'var(--color-coral-400)')}
-                    onBlur={e => (e.target.style.borderColor = 'transparent')}
+                    onBlur={e => (e.target.style.borderColor = 'var(--card-border)')}
                   />
                 </div>
               </div>

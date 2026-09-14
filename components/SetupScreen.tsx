@@ -336,16 +336,24 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
 
   const handlePushToggle = async () => {
      if (pushOptIn) {
-       import('@/lib/notifications/pushManager').then(m => m.unsubscribeFromPush());
-       localStorage.setItem('pushOptIn', 'false');
        setPushOptIn(false);
+       localStorage.setItem('pushOptIn', 'false');
+       import('@/lib/notifications/pushManager').then(m => m.unsubscribeFromPush()).catch(e => {
+         console.error('Failed to unsubscribe from push', e);
+       });
      } else {
-       const m = await import('@/lib/notifications/pushManager');
-       const success = await m.subscribeToPush();
-       if (success) {
-         localStorage.setItem('pushOptIn', 'true');
-         setPushOptIn(true);
-       } else {
+       setPushOptIn(true);
+       try {
+         const m = await import('@/lib/notifications/pushManager');
+         const success = await m.subscribeToPush();
+         if (success) {
+           localStorage.setItem('pushOptIn', 'true');
+         } else {
+           setPushOptIn(false);
+           alert("Could not enable push notifications. Please check your browser permissions.");
+         }
+       } catch (error) {
+         setPushOptIn(false);
          alert("Could not enable push notifications. Please check your browser permissions.");
        }
      }

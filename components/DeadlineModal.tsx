@@ -104,15 +104,15 @@ export default function DeadlineModal({
                     placeholder="e.g. Write report..."
                     value={taskName}
                     onChange={(e) => setTaskName(e.target.value)}
-                    className="w-full rounded-2xl px-5 py-4 text-lg font-medium placeholder-shown:italic"
+                    className="w-full rounded-2xl px-5 py-4 text-lg font-medium placeholder-shown:italic placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     style={{
-                      background: 'var(--color-cream-300)',
-                      border: '2px solid transparent',
+                      background: 'var(--card)',
+                      border: '2px solid var(--card-border)',
                       color: 'var(--fg)',
                       outline: 'none',
                     }}
                     onFocus={e => (e.target.style.borderColor = 'var(--color-sage-400)')}
-                    onBlur={e => (e.target.style.borderColor = 'transparent')}
+                    onBlur={e => (e.target.style.borderColor = 'var(--card-border)')}
                   />
                 </div>
 
@@ -124,15 +124,15 @@ export default function DeadlineModal({
                     type="time"
                     value={deadlineTime}
                     onChange={(e) => setDeadlineTime(e.target.value)}
-                    className="w-full rounded-2xl px-5 py-4 text-lg font-medium"
+                    className="w-full rounded-2xl px-5 py-4 text-lg font-medium placeholder:text-slate-400 dark:placeholder:text-slate-500"
                     style={{
-                      background: 'var(--color-cream-300)',
-                      border: '2px solid transparent',
+                      background: 'var(--card)',
+                      border: '2px solid var(--card-border)',
                       color: 'var(--fg)',
                       outline: 'none',
                     }}
                     onFocus={e => (e.target.style.borderColor = 'var(--color-sage-400)')}
-                    onBlur={e => (e.target.style.borderColor = 'transparent')}
+                    onBlur={e => (e.target.style.borderColor = 'var(--card-border)')}
                   />
                 </div>
               </div>
