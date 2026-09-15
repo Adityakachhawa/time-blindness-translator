@@ -16,7 +16,6 @@ self.addEventListener('push', (event: any) => {
         const data = event.data.json();
         if (data.missionId) {
           missionId = data.missionId;
-          url = `/mission/${data.missionId}`;
         }
         if (data.title) title = data.title;
         if (data.body) body = data.body;
@@ -30,7 +29,7 @@ self.addEventListener('push', (event: any) => {
       body,
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png',
-      data: { url, missionId },
+      data: { url: '/', missionId },
       requireInteraction: true,
       vibrate: [500, 200, 500, 200, 500, 200, 500, 200, 500, 200, 500],
       tag: missionId,
