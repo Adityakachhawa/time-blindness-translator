@@ -37,7 +37,8 @@ async function handler(request: Request) {
         JSON.stringify({
           missionId,
           event: 'expired'
-        })
+        }),
+        { urgency: 'high' }
       );
     } catch (pushError: any) {
       if (pushError.statusCode === 410 || pushError.statusCode === 404) {

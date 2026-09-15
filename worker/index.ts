@@ -5,37 +5,44 @@ export {};
 declare let self: ServiceWorkerGlobalScope;
 
 self.addEventListener('push', (event: any) => {
-  if (!event.data) return;
-
-  try {
-    const data = event.data.json();
-    
-    // Default fallback text
+  const promiseChain = (async () => {
     let title = 'Time check';
     let body = 'Your mission budget is up. Open the app to review it.';
     let url = '/';
+    let missionId = 'timer-alarm';
 
-    if (data.missionId) {
-      url = `/mission/${data.missionId}`;
+    if (event.data) {
+      try {
+        const data = event.data.json();
+        if (data.missionId) {
+          missionId = data.missionId;
+          url = `/mission/${data.missionId}`;
+        }
+        if (data.title) title = data.title;
+        if (data.body) body = data.body;
+      } catch (err) {
+        const text = event.data.text();
+        if (text) body = text;
+      }
     }
-
-    if (data.title) title = data.title;
-    if (data.body) body = data.body;
 
     const options = {
       body,
       icon: '/icons/icon-192x192.png',
       badge: '/icons/icon-192x192.png',
-      data: { url, missionId: data.missionId },
+      data: { url, missionId },
       requireInteraction: true,
-      vibrate: [500, 200, 500, 200, 500, 200, 500, 200, 500, 200, 500]
+      vibrate: [500, 200, 500, 200, 500, 200, 500, 200, 500, 200, 500],
+      tag: missionId,
+      renotify: true
     };
 
-    event.waitUntil(self.registration.showNotification(title, options));
-  } catch (err) {
-    console.error('Error processing push event:', err);
-  }
+    return self.registration.showNotification(title, options);
+  })();
+
+  event.waitUntil(promiseChain);
 });
+
 
 self.addEventListener('notificationclick', (event: any) => {
   event.notification.close();
