@@ -16,6 +16,7 @@ let dbPromise: Promise<IDBDatabase> | null = null;
 // Only for testing
 export function __resetDBPromiseForTest() {
   dbPromise = null;
+  flushPromise = null;
 }
 
 function getDB(): Promise<IDBDatabase> {
@@ -105,46 +106,44 @@ export function flushPendingActions(): Promise<void> {
   if (flushPromise) return flushPromise;
   
   flushPromise = (async () => {
-    try {
-      // In test environments without a window, navigator might be mocked
-      const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
-      if (isOffline) {
-        return; // wait until online
-      }
-      
-      const actions = await getAllActions();
-      
-      for (const action of actions) {
-        if (action.type === 'INVALIDATE_NOTIFICATION') {
-          try {
-            // Include version and completedAt so server can be idempotent and version-aware if needed
-            const res = await fetch('/api/notifications/invalidate', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ 
-                missionId: action.missionId,
-                notificationVersion: action.notificationVersion,
-                completedAt: action.completedAt
-              }),
-            });
-            
-            if (res.ok) {
-              await removeAction(action.id);
-            } else if (res.status >= 400 && res.status < 500) {
-              // Client errors (4xx) usually mean the request is bad, drop it to avoid infinite loop
-              await removeAction(action.id);
-            }
-          } catch (fetchErr) {
-            console.error('Failed to flush action, will retry later:', fetchErr);
-            // Network failure, stop flushing other items to preserve order/avoid spam
-            break;
+    // In test environments without a window, navigator might be mocked
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
+    if (isOffline) {
+      return; // wait until online
+    }
+    
+    const actions = await getAllActions();
+    
+    for (const action of actions) {
+      if (action.type === 'INVALIDATE_NOTIFICATION') {
+        try {
+          // Include version and completedAt so server can be idempotent and version-aware if needed
+          const res = await fetch('/api/notifications/invalidate', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              missionId: action.missionId,
+              notificationVersion: action.notificationVersion,
+              completedAt: action.completedAt
+            }),
+          });
+          
+          if (res.ok) {
+            await removeAction(action.id);
+          } else if (res.status >= 400 && res.status < 500) {
+            // Client errors (4xx) usually mean the request is bad, drop it to avoid infinite loop
+            await removeAction(action.id);
           }
+        } catch (fetchErr) {
+          console.error('Failed to flush action, will retry later:', fetchErr);
+          // Network failure, stop flushing other items to preserve order/avoid spam
+          break;
         }
       }
-    } finally {
-      flushPromise = null;
     }
-  })();
+  })().finally(() => {
+    flushPromise = null;
+  });
   
   return flushPromise;
 }
