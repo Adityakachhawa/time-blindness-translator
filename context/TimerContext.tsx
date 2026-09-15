@@ -18,8 +18,11 @@ import {
   resumeMission,
   completeMission,
   extendMission,
+  recalculateMission,
   reconcileMission,
 } from '../lib/mission/actions';
+import { getMissionAwarenessEvents } from '../lib/mission/awareness';
+import { sendAwarenessNotification } from '../lib/notifications/notificationManager';
 import { setAppBadge } from '../lib/notifications/badgeManager';
 import { trackEvent, getRetentionMetrics, getAccuracyImprovement } from '../lib/analytics/localAnalytics';
 
@@ -60,12 +63,8 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       else if (activeMission.status === 'paused') newStatus = 'active';
       else if (activeMission.status === 'completed') newStatus = 'success';
 
-      // Check if it's expired/overtime
-      if (newStatus === 'active' && activeMission.status === 'running') {
-        if (Date.now() >= activeMission.expectedEndAt && !state.isOvertimeAcknowledged) {
-          newStatus = 'expired';
-        }
-      }
+      // Removed: We no longer transition to 'expired' automatically.
+      // Overtime is handled seamlessly while status remains 'active'.
 
       return {
         ...state,
@@ -244,6 +243,22 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       };
     }
 
+    case 'RECALCULATE_MISSION': {
+      if (!state.activeMission) return state;
+      
+      const updatedMission = recalculateMission(state.activeMission, action.payload.remainingMinutes);
+      
+      return {
+        ...state,
+        status: 'active',
+        activeMission: updatedMission,
+        actualMinutes: updatedMission.allocatedMin,
+        allocatedMin: updatedMission.allocatedMin,
+        endTime: updatedMission.expectedEndAt,
+        extensionCount: state.extensionCount + 1,
+      };
+    }
+
     case 'ANNOUNCE_MISSION': {
       if (state.status !== 'active') return state;
       return {
@@ -348,33 +363,30 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  // Self-correcting expiry watcher
+  // Awareness Events Watcher
   useEffect(() => {
-    if (state.status !== 'active' || !state.endTime) return;
-    
-    // Check for overtime flag BEFORE expiring
-    if (state.isOvertimeAcknowledged) return; 
+    if (state.status !== 'active' || !state.activeMission || state.activeMission.status === 'paused') return;
 
-    // If it's paused, we don't automatically expire it
-    if (state.activeMission && state.activeMission.status === 'paused') return;
-
-    const msRemaining = state.endTime - Date.now();
-
-    if (msRemaining <= 0) {
-      setAppBadge(1);
-      dispatch({ type: 'EXPIRE_TIMER' });
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setAppBadge(1);
-      dispatch({ type: 'EXPIRE_TIMER' });
-    }, msRemaining);
+    const intervalId = window.setInterval(() => {
+      if (state.status !== 'active' || !state.activeMission) return;
+      
+      const now = Date.now();
+      const events = getMissionAwarenessEvents(state.activeMission, now);
+      
+      let badgeSet = false;
+      for (const event of events) {
+        sendAwarenessNotification(state.activeMission, event.id, event.title, event.message);
+        if (event.requiresAttention && !badgeSet) {
+          setAppBadge(1);
+          badgeSet = true;
+        }
+      }
+    }, 1000);
 
     return () => {
-      window.clearTimeout(timeoutId);
+      window.clearInterval(intervalId);
     };
-  }, [state.status, state.endTime, state.activeMission?.status, state.isOvertimeAcknowledged]);
+  }, [state.status, state.activeMission]);
 
   // Push Notification QStash Scheduler
   const prevMissionRef = useRef<any>(null);

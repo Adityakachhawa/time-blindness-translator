@@ -7,7 +7,8 @@ import { useTimer } from '@/context/TimerContext';
 import { useWakeLock } from '@/hooks/useWakeLock';
 import { clearAppBadge } from '@/lib/notifications/badgeManager';
 import { computeBlockColor } from '@/lib/calculations';
-import { Brain, CheckCircle, Megaphone, PlusCircle, ScanEye, Undo2, Zap, ChevronDown, Timer } from 'lucide-react';
+import { getMissionAwarenessEvents, MissionEvent } from '@/lib/mission/awareness';
+import { Brain, CheckCircle, Megaphone, PlusCircle, ScanEye, Undo2, Zap, ChevronDown, Timer, AlertCircle } from 'lucide-react';
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -92,9 +93,8 @@ export default function ActiveTimerScreen() {
     return state.actualMinutes >= 15 || state.taxMultiplier >= 1.5;
   });
 
-  // Halfway nudge state
-  const [hasShownNudge, setHasShownNudge] = useState(false);
-  const [showNudgeToast, setShowNudgeToast] = useState(false);
+  const [currentEvent, setCurrentEvent] = useState<MissionEvent | null>(null);
+  const [showRecalculate, setShowRecalculate] = useState(false);
 
   // Card reference for html-to-image capture
   const cardRef = useRef<HTMLDivElement>(null);
@@ -203,23 +203,10 @@ export default function ActiveTimerScreen() {
     }
   }, [isCompleting]);
 
-  const handleNudgeStillOnIt = useCallback(() => {
-    setShowNudgeToast(false);
-    setHasShownNudge(true);
-  }, []);
-
-  const handleNudgeAddFive = useCallback(() => {
-    dispatch({ type: 'ADD_MINUTES', payload: { minutes: 5 } });
-    setShowNudgeToast(false);
-    setHasShownNudge(true);
+  const handleRecalculate = useCallback((remainingMinutes: number) => {
+    dispatch({ type: 'RECALCULATE_MISSION', payload: { remainingMinutes } });
+    setShowRecalculate(false);
   }, [dispatch]);
-
-  // Auto-hide the halfway nudge if the mission expires or enters overtime
-  useEffect(() => {
-    if (state.status === 'expired' || state.isOvertimeAcknowledged) {
-      setShowNudgeToast(false);
-    }
-  }, [state.status, state.isOvertimeAcknowledged]);
 
   // A MotionValue fed into a spring for silky-smooth scaleY transitions
   const fillMV = useMotionValue(
@@ -233,33 +220,36 @@ export default function ActiveTimerScreen() {
     const totalMs = state.actualMinutes * 60_000;
 
     const id = setInterval(() => {
-      let diff = 0;
-      if (state.activeMission?.status === 'paused' && state.activeMission.pausedAt) {
-         diff = endTime - state.activeMission.pausedAt;
-      } else {
-         diff = endTime - Date.now();
-      }
+      const diff = state.activeMission?.status === 'paused' && state.activeMission.pausedAt
+         ? endTime - state.activeMission.pausedAt
+         : endTime - Date.now();
       
-      const remaining = Math.max(0, diff);
-      setMsLeft(remaining);
-      fillMV.set(Math.max(0, Math.min(1, remaining / totalMs)));
+      setMsLeft(diff);
+      fillMV.set(Math.max(0, Math.min(1, Math.max(0, diff) / totalMs)));
 
-      // Halfway check: elapsed time has crossed 50% of the total actualMinutes
-      const elapsed = totalMs - remaining;
-      if (elapsed >= totalMs * 0.5 && !hasShownNudge) {
-        setShowNudgeToast(true);
+      if (state.activeMission) {
+        const events = getMissionAwarenessEvents(state.activeMission, Date.now());
+        setCurrentEvent(events.length > 0 ? events[events.length - 1] : null);
       }
     }, 100);
 
     return () => clearInterval(id);
-  }, [state.endTime, state.actualMinutes, state.status, state.isOvertimeAcknowledged, state.activeMission?.status, state.activeMission?.pausedAt, fillMV, hasShownNudge, dispatch]);
+  }, [state.endTime, state.actualMinutes, state.status, state.isOvertimeAcknowledged, state.activeMission?.status, state.activeMission?.pausedAt, fillMV, dispatch]);
 
   const totalMs = state.actualMinutes * 60_000;
-  const fillRatio = Math.min(1, Math.max(0, msLeft / totalMs));
+  const clampedMsLeft = Math.max(0, msLeft);
+  const fillRatio = Math.min(1, Math.max(0, clampedMsLeft / totalMs));
   const pctLeft = Math.round(fillRatio * 100);
-  const isLow = fillRatio < 0.22 && !state.isOvertimeAcknowledged && msLeft > 0;
-  const timeLabel = formatTime(msLeft);
-  const blockBg = useMemo(() => computeBlockColor(fillRatio), [fillRatio]);
+  const isOvertime = msLeft <= 0;
+  const overtimeMs = Math.abs(msLeft);
+  
+  // We determine if we are low on time (but not in overtime yet)
+  const isLow = fillRatio < 0.22 && !isOvertime && msLeft > 0;
+  
+  const timeLabel = isOvertime ? formatTime(overtimeMs) : formatTime(msLeft);
+  
+  // Turn red during overtime
+  const blockBg = useMemo(() => isOvertime ? 'rgba(239, 68, 68, 0.2)' : computeBlockColor(fillRatio), [fillRatio, isOvertime]);
   
   const isPaused = state.activeMission?.status === 'paused';
   const isActive = state.status === 'active' && !isPaused;
@@ -324,21 +314,41 @@ export default function ActiveTimerScreen() {
           transition={{ delay: 0.12, duration: 0.4 }}
           className="flex flex-col items-center justify-center flex-1 my-12"
         >
-          {state.isOvertimeAcknowledged ? (
+          {isOvertime ? (
             <div className="flex flex-col items-center gap-3">
-              <div className="px-5 py-2.5 rounded-full border-[1.5px] border-dashed border-white/40 text-white/90 font-bold tracking-widest uppercase text-xs">
-                Overtime Active
+              <div className="px-5 py-2.5 rounded-full border-[1.5px] border-dashed border-red-400 text-red-400 font-bold tracking-widest uppercase text-xs">
+                OVER BUDGET
               </div>
-              <p className="text-sm text-white/70 max-w-62.5 text-center">
-                Take as long as you need. No pressure.
+              <p
+                className="text-7xl font-black tabular-nums tracking-tighter text-red-500"
+                style={{
+                  textShadow: '0 4px 32px rgba(239, 68, 68, 0.3)',
+                }}
+              >
+                +{timeLabel}
               </p>
+              
+              <div className="flex gap-2 mt-4">
+                <button
+                  onClick={() => setShowRecalculate(true)}
+                  className="px-4 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-sm transition-colors border border-slate-600"
+                >
+                  Recalculate
+                </button>
+                <button
+                  onClick={() => dispatch({ type: 'ADD_TEN_MINUTES' })}
+                  className="px-4 py-2 rounded-xl bg-slate-800/80 hover:bg-slate-700 text-white font-bold text-sm transition-colors border border-slate-600"
+                >
+                  +10m
+                </button>
+              </div>
             </div>
           ) : (
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-2 mb-2 bg-black/10 px-3 py-1 rounded-full">
                 <Timer className="w-3.5 h-3.5 text-white/80" />
                 <span className="text-[10px] tracking-widest uppercase text-white/90 font-bold">
-                  {msLeft <= 0 ? "Time's Up" : "On Time"}
+                  On Time
                 </span>
               </div>
               <p
@@ -368,6 +378,15 @@ export default function ActiveTimerScreen() {
               className="text-base font-semibold text-center px-4 text-white"
             >
               Almost there — you're doing great! <Zap className="inline w-4 h-4 mb-0.5 ml-0.5" strokeWidth={2.5} />
+            </motion.p>
+          ) : currentEvent ? (
+            <motion.p
+              key={currentEvent.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="text-base font-semibold text-center px-4 text-amber-300"
+            >
+              {currentEvent.title} <AlertCircle className="inline w-4 h-4 mb-0.5 ml-0.5" strokeWidth={2} />
             </motion.p>
           ) : (
             <p
@@ -437,9 +456,9 @@ export default function ActiveTimerScreen() {
         </p>
       </div>
 
-      {/* ── Overtime / Hyperfocus Pattern Interrupt ───────────────────────── */}
+      {/* ── Recalculate Flow ───────────────────────── */}
       <AnimatePresence>
-        {state.status === 'expired' && (
+        {showRecalculate && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -458,101 +477,56 @@ export default function ActiveTimerScreen() {
               style={{ border: '4px solid var(--color-amber-400)' }}
             >
               <div>
-                <h3 className="text-3xl font-black text-slate-900 leading-tight">
-                  Still on track?
+                <h3 className="text-2xl font-black text-slate-900 leading-tight">
+                  How much longer?
                 </h3>
-                <p className="text-slate-500 font-medium mt-2">
-                  Your planned time is up. No stress — just checking in to see what you need next.
+                <p className="text-slate-500 font-medium mt-2 text-sm">
+                  Let's recalibrate. How much time is realistically left for this task?
                 </p>
               </div>
 
-              <div className="flex flex-col gap-3 mt-2">
+              <div className="grid grid-cols-2 gap-3 mt-2">
+                <button
+                  onClick={() => handleRecalculate(5)}
+                  className="w-full py-4 rounded-2xl font-bold text-sm transition-transform active:scale-95 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                >
+                  A little (5m)
+                </button>
+                <button
+                  onClick={() => handleRecalculate(15)}
+                  className="w-full py-4 rounded-2xl font-bold text-sm transition-transform active:scale-95 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                >
+                  About half (15m)
+                </button>
+                <button
+                  onClick={() => handleRecalculate(30)}
+                  className="w-full py-4 rounded-2xl font-bold text-sm transition-transform active:scale-95 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                >
+                  A lot (30m)
+                </button>
                 <button
                   onClick={() => {
-                    clearAppBadge();
-                    dispatch({ type: 'ACKNOWLEDGE_OVERTIME' });
+                    // Not sure - let's add 20m as a generous buffer
+                    handleRecalculate(20);
                   }}
-                  className="w-full py-4 rounded-2xl font-bold text-lg transition-transform active:scale-95 bg-slate-100 text-slate-700 hover:bg-slate-200"
+                  className="w-full py-4 rounded-2xl font-bold text-sm transition-transform active:scale-95 bg-slate-100 text-slate-700 hover:bg-slate-200"
                 >
-                  Keep going
-                </button>
-                <button
-                  onClick={() => dispatch({ type: 'ADD_TEN_MINUTES' })}
-                  className="w-full py-4 rounded-2xl font-bold text-lg transition-transform active:scale-95 text-slate-900"
-                  style={{ background: 'linear-gradient(135deg, var(--color-amber-300) 0%, var(--color-amber-400) 100%)' }}
-                >
-                  Need 10 more min
-                </button>
-                <button
-                  onClick={() => dispatch({ type: 'COMPLETE_MISSION' })}
-                  className="w-full py-4 rounded-2xl font-bold text-lg transition-transform active:scale-95 text-white"
-                  style={{ background: 'linear-gradient(135deg, var(--color-sage-500) 0%, var(--color-sage-600) 100%)' }}
-                >
-                  I'm finished!
+                  Not sure (20m)
                 </button>
               </div>
+              
+              <button
+                onClick={() => setShowRecalculate(false)}
+                className="mt-2 text-sm font-semibold text-slate-400 hover:text-slate-600 underline"
+              >
+                Cancel
+              </button>
             </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* ── Halfway Nudge Toast / Notification ───────────────────────── */}
-      <AnimatePresence>
-        {showNudgeToast && (
-          <motion.div
-            initial={{ opacity: 0, y: 30, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ type: 'spring', stiffness: 350, damping: 26 }}
-            className="fixed bottom-6 inset-x-4 max-w-md mx-auto z-50 p-4 rounded-2xl shadow-2xl border flex flex-col gap-3"
-            style={{
-              background: 'var(--card)',
-              borderColor: 'var(--color-amber-400)',
-              backdropFilter: 'blur(20px)',
-              WebkitBackdropFilter: 'blur(20px)',
-            }}
-            role="alert"
-            aria-live="polite"
-          >
-            <div className="flex items-start gap-3">
-              <ScanEye className="w-6 h-6 shrink-0" style={{ color: 'var(--color-amber-500)' }} strokeWidth={1.75} />
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-base leading-snug" style={{ color: 'var(--fg)' }}>
-                  Heads up — you're halfway through. How's it going?
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
-                  Take a quick breath. You're doing awesome.
-                </p>
-              </div>
-            </div>
 
-            <div className="flex items-center gap-3 pt-1">
-              <button
-                type="button"
-                onClick={handleNudgeStillOnIt}
-                className="flex-1 py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-sm hover:brightness-105"
-                style={{
-                  background: 'var(--color-sage-500)',
-                  color: '#ffffff',
-                }}
-              >
-                <CheckCircle className="w-4 h-4 shrink-0" strokeWidth={2.5} /> Still on it!
-              </button>
-              <button
-                type="button"
-                onClick={handleNudgeAddFive}
-                className="flex-1 py-3 px-4 rounded-xl font-bold text-sm flex items-center justify-center gap-1.5 transition-transform active:scale-95 cursor-pointer shadow-sm hover:brightness-105"
-                style={{
-                  background: 'var(--color-amber-500)',
-                  color: '#1c1917',
-                }}
-              >
-                <PlusCircle className="w-4 h-4 shrink-0" strokeWidth={2.5} /> Need +5 min
-              </button>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── "Witness Me" Mission-Start Announcement Toast ──────────────── */}
       <AnimatePresence>

@@ -196,6 +196,12 @@ export interface SetNotificationMessageIdAction {
   payload: string;
 }
 
+/** Recalculate the mission remaining time */
+export interface RecalculateMissionAction {
+  type: 'RECALCULATE_MISSION';
+  payload: { remainingMinutes: number };
+}
+
 /** Discriminated union of every action the reducer handles. */
 export type TimerAction =
   | UpdateSetupAction
@@ -210,4 +216,5 @@ export type TimerAction =
   | ResumeMissionAction
   | RecoverMissionAction
   | MinimizeMissionAction
-  | SetNotificationMessageIdAction;
+  | SetNotificationMessageIdAction
+  | RecalculateMissionAction;

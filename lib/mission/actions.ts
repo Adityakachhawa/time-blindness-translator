@@ -108,6 +108,27 @@ export function extendMission(mission: ActiveMission, extraMinutes: number): Act
   return updated;
 }
 
+export function recalculateMission(mission: ActiveMission, remainingMinutes: number): ActiveMission {
+  const now = Date.now();
+  const remainingMs = remainingMinutes * 60_000;
+  
+  const newExpectedEndAt = now + remainingMs;
+  
+  const updated: ActiveMission = {
+    ...mission,
+    expectedEndAt: newExpectedEndAt,
+    allocatedMin: Math.round((newExpectedEndAt - mission.startedAt) / 60_000),
+    updatedAt: now,
+    status: mission.status === 'completed' || mission.status === 'cancelled' ? mission.status : 'running',
+    notificationVersion: mission.notificationVersion + 1,
+  };
+  
+  setActiveMission(updated);
+  clearAppBadge();
+  return updated;
+}
+
+
 export function completeMission(mission: ActiveMission, tagline?: string): void {
   const now = Date.now();
   

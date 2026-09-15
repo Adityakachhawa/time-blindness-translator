@@ -99,3 +99,55 @@ function showFallbackNotification(mission: ActiveMission, eventId: string) {
     console.warn('Failed to show fallback notification', err);
   }
 }
+
+/**
+ * Fires an awareness notification, preventing duplicates by using a stable event ID.
+ */
+export function sendAwarenessNotification(mission: ActiveMission, eventId: string, title: string, body: string): void {
+  if (!hasNotificationPermission()) return;
+  
+  const events = getAcknowledgedEvents();
+  
+  if (events.includes(eventId)) {
+    return;
+  }
+  
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.ready.then((registration) => {
+      registration.showNotification(title, {
+        body,
+        icon: '/icon-192x192.png',
+        tag: eventId,
+        vibrate: [100, 50, 100],
+        data: {
+          url: '/'
+        }
+      } as NotificationOptions & { vibrate?: number[] });
+      markEventAcknowledged(eventId);
+    }).catch((err) => {
+      console.warn('Failed to show notification via service worker', err);
+      showFallbackAwarenessNotification(title, body, eventId);
+    });
+  } else {
+    showFallbackAwarenessNotification(title, body, eventId);
+  }
+}
+
+function showFallbackAwarenessNotification(title: string, body: string, eventId: string) {
+  try {
+    const notification = new Notification(title, {
+      body,
+      icon: '/icon-192x192.png',
+      tag: eventId,
+    });
+    
+    notification.onclick = () => {
+      window.focus();
+      notification.close();
+    };
+    
+    markEventAcknowledged(eventId);
+  } catch (err) {
+    console.warn('Failed to show fallback notification', err);
+  }
+}
