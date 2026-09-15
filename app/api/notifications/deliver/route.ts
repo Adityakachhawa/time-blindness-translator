@@ -19,7 +19,7 @@ async function handler(request: Request) {
     // verifySignatureAppRouter does read the body, but it patches request.json() to work in older versions.
     // However, cloning is safest or we can just use request.json() and it should work with the wrapper.
     const body = await request.json();
-    const { deviceId, missionId } = body;
+    const { deviceId, missionId, scheduledEndAt, notificationVersion } = body;
 
     if (!deviceId) {
       return NextResponse.json({ error: 'Missing deviceId' }, { status: 400 });
@@ -29,6 +29,37 @@ async function handler(request: Request) {
     
     if (!subData || !subData.pushSubscription) {
       return NextResponse.json({ error: 'Subscription not found' }, { status: 404 });
+    }
+
+    // ── Stale-webhook guard ──────────────────────────────────────────────────
+    // When a user extends their mission, schedule/route.ts reschedules a new
+    // QStash job and updates push:mission:{missionId} with the new expectedEndAt
+    // and an incremented notificationVersion.
+    if (missionId) {
+      const missionMeta: any = await redis.get(`push:mission:${missionId}`);
+      
+      if (!missionMeta) {
+        console.log(`[deliver] Skipping webhook for mission ${missionId}. Missing metadata (fail-closed).`);
+        return NextResponse.json({ skipped: true, reason: 'missing_metadata' });
+      }
+      
+      // If there's a version mismatch, this webhook is stale/orphaned.
+      // E.g., this webhook is version 1, but the mission is now on version 2.
+      if (missionMeta.notificationVersion !== undefined && notificationVersion !== undefined) {
+        if (missionMeta.notificationVersion !== notificationVersion) {
+          console.log(`[deliver] Skipping stale webhook for mission ${missionId}. payload v${notificationVersion} != stored v${missionMeta.notificationVersion}`);
+          return NextResponse.json({ skipped: true, reason: 'stale_webhook_version' });
+        }
+      }
+      
+      // Fallback timestamp check (in case versioning is missing)
+      if (missionMeta.expectedEndAt && scheduledEndAt) {
+        const drift = missionMeta.expectedEndAt - scheduledEndAt;
+        if (drift > 30_000) {
+          console.log(`[deliver] Skipping stale webhook for mission ${missionId}. drift=${drift}ms`);
+          return NextResponse.json({ skipped: true, reason: 'stale_webhook_time' });
+        }
+      }
     }
 
     try {

@@ -301,16 +301,25 @@ export function TimerProvider({ children }: { children: ReactNode }) {
       }
     }
 
+    function handleOnline() {
+      import('../lib/notifications/pendingActions').then(({ flushPendingActions }) => {
+        flushPendingActions();
+      });
+    }
+
     // Initial startup
     handleReconcile();
+    handleOnline();
 
     // Browser lifecycle events
     window.addEventListener('focus', handleReconcile);
     window.addEventListener('pageshow', handleReconcile);
+    window.addEventListener('online', handleOnline);
     
     function handleVisibilityChange() {
       if (document.visibilityState === 'visible') {
         handleReconcile();
+        handleOnline();
         const currentState = stateRef.current;
         if (currentState.activeMission && (currentState.activeMission.status === 'running' || currentState.activeMission.status === 'paused')) {
           trackEvent('return_to_mission', { taskName: currentState.activeMission.taskName });
@@ -331,6 +340,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     return () => {
       window.removeEventListener('focus', handleReconcile);
       window.removeEventListener('pageshow', handleReconcile);
+      window.removeEventListener('online', handleOnline);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.removeEventListener('message', handleMessage);
@@ -402,7 +412,7 @@ export function TimerProvider({ children }: { children: ReactNode }) {
             }
 
             // Only schedule if the user has opted-in via PushManager, handled gracefully if not supported/subscribed.
-            scheduleMissionNotification(curr.id, curr.expectedEndAt).then((messageId) => {
+            scheduleMissionNotification(curr.id, curr.expectedEndAt, curr.notificationVersion).then((messageId) => {
                if (messageId && stateRef.current.activeMission?.id === curr.id) {
                  import('../lib/mission/storage').then(m => {
                    const latestMission = m.getActiveMission();

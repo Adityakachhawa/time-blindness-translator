@@ -108,13 +108,13 @@ export function isPushSupported(): boolean {
   return typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
 }
 
-export async function scheduleMissionNotification(missionId: string, expectedEndAt: number): Promise<string | null> {
+export async function scheduleMissionNotification(missionId: string, expectedEndAt: number, notificationVersion: number): Promise<string | null> {
   try {
     const deviceId = getDeviceId();
     const res = await fetch('/api/notifications/schedule', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ deviceId, missionId, expectedEndAt }),
+      body: JSON.stringify({ deviceId, missionId, expectedEndAt, notificationVersion }),
     });
 
     if (!res.ok) return null;

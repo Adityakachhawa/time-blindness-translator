@@ -5,6 +5,7 @@ import { getRandomTagline } from '../calculations';
 import { sendCatchUpNotification } from '../notifications/notificationManager';
 import { setAppBadge, clearAppBadge } from '../notifications/badgeManager';
 import { trackEvent } from '../analytics/localAnalytics';
+import { enqueueInvalidation, flushPendingActions } from '../notifications/pendingActions';
 
 export function startMission(
   taskName: string,
@@ -31,6 +32,9 @@ export function startMission(
     taxMultiplier,
     allocatedMin,
     transitionMinutes,
+
+    // Version 1 = the initial schedule. Incremented on every timing change.
+    notificationVersion: 1,
   };
   
   setActiveMission(mission);
@@ -52,6 +56,8 @@ export function pauseMission(mission: ActiveMission): ActiveMission {
     status: 'paused',
     pausedAt: now,
     updatedAt: now,
+    // Don't bump version on pause — the expectedEndAt hasn't changed yet;
+    // the already-scheduled webhook is still targeting the correct time.
   };
   
   setActiveMission(updated);
@@ -72,6 +78,9 @@ export function resumeMission(mission: ActiveMission): ActiveMission {
     totalPausedMs: (mission.totalPausedMs || 0) + pausedDurationMs,
     pausedAt: undefined,
     updatedAt: now,
+    // Resume shifts expectedEndAt → the old webhook fires at the wrong time.
+    // Bump version so the old webhook is rejected, and the caller re-schedules.
+    notificationVersion: mission.notificationVersion + 1,
   };
   
   setActiveMission(updated);
@@ -88,7 +97,10 @@ export function extendMission(mission: ActiveMission, extraMinutes: number): Act
     allocatedMin: mission.allocatedMin + extraMinutes, // reflect in history
     updatedAt: now,
     // if it was expired/overtime and they added time, ensure it goes back to running
-    status: mission.status === 'completed' || mission.status === 'cancelled' ? mission.status : 'running'
+    status: mission.status === 'completed' || mission.status === 'cancelled' ? mission.status : 'running',
+    // Bump version so the previously-scheduled QStash webhook (which targets
+    // the old expectedEndAt) is rejected at delivery time.
+    notificationVersion: mission.notificationVersion + 1,
   };
   
   setActiveMission(updated);
@@ -107,7 +119,6 @@ export function completeMission(mission: ActiveMission, tagline?: string): void 
   
   // Calculate errors
   const originalEstimateMs = mission.optimisticMin * 60_000;
-  // If originalEstimateMs was passed, we'd use it, but ActiveMission currently infers it from optimisticMin
   const calibratedEstimateMs = mission.plannedDurationMs;
   
   const predictionErrorSignedMs = actualDurationMs - calibratedEstimateMs;
@@ -138,9 +149,16 @@ export function completeMission(mission: ActiveMission, tagline?: string): void 
     predictionErrorAbsoluteMs
   });
   
-  incrementLifetimeStats(mission.allocatedMin - mission.optimisticMin, 0); // extensions are not strictly tracked yet in ActiveMission, we pass 0 for now.
+  incrementLifetimeStats(mission.allocatedMin - mission.optimisticMin, 0);
   incrementDailyCount(new Date(now));
   
+  // Invalidate the Redis mission metadata so any in-flight QStash webhook
+  // (scenarios E, F, G) is rejected at delivery time regardless of whether
+  // QStash cancellation succeeded. We enqueue this durably to IndexedDB so
+  // it safely retries if the user completes the mission offline.
+  enqueueInvalidation(mission.id, mission.notificationVersion, now);
+  flushPendingActions();
+
   try {
     fetch('/api/mission-count', { method: 'POST' }).catch(() => {});
   } catch {}
@@ -158,11 +176,17 @@ export function reconcileMission(): ActiveMission | null {
   if (!mission) return null;
 
   const now = Date.now();
-  // If the mission is running and has passed expectedEndAt, we could mark
-  // a local flag to ensure we only process the expiry once (e.g. notifications).
+  // If the mission has passed its expectedEndAt and we haven't yet sent a
+  // local catch-up notification for this session, do so exactly once.
+  // The catchUpNotifiedAt sentinel persists in localStorage, so repeated
+  // reconcile calls (visibilitychange, focus, pageshow) are all no-ops.
   if (mission.status === 'running' && now >= mission.expectedEndAt) {
-    sendCatchUpNotification(mission);
-    setAppBadge(1);
+    if (!mission.catchUpNotifiedAt) {
+      sendCatchUpNotification(mission);
+      setAppBadge(1);
+      // Write the sentinel back before returning so the next reconcile skips.
+      setActiveMission({ ...mission, catchUpNotifiedAt: now });
+    }
   }
   
   return mission;

@@ -25,7 +25,7 @@ function formatTime(ms: number): string {
 // Mission Launched Card (Off-Screen)
 // ---------------------------------------------------------------------------
 
-function MissionLaunchedCard({ taskName, allocatedMin, taxMultiplier, cardRef }: { taskName: string, allocatedMin: number, taxMultiplier: number, cardRef: React.RefObject<HTMLDivElement | null> }) {
+function MissionLaunchedCard({ taskName, allocatedMin, taxMultiplier, isExactTime, cardRef }: { taskName: string, allocatedMin: number, taxMultiplier: number, isExactTime?: boolean, cardRef: React.RefObject<HTMLDivElement | null> }) {
   return (
     <div
       ref={cardRef}
@@ -52,10 +52,17 @@ function MissionLaunchedCard({ taskName, allocatedMin, taxMultiplier, cardRef }:
           <p style={{ margin: 0, fontSize: 32, fontWeight: 800, color: '#f8fafc' }}>{allocatedMin}<span style={{ fontSize: 16, fontWeight: 600, color: '#94a3b8', marginLeft: 6 }}>min</span></p>
           <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>Allocated Time</p>
         </div>
-        <div style={{ background: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 16, flex: 1 }}>
-          <p style={{ margin: 0, fontSize: 32, fontWeight: 800, color: '#f8fafc' }}>{taxMultiplier.toFixed(1)}×</p>
-          <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>ADHD Tax Applied</p>
-        </div>
+        {isExactTime ? (
+          <div style={{ background: 'rgba(99,102,241,0.15)', padding: 16, borderRadius: 16, flex: 1, border: '1px solid rgba(99,102,241,0.35)' }}>
+            <p style={{ margin: 0, fontSize: 28, fontWeight: 800, color: '#818cf8' }}>Exact Time ⚡</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>No ADHD Tax</p>
+          </div>
+        ) : (
+          <div style={{ background: 'rgba(255,255,255,0.05)', padding: 16, borderRadius: 16, flex: 1 }}>
+            <p style={{ margin: 0, fontSize: 32, fontWeight: 800, color: '#f8fafc' }}>{taxMultiplier.toFixed(1)}×</p>
+            <p style={{ margin: '4px 0 0', fontSize: 12, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>ADHD Tax Applied</p>
+          </div>
+        )}
       </div>
       <p style={{ margin: 0, fontSize: 14, color: '#64748b', textAlign: 'right', fontWeight: 500 }}>
         Time-Blindness Translator
@@ -104,7 +111,9 @@ export default function ActiveTimerScreen() {
     setShowWitnessToast(false);
     dispatch({ type: 'ANNOUNCE_MISSION' });
 
-    const shareText = `Just set a ${state.actualMinutes}-min timer for '${state.taskName}' using the ADHD Tax method on Time-Blindness Translator. Witness me. 👀 @Aditya_X_Writes`;
+    const shareText = state.isExactTime 
+      ? `Just set an exact ${state.actualMinutes}-min timer for '${state.taskName}' with no ADHD tax on Time-Blindness Translator. Witness me. 👀 @Aditya_X_Writes`
+      : `Just set a ${state.actualMinutes}-min timer for '${state.taskName}' using the ADHD Tax method on Time-Blindness Translator. Witness me. 👀 @Aditya_X_Writes`;
     const shareUrl = `https://time-blindness-translator.vercel.app/?challenge=${encodeURIComponent(state.taskName)}&min=${state.actualMinutes}`;
     const intentUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`;
 
@@ -609,7 +618,8 @@ export default function ActiveTimerScreen() {
           cardRef={cardRef} 
           taskName={state.taskName} 
           allocatedMin={state.actualMinutes} 
-          taxMultiplier={state.taxMultiplier} 
+          taxMultiplier={state.taxMultiplier}
+          isExactTime={state.isExactTime}
         />
       </div>
     </div>

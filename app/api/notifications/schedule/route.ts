@@ -7,11 +7,11 @@ const redis = Redis.fromEnv();
 
 export async function POST(request: Request) {
   try {
-    const { deviceId, missionId, expectedEndAt } = await request.json();
+    const { deviceId, missionId, expectedEndAt, notificationVersion } = await request.json();
 
-    if (!deviceId || !missionId || !expectedEndAt) {
+    if (!deviceId || !missionId || !expectedEndAt || notificationVersion === undefined) {
       return NextResponse.json(
-        { error: 'Missing deviceId, missionId, or expectedEndAt' },
+        { error: 'Missing deviceId, missionId, expectedEndAt, or notificationVersion' },
         { status: 400 }
       );
     }
@@ -31,9 +31,15 @@ export async function POST(request: Request) {
 
     const res = await qstash.publishJSON({
       url: destinationUrl,
-      body: { deviceId, missionId, event: 'expired' },
+      body: { deviceId, missionId, event: 'expired', scheduledEndAt: expectedEndAt, notificationVersion },
       notBefore: Math.floor(expectedEndAt / 1000), // convert ms to s for notBefore
     });
+
+    // Persist the authoritative expectedEndAt and notificationVersion so the deliver route can detect stale
+    // (orphaned) webhooks that were superseded by a mission extension.
+    // TTL = time until expected end + 10 min grace, minimum 60 s.
+    const ttlSeconds = Math.max(60, Math.ceil((expectedEndAt - Date.now()) / 1000) + 600);
+    await redis.set(`push:mission:${missionId}`, { expectedEndAt, notificationVersion }, { ex: ttlSeconds });
 
     return NextResponse.json({ success: true, messageId: res.messageId });
   } catch (error) {

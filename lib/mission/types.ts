@@ -33,4 +33,20 @@ export interface ActiveMission {
   transitionMinutes?: number;
 
   notificationMessageId?: string;
+
+  /**
+   * Monotonically increasing counter incremented every time mission timing
+   * changes (extension, resume-after-pause). Carried in the QStash body so
+   * the deliver route can reject any payload whose version no longer matches
+   * the stored metadata — handles out-of-order delivery and duplicates
+   * independently of timestamp drift.
+   */
+  notificationVersion: number;
+
+  /**
+   * Timestamp (ms) when a local catch-up notification was dispatched for this
+   * mission after it expired while the app was backgrounded. Acts as a one-shot
+   * sentinel so reconcileMission never fires sendCatchUpNotification twice.
+   */
+  catchUpNotifiedAt?: number;
 }

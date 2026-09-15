@@ -46,16 +46,13 @@ self.addEventListener('push', (event: any) => {
 self.addEventListener('notificationclick', (event: any) => {
   event.notification.close();
 
-  // Safely resolve URL, handling cases where data might be missing or explicitly "undefined" (stringified)
+  // Next.js handles routing state internally; we always navigate to the root
+  // origin, which will reconcile state based on localStorage.
   let urlPath = '/';
   const data = event.notification.data;
   
-  if (data) {
-    if (data.url && data.url !== 'undefined' && data.url !== 'null') {
-      urlPath = data.url;
-    } else if (data.missionId && data.missionId !== 'undefined' && data.missionId !== 'null') {
-      urlPath = `/mission/${data.missionId}`;
-    }
+  if (data && data.url && data.url !== 'undefined' && data.url !== 'null') {
+    urlPath = data.url;
   }
 
   // Ensure absolute URL
@@ -84,21 +81,27 @@ self.addEventListener('notificationclick', (event: any) => {
         matchingClient.postMessage({ type: 'NOTIFICATION_CLICKED', payload });
         
         if ('navigate' in matchingClient && matchingClient.url !== targetUrl) {
-          return matchingClient.navigate(targetUrl).then((c: any) => c ? c.focus() : matchingClient.focus());
+          return (matchingClient as any).navigate(targetUrl)
+            .then((c: any) => c ? c.focus() : matchingClient.focus())
+            .catch(() => matchingClient.focus()); // navigate() throws on some Android WebViews
         }
         return matchingClient.focus();
       } else {
         // If not open, launch it
         if (self.clients.openWindow) {
-          return self.clients.openWindow(targetUrl).then((newClient: any) => {
-            if (newClient) {
-              // Need a slight delay to allow the new window to spin up its listener
-              setTimeout(() => {
-                newClient.postMessage({ type: 'NOTIFICATION_CLICKED', payload });
-              }, 1000);
-            }
-            return newClient;
-          });
+          return self.clients.openWindow(targetUrl)
+            .then((newClient: any) => {
+              if (newClient) {
+                // Need a slight delay to allow the new window to spin up its listener
+                setTimeout(() => {
+                  newClient.postMessage({ type: 'NOTIFICATION_CLICKED', payload });
+                }, 1000);
+              }
+              return newClient;
+            })
+            .catch((err: any) => {
+               console.error('Failed to open window', err);
+            });
         }
       }
     })
