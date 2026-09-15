@@ -22,14 +22,23 @@ const AVG_SONG_MINUTES = 3.5;      // average pop song
 /**
  * Applies the ADHD tax to a raw estimate and rounds to the nearest 5 minutes.
  *
+ * When `exact` is `true` the function bypasses the tax multiplier and
+ * rounding entirely, returning the raw estimate as-is (Exact Time mode).
+ *
  * @param estimateMinutes  Raw user estimate in minutes.
  * @param multiplier       ADHD tax multiplier (1.0 – 2.5).
- * @returns                Buffered duration, rounded to the nearest 5 min.
+ * @param exact            When true, skip tax + rounding for a 1:1 timer.
+ * @returns                Buffered duration (or exact estimate in exact mode).
  */
 export function calculateActualTime(
   estimateMinutes: number,
   multiplier: number,
+  exact = false,
 ): number {
+  if (exact) {
+    // Exact-time mode: no tax, no rounding, minimum 1 minute
+    return Math.max(1, estimateMinutes);
+  }
   const raw = estimateMinutes * multiplier;
   return Math.round(raw / 5) * 5 || 5; // never return 0
 }

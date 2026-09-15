@@ -6,8 +6,8 @@ import {
   Bath, Brush, Calculator, ChefHat, Clapperboard, CloudLightning, CloudRain, CloudSun,
   Coffee, Dices, Droplets, Dumbbell, Film, GraduationCap, LucideIcon,
   Mail, MessageSquare, Minus, Moon, Music, Pill, Plus, Rocket,
-  Sparkles, Star, Sun, Timer, Trophy, Tv2, UtensilsCrossed, Clock, CalendarClock, Download,
-  Bell, BellOff,
+  Sparkles, Star, Sun, Target, Timer, Trophy, Tv2, UtensilsCrossed, Clock, CalendarClock, Download,
+  Bell, BellOff, Zap,
 } from 'lucide-react';
 import { useTimer } from '@/context/TimerContext';
 import {
@@ -737,183 +737,322 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         </div>
       </motion.div>
 
-      {/* ── Transition Time Budgeting ─────────────────────────────────────── */}
-      <motion.div variants={itemVariants} className="flex flex-col gap-2 mt-1">
-        <label
-          className="text-xs font-semibold uppercase tracking-wide px-1"
-          style={{ color: 'var(--muted)' }}
-        >
-          Include setup / transition time?
-        </label>
-        <div className="flex items-center gap-2">
-          {[0, 5, 10].map((mins) => {
-            const isSelected = (state.transitionMinutes || 0) === mins;
-            return (
-              <button
-                key={mins}
-                onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { transitionMinutes: mins } })}
-                className="flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-colors border"
-                style={{
-                  backgroundColor: isSelected ? 'var(--color-ink-900)' : 'var(--card)',
-                  color: isSelected ? '#ffffff' : 'var(--fg)',
-                  borderColor: isSelected ? 'var(--color-ink-900)' : 'var(--card-border)',
-                }}
-              >
-                {mins === 0 ? 'No' : `+${mins} min`}
-              </button>
-            );
+      {/* ── Exact Time Toggle ──────────────────────────────────────────────── */}
+      <motion.div variants={itemVariants}>
+        <motion.button
+          id="exact-time-toggle"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => dispatch({
+            type: 'UPDATE_SETUP',
+            payload: { isExactTime: !state.isExactTime },
           })}
-        </div>
+          className="w-full flex items-center gap-3 rounded-2xl px-5 py-4 transition-all"
+          style={{
+            background: state.isExactTime
+              ? 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.12))'
+              : 'var(--card)',
+            border: state.isExactTime
+              ? '2px solid rgba(99,102,241,0.55)'
+              : '2px solid var(--card-border)',
+            boxShadow: state.isExactTime
+              ? '0 4px 20px rgba(99,102,241,0.18)'
+              : 'none',
+          }}
+          aria-pressed={state.isExactTime}
+          aria-label="Toggle Exact Time mode"
+        >
+          {/* Icon */}
+          <div
+            className="flex items-center justify-center rounded-xl shrink-0"
+            style={{
+              width: 40,
+              height: 40,
+              background: state.isExactTime
+                ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+                : 'var(--card-border)',
+              transition: 'background 250ms ease',
+            }}
+          >
+            {state.isExactTime
+              ? <Zap className="w-5 h-5" style={{ color: '#fff' }} strokeWidth={2.5} />
+              : <Target className="w-5 h-5" style={{ color: 'var(--muted)' }} strokeWidth={2} />
+            }
+          </div>
+
+          {/* Text */}
+          <div className="flex-1 text-left">
+            <p
+              className="font-bold text-sm"
+              style={{ color: state.isExactTime ? '#818cf8' : 'var(--fg)' }}
+            >
+              Exact Time
+              {state.isExactTime && (
+                <span
+                  className="ml-2 text-[10px] font-black uppercase tracking-widest rounded-full px-2 py-0.5 align-middle"
+                  style={{ background: 'rgba(99,102,241,0.2)', color: '#818cf8' }}
+                >
+                  ON
+                </span>
+              )}
+            </p>
+            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
+              {state.isExactTime
+                ? 'No ADHD tax — 1 min in = exactly 1 min on the clock'
+                : 'Enable for a strict, 1-to-1 micro-task timer'}
+            </p>
+          </div>
+
+          {/* Pill toggle */}
+          <div
+            className="relative shrink-0"
+            style={{ width: 44, height: 24 }}
+          >
+            <div
+              className="absolute inset-0 rounded-full transition-colors"
+              style={{
+                background: state.isExactTime
+                  ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
+                  : 'var(--card-border)',
+                transition: 'background 250ms ease',
+              }}
+            />
+            <div
+              className="absolute top-1 rounded-full bg-white transition-transform"
+              style={{
+                width: 16,
+                height: 16,
+                left: state.isExactTime ? 24 : 4,
+                transition: 'left 200ms ease',
+              }}
+            />
+          </div>
+        </motion.button>
       </motion.div>
 
-      {/* ── Smart Predictions or ADHD Tax Slider ───────────────────────── */}
-      {state.personalFactor !== null && state.personalFactor !== undefined && !state.isManualOverride ? (
-        <motion.div variants={itemVariants} className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
+      {/* ── Transition Time Budgeting (hidden in exact mode) ───────────────── */}
+      <AnimatePresence>
+        {!state.isExactTime && (
+          <motion.div
+            key="transition-block"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="flex flex-col gap-2 mt-1 overflow-hidden"
+          >
             <label
-              className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2"
-              style={{ color: 'var(--color-coral-500)' }}
-            >
-              <Sparkles className="w-4 h-4" />
-              {calibrationTier === 'exact' 
-                ? `High Confidence (based on ${calibrationSamples} past tasks)`
-                : calibrationTier === 'category'
-                ? `Based on your '${state.category === 'gettingReady' ? 'getting ready' : state.category}' history`
-                : `Rough Estimate (based on global average)`}
-            </label>
-            <button
-              onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { isManualOverride: true } })}
-              className="text-xs font-medium underline opacity-70 hover:opacity-100 transition-opacity"
+              className="text-xs font-semibold uppercase tracking-wide px-1"
               style={{ color: 'var(--muted)' }}
             >
-              Override manually
-            </button>
-          </div>
-          <div
-            className="w-full rounded-2xl px-5 py-5 flex items-center justify-center"
-            style={{
-              background: 'var(--card)',
-              border: '2px solid var(--color-coral-400)',
-              boxShadow: '0 4px 20px rgba(242,129,90,0.1)',
-              backdropFilter: 'blur(8px)',
-            }}
-          >
-             <span className="text-2xl font-black" style={{ color: 'var(--fg)' }}>
-                {formatConfidenceRange(state.actualMinutes)}
-             </span>
-          </div>
-        </motion.div>
-      ) : (
-        <motion.div variants={itemVariants} className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
+              Include setup / transition time?
+            </label>
             <div className="flex items-center gap-2">
-              <label
-                htmlFor="tax-slider"
-                className="text-sm font-semibold uppercase tracking-wide"
-                style={{ color: 'var(--muted)' }}
-              >
-                {state.personalFactor ? 'Manual Override' : 'Starter estimate'}
-              </label>
-              <motion.button
-                whileHover={{ scale: 1.1, rotate: 15 }}
-                whileTap={{ scale: 0.9 }}
-                onClick={handleSurpriseMe}
-                className="p-1 rounded-lg transition-colors flex items-center justify-center shadow-sm border"
-                style={{ color: 'var(--color-coral-500)', borderColor: 'var(--card-border)', background: 'var(--card)' }}
-                aria-label="Surprise me with a random tax multiplier"
-              >
-                <Dices className="w-4 h-4" strokeWidth={2.5} />
-              </motion.button>
+              {[0, 5, 10].map((mins) => {
+                const isSelected = (state.transitionMinutes || 0) === mins;
+                return (
+                  <button
+                    key={mins}
+                    onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { transitionMinutes: mins } })}
+                    className="flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-colors border"
+                    style={{
+                      backgroundColor: isSelected ? 'var(--color-ink-900)' : 'var(--card)',
+                      color: isSelected ? '#ffffff' : 'var(--fg)',
+                      borderColor: isSelected ? 'var(--color-ink-900)' : 'var(--card-border)',
+                    }}
+                  >
+                    {mins === 0 ? 'No' : `+${mins} min`}
+                  </button>
+                );
+              })}
             </div>
-            <span
-              className="text-base font-black tabular-nums"
-              style={{ color: 'var(--color-coral-500)' }}
-            >
-              {state.taxMultiplier.toFixed(1)}×
-            </span>
-          </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-          <div
-            className="w-full rounded-2xl px-5 py-5 flex flex-col gap-3"
-            style={{
-              background: 'var(--card)',
-              border: '2px solid var(--card-border)',
-              backdropFilter: 'blur(8px)',
-            }}
+      {/* ── Smart Predictions or ADHD Tax Slider (hidden in exact mode) ────── */}
+      <AnimatePresence>
+        {!state.isExactTime && (
+          <motion.div
+            key="tax-block"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+            className="overflow-hidden"
           >
-            {/* Mood badge */}
-            <div className="flex items-center gap-2">
-              <LucideIconComponent
-                name={taxLabel.icon}
-                className="w-6 h-6 shrink-0"
-                strokeWidth={1.75}
-              />
-              <div>
-                <p
-                  className="font-semibold text-sm"
-                  style={{ color: 'var(--fg)' }}
-                >
-                  {taxLabel.description}
-                </p>
-                <p className="text-xs" style={{ color: 'var(--muted)' }}>
-                  Today feels like a{' '}
-                  <strong>{state.taxMultiplier.toFixed(1)}×</strong> day
-                </p>
-              </div>
-            </div>
-
-            {/* Slider with gradient fill */}
-            <input
-              id="tax-slider"
-              type="range"
-              min={TAX_MULTIPLIER_MIN}
-              max={TAX_MULTIPLIER_MAX}
-              step={0.1}
-              value={state.taxMultiplier}
-              onChange={e =>
-                dispatch({
-                  type: 'UPDATE_SETUP',
-                  payload: { taxMultiplier: parseFloat(e.target.value), isManualOverride: true },
-                })
-              }
-              style={{
-                background: `linear-gradient(to right, var(--color-coral-500) ${sliderPct}%, var(--color-cream-300) ${sliderPct}%)`,
-              }}
-              aria-label="ADHD tax multiplier"
-              aria-valuenow={state.taxMultiplier}
-              aria-valuemin={TAX_MULTIPLIER_MIN}
-              aria-valuemax={TAX_MULTIPLIER_MAX}
-            />
-
-            {/* Tick labels */}
-            <div className="flex justify-between px-1">
-              {TAX_LABELS.map(tl => (
-                <span
-                  key={tl.value}
-                  className="text-xs font-mono"
+            {state.personalFactor !== null && state.personalFactor !== undefined && !state.isManualOverride ? (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <label
+                    className="text-sm font-semibold uppercase tracking-wide flex items-center gap-2"
+                    style={{ color: 'var(--color-coral-500)' }}
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    {calibrationTier === 'exact' 
+                      ? `High Confidence (based on ${calibrationSamples} past tasks)`
+                      : calibrationTier === 'category'
+                      ? `Based on your '${state.category === 'gettingReady' ? 'getting ready' : state.category}' history`
+                      : `Rough Estimate (based on global average)`}
+                  </label>
+                  <button
+                    onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { isManualOverride: true } })}
+                    className="text-xs font-medium underline opacity-70 hover:opacity-100 transition-opacity"
+                    style={{ color: 'var(--muted)' }}
+                  >
+                    Override manually
+                  </button>
+                </div>
+                <div
+                  className="w-full rounded-2xl px-5 py-5 flex items-center justify-center"
                   style={{
-                    color:
-                      Math.abs(tl.value - state.taxMultiplier) < 0.06
-                        ? 'var(--color-coral-500)'
-                        : 'var(--color-ink-300)',
-                    fontWeight:
-                      Math.abs(tl.value - state.taxMultiplier) < 0.06
-                        ? 700
-                        : 400,
+                    background: 'var(--card)',
+                    border: '2px solid var(--color-coral-400)',
+                    boxShadow: '0 4px 20px rgba(242,129,90,0.1)',
+                    backdropFilter: 'blur(8px)',
                   }}
                 >
-                  {tl.label}
-                </span>
-              ))}
-            </div>
-          </div>
-        </motion.div>
-      )}
+                   <span className="text-2xl font-black" style={{ color: 'var(--fg)' }}>
+                      {formatConfidenceRange(state.actualMinutes)}
+                   </span>
+                </div>
+              </div>
+            ) : (
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <label
+                      htmlFor="tax-slider"
+                      className="text-sm font-semibold uppercase tracking-wide"
+                      style={{ color: 'var(--muted)' }}
+                    >
+                      {state.personalFactor ? 'Manual Override' : 'Starter estimate'}
+                    </label>
+                    <motion.button
+                      whileHover={{ scale: 1.1, rotate: 15 }}
+                      whileTap={{ scale: 0.9 }}
+                      onClick={handleSurpriseMe}
+                      className="p-1 rounded-lg transition-colors flex items-center justify-center shadow-sm border"
+                      style={{ color: 'var(--color-coral-500)', borderColor: 'var(--card-border)', background: 'var(--card)' }}
+                      aria-label="Surprise me with a random tax multiplier"
+                    >
+                      <Dices className="w-4 h-4" strokeWidth={2.5} />
+                    </motion.button>
+                  </div>
+                  <span
+                    className="text-base font-black tabular-nums"
+                    style={{ color: 'var(--color-coral-500)' }}
+                  >
+                    {state.taxMultiplier.toFixed(1)}×
+                  </span>
+                </div>
+
+                <div
+                  className="w-full rounded-2xl px-5 py-5 flex flex-col gap-3"
+                  style={{
+                    background: 'var(--card)',
+                    border: '2px solid var(--card-border)',
+                    backdropFilter: 'blur(8px)',
+                  }}
+                >
+                  {/* Mood badge */}
+                  <div className="flex items-center gap-2">
+                    <LucideIconComponent
+                      name={taxLabel.icon}
+                      className="w-6 h-6 shrink-0"
+                      strokeWidth={1.75}
+                    />
+                    <div>
+                      <p
+                        className="font-semibold text-sm"
+                        style={{ color: 'var(--fg)' }}
+                      >
+                        {taxLabel.description}
+                      </p>
+                      <p className="text-xs" style={{ color: 'var(--muted)' }}>
+                        Today feels like a{' '}
+                        <strong>{state.taxMultiplier.toFixed(1)}×</strong> day
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Slider with gradient fill */}
+                  <input
+                    id="tax-slider"
+                    type="range"
+                    min={TAX_MULTIPLIER_MIN}
+                    max={TAX_MULTIPLIER_MAX}
+                    step={0.1}
+                    value={state.taxMultiplier}
+                    onChange={e =>
+                      dispatch({
+                        type: 'UPDATE_SETUP',
+                        payload: { taxMultiplier: parseFloat(e.target.value), isManualOverride: true },
+                      })
+                    }
+                    style={{
+                      background: `linear-gradient(to right, var(--color-coral-500) ${sliderPct}%, var(--color-cream-300) ${sliderPct}%)`,
+                    }}
+                    aria-label="ADHD tax multiplier"
+                    aria-valuenow={state.taxMultiplier}
+                    aria-valuemin={TAX_MULTIPLIER_MIN}
+                    aria-valuemax={TAX_MULTIPLIER_MAX}
+                  />
+
+                  {/* Tick labels */}
+                  <div className="flex justify-between px-1">
+                    {TAX_LABELS.map(tl => (
+                      <span
+                        key={tl.value}
+                        className="text-xs font-mono"
+                        style={{
+                          color:
+                            Math.abs(tl.value - state.taxMultiplier) < 0.06
+                              ? 'var(--color-coral-500)'
+                              : 'var(--color-ink-300)',
+                          fontWeight:
+                            Math.abs(tl.value - state.taxMultiplier) < 0.06
+                              ? 700
+                              : 400,
+                        }}
+                      >
+                        {tl.label}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Reality Check pill ─────────────────────────────────────────── */}
-      {(!state.personalFactor || state.isManualOverride) && (
+      {state.isExactTime ? (
         <motion.div
           variants={itemVariants}
+          key="exact-pill"
+          className="flex items-center justify-center gap-3 rounded-2xl py-3 px-5"
+          style={{
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.10))',
+            border: '1.5px solid rgba(99,102,241,0.5)',
+          }}
+        >
+          <Zap className="w-5 h-5 shrink-0" style={{ color: '#818cf8' }} strokeWidth={2} />
+          <p style={{ color: 'var(--fg)' }}>
+            <span className="font-medium" style={{ color: '#818cf8' }}>Exact Time: </span>
+            <span className="font-black text-xl">
+              {state.actualMinutes} min
+            </span>
+            <span className="text-sm ml-1.5 font-medium" style={{ color: 'var(--muted)' }}>
+              — no tax applied
+            </span>
+          </p>
+        </motion.div>
+      ) : (!state.personalFactor || state.isManualOverride) && (
+        <motion.div
+          variants={itemVariants}
+          key="taxed-pill"
           className="flex items-center justify-center gap-3 rounded-2xl py-3 px-5"
           style={{
             background:

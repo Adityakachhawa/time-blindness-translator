@@ -47,6 +47,12 @@ export interface TimerState {
   transitionMinutes?: number;
 
   /**
+   * When true the timer runs in Exact Time mode: no ADHD-tax multiplier,
+   * no 5-minute rounding.  The countdown matches the user's raw estimate.
+   */
+  isExactTime?: boolean;
+
+  /**
    * Buffered time after applying the tax multiplier, rounded to the
    * nearest 5 minutes.  This is the real countdown duration.
    */
@@ -111,7 +117,7 @@ export type CertTheme = 'classic' | 'dark' | 'chaos';
  */
 export interface UpdateSetupAction {
   type: 'UPDATE_SETUP';
-  payload: Partial<Pick<TimerState, 'taskName' | 'category' | 'initialEstimate' | 'taxMultiplier' | 'personalFactor' | 'isManualOverride' | 'transitionMinutes'>>;
+  payload: Partial<Pick<TimerState, 'taskName' | 'category' | 'initialEstimate' | 'taxMultiplier' | 'personalFactor' | 'isManualOverride' | 'transitionMinutes' | 'isExactTime'>>;
 }
 
 /** Transitions from setup → active, setting an absolute endTime. */

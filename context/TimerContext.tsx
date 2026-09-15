@@ -42,6 +42,7 @@ const initialState: TimerState = {
   allocatedMin: initialActual,
   endTime: null,
   extensionCount: 0,
+  isExactTime: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -91,9 +92,12 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       const nextPersonalFactor = action.payload.personalFactor !== undefined ? action.payload.personalFactor : state.personalFactor;
       const nextOverride = action.payload.isManualOverride !== undefined ? action.payload.isManualOverride : state.isManualOverride;
       const nextTransition = action.payload.transitionMinutes !== undefined ? action.payload.transitionMinutes : (state.transitionMinutes || 0);
+      const nextExact = action.payload.isExactTime !== undefined ? action.payload.isExactTime : (state.isExactTime ?? false);
 
-      const effectiveMultiplier = (!nextOverride && nextPersonalFactor) ? nextPersonalFactor : nextTax;
-      const nextActual = calculateActualTime(nextEstimate, effectiveMultiplier) + nextTransition;
+      // In exact-time mode: force multiplier = 1.0, no transition time, no rounding
+      const effectiveMultiplier = nextExact ? 1.0 : ((!nextOverride && nextPersonalFactor) ? nextPersonalFactor : nextTax);
+      const effectiveTransition = nextExact ? 0 : nextTransition;
+      const nextActual = calculateActualTime(nextEstimate, effectiveMultiplier, nextExact) + effectiveTransition;
 
       return {
         ...state,
@@ -102,10 +106,11 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         initialEstimate: nextEstimate,
         predictedSeconds: nextEstimate * 60,
         optimisticMin: nextEstimate,
-        taxMultiplier: nextTax,
+        taxMultiplier: nextExact ? 1.0 : nextTax,
         personalFactor: nextPersonalFactor,
         isManualOverride: nextOverride,
-        transitionMinutes: nextTransition,
+        transitionMinutes: effectiveTransition,
+        isExactTime: nextExact,
         actualMinutes: nextActual,
         allocatedMin: nextActual,
       };
