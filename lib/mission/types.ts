@@ -14,10 +14,24 @@ export interface ActiveMission {
   plannedDurationMs: number;
   expectedEndAt: number;
   status: MissionStatus;
-  
+
+  /**
+   * Immutable snapshot of the initial calibrated duration (ms) set at startMission.
+   * Equals plannedDurationMs at creation and is NEVER overwritten by extensions,
+   * recalculations, or pauses. Used as the calibration denominator in SuccessScreen.
+   */
+  initialCalibratedMs: number;
+
+  /**
+   * Immutable snapshot of the original expected end timestamp (ms) set at startMission.
+   * Equals startedAt + plannedDurationMs at creation and is NEVER overwritten.
+   * Used for overtime detection against the original deadline.
+   */
+  initialExpectedEndAt: number;
+
   pausedAt?: number;
   totalPausedMs?: number;
-  
+
   actualCompletedAt?: number;
   calibratedDurationMs?: number;
   originalEstimateMs?: number;

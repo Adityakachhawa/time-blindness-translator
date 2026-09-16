@@ -58,8 +58,16 @@ export interface TimerState {
    */
   actualMinutes: number;
 
-  /** Alias for actualMinutes for reporting */
+  /** Alias for actualMinutes for reporting — updated on extend/recalculate. */
   allocatedMin?: number;
+
+  /**
+   * The initial calibrated duration in minutes, captured at START_MISSION and
+   * NEVER overwritten by extensions or recalculations.
+   * This is the denominator for the accuracy calculation on SuccessScreen:
+   *   accuracy = initialCalibratedMin vs coreActualMin
+   */
+  initialCalibratedMin?: number;
 
   /**
    * Absolute timestamp (ms since epoch) when the timer should fire.

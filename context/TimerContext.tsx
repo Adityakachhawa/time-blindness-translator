@@ -76,6 +76,10 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         taxMultiplier: activeMission.taxMultiplier,
         actualMinutes: activeMission.allocatedMin,
         allocatedMin: activeMission.allocatedMin,
+        // Restore immutable calibration baseline from the persisted mission.
+        initialCalibratedMin: activeMission.initialCalibratedMs
+          ? activeMission.initialCalibratedMs / 60_000
+          : activeMission.allocatedMin,
         endTime: activeMission.expectedEndAt,
         activeMission,
       };
@@ -137,6 +141,8 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         startTime: newMission.startedAt,
         extensionCount: 0,
         isOvertimeAcknowledged: false,
+        // Snapshot the initial calibrated budget once — never overwritten.
+        initialCalibratedMin: state.actualMinutes,
         activeMission: newMission,
       };
     }
@@ -183,14 +189,19 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
 
     case 'COMPLETE_MISSION': {
       if (!state.activeMission) return state;
-      
-      const completedRecordId = completeMission(state.activeMission, state.tagline);
-      
+
+      const { completedRecordId, actualSeconds } = completeMission(
+        state.activeMission,
+        state.tagline,
+      );
+
       return {
         ...state,
         status: 'success',
         completedAt: Date.now(),
         completedRecordId,
+        // Real elapsed seconds — used by SuccessScreen for the accuracy calc.
+        actualSeconds,
         activeMission: null, // Clear from React state
       };
     }

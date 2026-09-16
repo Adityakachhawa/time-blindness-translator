@@ -410,13 +410,43 @@ export default function SuccessScreen() {
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
+function formatPreciseDuration(totalSeconds: number | undefined, fallbackMinutes: number): string {
+  if (totalSeconds === undefined) return `${fallbackMinutes}m`;
+  
+  const h = Math.floor(totalSeconds / 3600);
+  const m = Math.floor((totalSeconds % 3600) / 60);
+  const s = totalSeconds % 60;
+  
+  if (h > 0) return `${h}h ${m.toString().padStart(2, '0')}m`;
+  if (m > 0) {
+    if (s === 0) return `${m}m`;
+    return `${m}m ${s.toString().padStart(2, '0')}s`;
+  }
+  return `${s}s`;
+}
+
+  // ---------------------------------------------------------------------------
   // Three-value Reality Check
+  // ---------------------------------------------------------------------------
+  // originalMin  — the user's raw estimate before any ADHD tax (immutable)
+  // calibratedMin — the initial ADHD-taxed prediction, snapshotted at mission
+  //                  start and NEVER overwritten by extensions or recalculations
+  // actualMin    — real elapsed time derived from completion timestamps
+  // ---------------------------------------------------------------------------
   const originalMin   = state.optimisticMin ?? state.initialEstimate;
-  const calibratedMin = state.actualMinutes;
-  const actualMin     = state.actualSeconds ? Math.round(state.actualSeconds / 60) : state.actualMinutes;
+  const calibratedMin = state.initialCalibratedMin ?? state.actualMinutes;
+  
+  // For accuracy calculations, we use unrounded minutes to preserve precise seconds.
+  const actualUnroundedMin = state.actualSeconds
+    ? (state.actualSeconds / 60)
+    : (state.initialCalibratedMin ?? state.actualMinutes);
+    
   const transitionMin = state.transitionMinutes || 0;
-  const coreActualMin = Math.max(0, actualMin - transitionMin);
-  const accuracy      = buildAccuracy(calibratedMin, coreActualMin);
+  const coreActualUnroundedMin = Math.max(0, actualUnroundedMin - transitionMin);
+  const accuracy      = buildAccuracy(calibratedMin, coreActualUnroundedMin);
+  
+  // For display
+  const actualDisplayStr = formatPreciseDuration(state.actualSeconds, state.initialCalibratedMin ?? state.actualMinutes);
 
   // Reduced-motion card animation helper
   const rm = prefersReducedMotion;
@@ -560,17 +590,17 @@ export default function SuccessScreen() {
         <p className="text-xs uppercase tracking-widest font-bold mb-4" style={{ color: 'var(--color-coral-400)' }}>Reality Check</p>
         <div className="flex justify-center items-stretch mb-4 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
           <div className="flex-1 flex flex-col items-center justify-center py-4 px-2" style={{ borderRight: '1px solid rgba(255,255,255,0.1)' }}>
-            <p className="text-3xl font-black tabular-nums">{originalMin}</p>
+            <p className="text-3xl font-black tabular-nums">{originalMin}<span className="text-sm text-gray-400 ml-1">m</span></p>
             <p className="text-[10px] uppercase tracking-widest mt-1 opacity-60">Original</p>
             <p className="text-[10px] mt-0.5 opacity-40">your estimate</p>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center py-4 px-2" style={{ background: 'rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
-            <p className="text-3xl font-black tabular-nums" style={{ color: 'var(--color-amber-400)' }}>{calibratedMin}</p>
+            <p className="text-3xl font-black tabular-nums" style={{ color: 'var(--color-amber-400)' }}>{calibratedMin}<span className="text-sm opacity-60 ml-1">m</span></p>
             <p className="text-[10px] uppercase tracking-widest mt-1 opacity-60">Calibrated</p>
             <p className="text-[10px] mt-0.5 opacity-40">after ADHD tax</p>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center py-4 px-2">
-            <p className="text-3xl font-black tabular-nums text-white">{actualMin}</p>
+            <p className="text-3xl font-black tabular-nums text-white">{actualDisplayStr}</p>
             <p className="text-[10px] uppercase tracking-widest mt-1 opacity-60">Reality</p>
             <p className="text-[10px] mt-0.5 opacity-40">what happened</p>
           </div>

@@ -45,7 +45,10 @@ describe('Mission Actions & Notification Correctness', () => {
       optimisticMin: 1,
       taxMultiplier: 1.0,
       allocatedMin: 1,
-      notificationVersion: 1
+      notificationVersion: 1,
+      // Immutable snapshot fields (added in P0 semantics fix)
+      initialCalibratedMs: 60000,
+      initialExpectedEndAt: now + 60000,
     };
     
     (storage.getActiveMission as any).mockReturnValue(mockMission);

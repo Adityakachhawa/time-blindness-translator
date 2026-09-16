@@ -33,26 +33,31 @@ export function getMissionAwarenessEvents(mission: ActiveMission, now: number): 
   const startedAt = mission.startedAt;
   const totalDurationMs = expectedEndAt - startedAt;
   
-  // Policy configuration based on initial allocatedMin
+  // Policy configuration based on current allocatedMin
   const includeHalfway = totalMin > 15;
   const includeNearEnd = totalMin > 5;
   const includeOvertime = totalMin > 15;
   
-  // Calculate thresholds based on the expectedEndAt
+  // Calculate thresholds based on the CURRENT expectedEndAt
   const halfwayMs = startedAt + (totalDurationMs / 2);
   const nearEndMs = expectedEndAt - (5 * 60000);
   const expiredMs = expectedEndAt;
   const overtime5Ms = expectedEndAt + (5 * 60000);
   
-  // To avoid re-triggering halfway/near-end after an extension, we should base the event ID on the current expectedEndAt
-  // Or simply use the mission.id. But if they extend, does halfway fire again? No, usually not.
-  // The simplest is to just use mission.id. If they recalculate, they might want new events.
-  // The user requested: "The mission should remain the same mission" and "use the existing notification scheduling/versioning system".
-  // So incorporating notificationVersion into the event ID prevents re-triggering old events but allows new ones if version changes, OR we keep it simple: just `mission:${mission.id}:halfway`. Wait, if they extend, they shouldn't get another halfway.
+  // Version the event IDs so new timing changes produce new events.
+  const v = mission.notificationVersion || 1;
+  const makeId = (type: string) => `mission:${mission.id}:v${v}:${type}`;
   
-  if (includeHalfway && now >= halfwayMs) {
+  // To prevent "retroactive spam" (e.g., triggering a halfway event immediately 
+  // after an extension because the new halfway point is already in the past), 
+  // we require `now` to be within a valid window of the milestone. 
+  // `expired` is handled separately by the catch-up system if missed, 
+  // but for awareness we use a 2-minute window.
+  const isWithinWindow = (milestone: number) => now >= milestone && now < milestone + 120_000;
+  const isPast = (milestone: number) => now >= milestone;
+  if (includeHalfway && isWithinWindow(halfwayMs)) {
     events.push({
-      id: `mission:${mission.id}:halfway`,
+      id: makeId('halfway'),
       type: 'HALFWAY',
       title: 'Time Check',
       message: 'Half-way check',
@@ -61,9 +66,9 @@ export function getMissionAwarenessEvents(mission: ActiveMission, now: number): 
     });
   }
   
-  if (includeNearEnd && now >= nearEndMs) {
+  if (includeNearEnd && isWithinWindow(nearEndMs)) {
     events.push({
-      id: `mission:${mission.id}:near_end`,
+      id: makeId('near_end'),
       type: 'NEAR_END',
       title: 'Time Check',
       message: '5 minutes left',
@@ -72,9 +77,9 @@ export function getMissionAwarenessEvents(mission: ActiveMission, now: number): 
     });
   }
   
-  if (now >= expiredMs) {
+  if (isPast(expiredMs)) {
     events.push({
-      id: `mission:${mission.id}:expired`,
+      id: makeId('expired'),
       type: 'EXPIRED',
       title: 'Time Check',
       message: 'Reality check',
@@ -83,9 +88,9 @@ export function getMissionAwarenessEvents(mission: ActiveMission, now: number): 
     });
   }
   
-  if (includeOvertime && now >= overtime5Ms) {
+  if (includeOvertime && isPast(overtime5Ms)) {
     events.push({
-      id: `mission:${mission.id}:overtime_5`,
+      id: makeId('overtime_5'),
       type: 'OVERTIME_5',
       title: 'Time Check',
       message: "You're still going",

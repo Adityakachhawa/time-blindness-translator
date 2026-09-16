@@ -6,21 +6,25 @@ function createMockMission(allocatedMin: number, elapsedMin: number): { mission:
   const now = Date.now();
   const startedAt = now - (elapsedMin * 60000);
   const plannedDurationMs = allocatedMin * 60000;
-  
+  const initialEndAt = startedAt + plannedDurationMs;
+
   return {
     mission: {
       id: 'mock-123',
       taskName: 'Test Task',
       startedAt,
       plannedDurationMs,
-      expectedEndAt: startedAt + plannedDurationMs,
+      expectedEndAt: initialEndAt,
       status: 'running',
       createdAt: startedAt,
       updatedAt: startedAt,
       optimisticMin: allocatedMin,
       taxMultiplier: 1.0,
       allocatedMin,
-      notificationVersion: 1
+      notificationVersion: 1,
+      // Immutable snapshot fields (added in P0 semantics fix)
+      initialCalibratedMs: plannedDurationMs,
+      initialExpectedEndAt: initialEndAt,
     },
     now
   };
@@ -55,7 +59,8 @@ describe('Mission Time Awareness', () => {
     // at 15 mins (expired)
     ({ mission, now } = createMockMission(15, 15));
     events = getMissionAwarenessEvents(mission, now);
-    expect(events.length).toBe(2);
+    // The near-end event was at 10m. At 15m it is outside the 2-minute window, so it is suppressed.
+    expect(events.length).toBe(1);
     expect(events.find(e => e.type === 'EXPIRED')).toBeDefined();
   });
 
@@ -69,13 +74,15 @@ describe('Mission Time Awareness', () => {
     // at 25 mins (near-end)
     ({ mission, now } = createMockMission(30, 25));
     events = getMissionAwarenessEvents(mission, now);
-    expect(events.length).toBe(2);
+    expect(events.length).toBe(1);
     expect(events.find(e => e.type === 'NEAR_END')).toBeDefined();
 
     // at 35 mins (expired and overtime)
     ({ mission, now } = createMockMission(30, 35));
     events = getMissionAwarenessEvents(mission, now);
-    expect(events.length).toBe(4); // halfway, near_end, expired, overtime_5
+    // Halfway (15m) and near-end (25m) are outside the 2m window.
+    expect(events.length).toBe(2);
+    expect(events.find(e => e.type === 'EXPIRED')).toBeDefined();
     expect(events.find(e => e.type === 'OVERTIME_5')).toBeDefined();
   });
 
@@ -118,10 +125,9 @@ describe('Mission Time Awareness', () => {
     mission.expectedEndAt += 10 * 60000;
     
     const events = getMissionAwarenessEvents(mission, now);
-    // it was past halfway (15m), so halfway still fires
-    // near_end is expectedEndAt - 5m. Expected end is now 40m. Near end is 35m.
-    // currently at 28m, so near_end should NOT fire.
-    expect(events.find(e => e.type === 'HALFWAY')).toBeDefined();
+    // Halfway (15m) is outside the 2m window (now=28m), so it is suppressed.
+    // Near end is now 35m. currently at 28m, so near_end should NOT fire.
+    expect(events.find(e => e.type === 'HALFWAY')).toBeUndefined();
     expect(events.find(e => e.type === 'NEAR_END')).toBeUndefined();
     expect(events.find(e => e.type === 'EXPIRED')).toBeUndefined();
   });

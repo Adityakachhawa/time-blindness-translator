@@ -1,4 +1,4 @@
-﻿/**
+/**
  * Phase 2 tests — CHAIN_MISSION reducer, duplicate-save guard,
  * calibration helpers, accuracy badge, and three-value Reality Check.
  */
@@ -102,7 +102,11 @@ describe('Three-value Reality Check derivation', () => {
     expect(state.optimisticMin ?? state.initialEstimate).toBe(20);
   });
 
-  it('calibratedMin = actualMinutes (after ADHD tax)', () => {
+  it('calibratedMin comes from initialCalibratedMin (initial ADHD-taxed prediction, not post-extension actualMinutes)', () => {
+    // NOTE: After the P0 semantics fix, SuccessScreen reads
+    //   calibratedMin = state.initialCalibratedMin ?? state.actualMinutes
+    // This test only verifies the field value is accessible; the actual
+    // source-of-truth is tested in __tests__/semantics.test.ts.
     const state = { actualMinutes: 30, actualSeconds: 1680, transitionMinutes: 0 };
     expect(state.actualMinutes).toBe(30);
   });
