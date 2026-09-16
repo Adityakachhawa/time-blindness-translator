@@ -79,11 +79,13 @@ export function getTaskHistory(): TaskRecord[] {
   return safeRead<TaskRecord[]>(KEY_HISTORY, []);
 }
 
-/** Prepends a completed task to the history and trims to MAX_HISTORY. */
-export function saveCompletedTask(record: Omit<TaskRecord, 'id'>): void {
+/** Prepends a completed task to the history and trims to MAX_HISTORY. Returns the generated record ID. */
+export function saveCompletedTask(record: Omit<TaskRecord, 'id'>): string {
+  const id = `${Date.now()}-${Math.random()}`;
   const history = getTaskHistory();
-  history.unshift({ ...record, id: `${Date.now()}-${Math.random()}` });
+  history.unshift({ ...record, id });
   safeWrite(KEY_HISTORY, history.slice(0, MAX_HISTORY));
+  return id;
 }
 
 /**

@@ -1,24 +1,91 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { motion } from 'framer-motion';
-import { Download, GraduationCap, Moon, Music, RotateCcw, Smartphone, Sparkles, Timer, Trophy, Tv2 } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
+import { Download, GraduationCap, Moon, Music, RotateCcw, Smartphone, Sparkles, Timer, Trophy, Tv2, Brain, Zap, CheckCircle2, ChevronDown, Link2 } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import confetti from 'canvas-confetti';
 import { useTimer } from '@/context/TimerContext';
 import { getAnchors } from '@/lib/calculations';
 import { 
-  saveCompletedTask, 
   getMutePreference, 
   getLifetimeStats, 
   getCurrentStreak, 
   getUnlockedTrophies, 
-  unlockTrophy 
+  unlockTrophy,
+  getTaskHistory,
+  getRecentUniqueTasks,
+  type RecentTask,
 } from '@/lib/storage';
+import { calculatePersonalFactor } from '@/lib/calibration';
 import { MILESTONES, type Milestone } from '@/lib/milestones';
 import { playGentleBell } from '@/lib/audio';
 import TrophySnackbar from '@/components/TrophySnackbar';
 import type { CertTheme } from '@/types/timer';
+
+// ---------------------------------------------------------------------------
+// Calibration snapshot
+// ---------------------------------------------------------------------------
+
+interface CalibrationSnapshot {
+  headline: string;
+  hasFactor: boolean;
+  factor: number | null;
+  sampleCount: number;
+  tier: 'exact' | 'category' | 'global' | null;
+  exactMatchCount: number;
+  exactMatchNeeded: number;
+}
+
+function buildCalibrationSnapshot(
+  taskName: string,
+  category: any,
+  prevFactor: number | null | undefined,
+): CalibrationSnapshot {
+  const history = getTaskHistory();
+  const exactMatchCount = history.filter(
+    r => r.taskName.toLowerCase().trim() === taskName.toLowerCase().trim()
+  ).length;
+  const exactMatchNeeded = Math.max(0, 2 - exactMatchCount);
+  const result = calculatePersonalFactor(taskName, category);
+  if (!result) {
+    return { headline: 'Building Your Time Model', hasFactor: false, factor: null, sampleCount: exactMatchCount, tier: null, exactMatchCount, exactMatchNeeded };
+  }
+  const isNewlyUnlocked = prevFactor === null || prevFactor === undefined;
+  return {
+    headline: isNewlyUnlocked ? 'Calibration Unlocked' : 'Your Time Model',
+    hasFactor: true, factor: result.factor, sampleCount: result.sampleCount, tier: result.tier,
+    exactMatchCount, exactMatchNeeded,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Accuracy badge
+// ---------------------------------------------------------------------------
+
+interface AccuracyInfo { percent: number; label: string; subLabel: string; color: string; }
+
+function buildAccuracy(calibratedMin: number, coreActualMin: number): AccuracyInfo {
+  if (calibratedMin <= 0) return { percent: 0, label: 'You were spot on.', subLabel: '', color: 'var(--color-sage-500)' };
+  const diff = coreActualMin - calibratedMin;
+  const percent = Math.round(Math.abs(diff) / calibratedMin * 100);
+  const label = percent === 0 ? 'You were spot on.'
+    : diff > 0 ? `You underestimated by ${percent}%.`
+    : `You overestimated by ${percent}%.`;
+  const subLabel = percent === 0 ? '' : 'Useful data — your next estimate can learn from this.';
+  const color = percent < 10 ? 'var(--color-sage-500)' : percent < 25 ? 'var(--color-amber-400)' : percent < 50 ? '#fb923c' : 'var(--color-lavender-500)';
+  return { percent, label, subLabel, color };
+}
+
+// ---------------------------------------------------------------------------
+// Static chain task fallbacks
+// ---------------------------------------------------------------------------
+
+const STATIC_TEMPLATES: RecentTask[] = [
+  { taskName: 'Clear inbox', initialEstimate: 20 },
+  { taskName: 'Wash dishes', initialEstimate: 10 },
+  { taskName: 'Quick tidy', initialEstimate: 15 },
+];
 
 // ---------------------------------------------------------------------------
 // Confetti burst — warm palette, no default green/red
@@ -316,6 +383,7 @@ function AdultingCertificate({
 
 export default function SuccessScreen() {
   const { state, dispatch } = useTimer();
+  const prefersReducedMotion = useReducedMotion();
   const certRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
   const [certTheme,   setCertTheme]   = useState<CertTheme>('classic');
@@ -325,6 +393,15 @@ export default function SuccessScreen() {
   const [milestone,   setMilestone]   = useState<Milestone | null>(null);
   const [unlockedTrophyId, setUnlockedTrophyId] = useState<string | null>(null);
 
+  // Chain task
+  const [chainDismissed, setChainDismissed] = useState(false);
+  const [recentTasks, setRecentTasks] = useState<RecentTask[]>([]);
+  const [selectedChainTask, setSelectedChainTask] = useState('');
+  const [chainDropdownOpen, setChainDropdownOpen] = useState(false);
+
+  // Calibration snapshot
+  const [calibration, setCalibration] = useState<CalibrationSnapshot | null>(null);
+
   const anchors     = getAnchors(state.actualMinutes);
   const episodesStr = anchors.popCulture.value.toFixed(1);
   const songsStr    = anchors.music.value.toFixed(1);
@@ -333,80 +410,55 @@ export default function SuccessScreen() {
     month: 'long', day: 'numeric', year: 'numeric',
   });
 
-  // Calculate prediction vs reality
-  const predictedMin = state.predictedSeconds ? Math.round(state.predictedSeconds / 60) : state.initialEstimate;
-  const actualMin = state.actualSeconds ? Math.round(state.actualSeconds / 60) : state.actualMinutes;
-  
+  // Three-value Reality Check
+  const originalMin   = state.optimisticMin ?? state.initialEstimate;
+  const calibratedMin = state.actualMinutes;
+  const actualMin     = state.actualSeconds ? Math.round(state.actualSeconds / 60) : state.actualMinutes;
   const transitionMin = state.transitionMinutes || 0;
   const coreActualMin = Math.max(0, actualMin - transitionMin);
-  
-  let diffPercent = 0;
-  let diffText = "You were spot on.";
-  if (predictedMin > 0) {
-    diffPercent = Math.round(Math.abs(coreActualMin - predictedMin) / predictedMin * 100);
-    if (coreActualMin > predictedMin) {
-      diffText = `You underestimated by ${diffPercent}%.`;
-    } else if (coreActualMin < predictedMin) {
-      diffText = `You overestimated by ${diffPercent}%.`;
-    }
-  }
+  const accuracy      = buildAccuracy(calibratedMin, coreActualMin);
 
-  const realityBreakdown = transitionMin > 0
-    ? `You predicted ${predictedMin}m + ${transitionMin}m prep. Reality was ${actualMin}m total.`
-    : `You predicted ${predictedMin} min. Reality was ${actualMin} min.`;
+  // Reduced-motion card animation helper
+  const rm = prefersReducedMotion;
+  const cardAnim = (delay: number) => rm
+    ? { initial: { opacity: 0 as const }, animate: { opacity: 1 as const }, transition: { duration: 0.15 } }
+    : { initial: { opacity: 0 as const, y: 18 }, animate: { opacity: 1 as const, y: 0 }, transition: { delay, duration: 0.32, ease: 'easeOut' as const } };
 
-  // Save history, play sound, and fire confetti on mount
+  // One-shot mount effect — completeMission() already saved the record via actions.ts
   const mounted = useRef(false);
   useEffect(() => {
     if (mounted.current) return;
     mounted.current = true;
 
-    saveCompletedTask({
-      taskName: state.taskName,
-      optimisticMin: state.optimisticMin ?? state.initialEstimate,
-      taxMultiplier: state.taxMultiplier,
-      allocatedMin: state.allocatedMin ?? state.actualMinutes,
-      actualMinutes: state.actualMinutes,
-      predictedSeconds: state.predictedSeconds,
-      actualSeconds: state.actualSeconds,
-      transitionMinutes: state.transitionMinutes,
-      completedAt: Date.now(),
-      tagline: state.tagline || undefined,
-    });
-    
-    // Evaluate Milestones
-    const currentStats = getLifetimeStats();
-    const currentStreak = getCurrentStreak();
+    // Milestone evaluation
+    const currentStats    = getLifetimeStats();
+    const currentStreak   = getCurrentStreak();
     const unlockedTrophies = getUnlockedTrophies();
-    
+
     let hitMilestone: Milestone | null = null;
     for (const m of MILESTONES) {
       if (unlockedTrophies.some(t => t.id === m.id)) continue;
-      
       let achieved = false;
-      if (m.type === 'lifetime-tasks' && currentStats.totalTasks >= m.threshold) {
-        achieved = true;
-      } else if (m.type === 'streak' && currentStreak >= m.threshold) {
-        achieved = true;
-      }
-      
-      if (achieved) {
-        hitMilestone = m;
-        unlockTrophy(m.id);
-        setUnlockedTrophyId(m.id);
-        break; // Celebrate the first matched milestone
-      }
+      if (m.type === 'lifetime-tasks' && currentStats.totalTasks >= m.threshold) achieved = true;
+      else if (m.type === 'streak' && currentStreak >= m.threshold) achieved = true;
+      if (achieved) { hitMilestone = m; unlockTrophy(m.id); setUnlockedTrophyId(m.id); break; }
     }
 
-    if (hitMilestone) {
-      setMilestone(hitMilestone);
-      playGentleBell(getMutePreference());
-      fireMilestoneConfetti();
-    } else {
-      playGentleBell(getMutePreference());
-      fireCelebrationConfetti();
-    }
-  }, [state]);
+    if (hitMilestone) { setMilestone(hitMilestone); playGentleBell(getMutePreference()); fireMilestoneConfetti(); }
+    else { playGentleBell(getMutePreference()); fireCelebrationConfetti(); }
+
+    // Calibration snapshot (reads freshly-saved history)
+    setCalibration(buildCalibrationSnapshot(state.taskName, state.category, state.personalFactor));
+
+    // Chain task suggestions (exclude just-completed task)
+    const recent = getRecentUniqueTasks(4)
+      .filter(t => t.taskName.toLowerCase().trim() !== state.taskName.toLowerCase().trim())
+      .slice(0, 3);
+    const opts = recent.length > 0 ? recent : STATIC_TEMPLATES;
+    setRecentTasks(opts);
+    if (opts.length > 0) setSelectedChainTask(opts[0].taskName);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Build share URLs on mount (client-only — window.location)
   useEffect(() => {
@@ -463,259 +515,248 @@ export default function SuccessScreen() {
     }
   }, [downloading, certTheme]);
 
-  // Reset to setup by reloading the page (preserves the stateless SPA contract)
-  const handleReset = () => window.location.reload();
+  // Chain task: dispatch CHAIN_MISSION (no page reload)
+  const handleChainTask = useCallback((taskName: string) => {
+    dispatch({ type: 'CHAIN_MISSION', payload: { taskName } });
+  }, [dispatch]);
+
+  const handleNewMission = useCallback(() => {
+    dispatch({ type: 'CHAIN_MISSION' });
+  }, [dispatch]);
+
+  // Calibration display helpers
+  const tierLabel =
+    calibration?.tier === 'exact'    ? 'exact task match'
+    : calibration?.tier === 'category' ? 'category match'
+    : calibration?.tier === 'global'   ? 'global pattern'
+    : null;
+  const nextEstimate = calibration?.hasFactor && calibration.factor
+    ? Math.round(originalMin * calibration.factor)
+    : null;
 
   return (
-    <div className="flex flex-col items-center gap-7 w-full pb-4">
+    <div className="flex flex-col items-center gap-6 w-full pb-4">
 
-      {/* ── Trophy header ─────────────────────────────────────────────────── */}
+      {/* 1. Celebration */}
       <motion.div
-        initial={{ opacity: 0, scale: 0.7, rotate: -8 }}
-        animate={{ opacity: 1, scale: 1, rotate: 0 }}
-        transition={{ type: 'spring', stiffness: 200, damping: 14 }}
+        initial={rm ? { opacity: 0 } : { opacity: 0, scale: 0.7, rotate: -8 }}
+        animate={rm ? { opacity: 1 } : { opacity: 1, scale: 1, rotate: 0 }}
+        transition={rm ? { duration: 0.15 } : { type: 'spring', stiffness: 200, damping: 14 }}
         className="text-center"
       >
-        <Trophy
-            className="w-16 h-16 block mb-3 mx-auto"
-            style={{ color: 'var(--color-amber-400)', filter: 'drop-shadow(0 4px 12px rgba(245,166,35,0.4))' }}
-          />
-        <h2 className="text-3xl font-black leading-tight text-white">
-          You actually did it.
-        </h2>
+        <Trophy className="w-16 h-16 block mb-3 mx-auto" style={{ color: 'var(--color-amber-400)', filter: 'drop-shadow(0 4px 12px rgba(245,166,35,0.4))' }} />
+        <h2 className="text-3xl font-black leading-tight text-white">You actually did it.</h2>
         <p className="mt-2 text-base text-gray-200">
-          <strong style={{ color: 'var(--color-coral-500)' }}>
-            {state.taskName}
-          </strong>{' '}
-          — officially complete. No cap.
+          <strong style={{ color: 'var(--color-coral-500)' }}>{state.taskName}</strong>{' '}— officially complete. No cap.
         </p>
       </motion.div>
 
-      {/* ── Reality Check (Prediction vs Reality) ─────────────────────────── */}
+      {/* 2. Reality Check — Original / Calibrated / Reality */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.15 }}
-        className="w-full max-w-md mx-auto rounded-3xl p-6 text-center"
-        style={{
-          background: 'linear-gradient(135deg, var(--color-ink-900) 0%, var(--color-ink-800) 100%)',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.12)',
-          color: 'white',
-        }}
+        {...cardAnim(0.1)}
+        className="w-full max-w-md mx-auto rounded-3xl p-5 text-center"
+        style={{ background: 'linear-gradient(135deg, var(--color-ink-900) 0%, var(--color-ink-800) 100%)', boxShadow: '0 8px 32px rgba(0,0,0,0.12)', color: 'white' }}
       >
-        <p className="text-xs uppercase tracking-widest font-bold mb-4" style={{ color: 'var(--color-coral-400)' }}>
-          Reality Check
-        </p>
-        <div className="flex justify-center items-center gap-6 mb-4">
-          <div className="text-center">
-            <p className="text-4xl font-black">{transitionMin > 0 ? `${predictedMin}+${transitionMin}` : predictedMin}</p>
-            <p className="text-xs uppercase tracking-widest mt-1 opacity-70">Predicted min</p>
+        <p className="text-xs uppercase tracking-widest font-bold mb-4" style={{ color: 'var(--color-coral-400)' }}>Reality Check</p>
+        <div className="flex justify-center items-stretch mb-4 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
+          <div className="flex-1 flex flex-col items-center justify-center py-4 px-2" style={{ borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+            <p className="text-3xl font-black tabular-nums">{originalMin}</p>
+            <p className="text-[10px] uppercase tracking-widest mt-1 opacity-60">Original</p>
+            <p className="text-[10px] mt-0.5 opacity-40">your estimate</p>
           </div>
-          <div className="w-px h-12 bg-white/20" />
-          <div className="text-center">
-            <p className="text-4xl font-black text-white">{actualMin}</p>
-            <p className="text-xs uppercase tracking-widest mt-1 opacity-70">Reality min</p>
+          <div className="flex-1 flex flex-col items-center justify-center py-4 px-2" style={{ background: 'rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
+            <p className="text-3xl font-black tabular-nums" style={{ color: 'var(--color-amber-400)' }}>{calibratedMin}</p>
+            <p className="text-[10px] uppercase tracking-widest mt-1 opacity-60">Calibrated</p>
+            <p className="text-[10px] mt-0.5 opacity-40">after ADHD tax</p>
+          </div>
+          <div className="flex-1 flex flex-col items-center justify-center py-4 px-2">
+            <p className="text-3xl font-black tabular-nums text-white">{actualMin}</p>
+            <p className="text-[10px] uppercase tracking-widest mt-1 opacity-60">Reality</p>
+            <p className="text-[10px] mt-0.5 opacity-40">what happened</p>
           </div>
         </div>
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-sm font-medium opacity-90">{realityBreakdown}</p>
-          <div className="inline-block px-4 py-2 rounded-full" style={{ background: 'rgba(255,255,255,0.1)' }}>
-            <p className="text-sm font-semibold">{diffText}</p>
+        <div className="flex flex-col items-center gap-1.5">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: 'rgba(255,255,255,0.08)', border: `1.5px solid ${accuracy.color}30` }}>
+            <div className="w-2 h-2 rounded-full shrink-0" style={{ background: accuracy.color }} />
+            <p className="text-sm font-semibold" style={{ color: accuracy.color }}>{accuracy.label}</p>
           </div>
+          {accuracy.subLabel && <p className="text-xs opacity-60">{accuracy.subLabel}</p>}
+          {transitionMin > 0 && <p className="text-xs opacity-40">Includes {transitionMin} min prep buffer</p>}
         </div>
       </motion.div>
 
-      {/* ── Quick-stat badges ─────────────────────────────────────────────── */}
+      {/* 3. Calibration insight */}
+      {calibration && (
+        <motion.div
+          {...cardAnim(0.22)}
+          className="w-full max-w-md mx-auto rounded-3xl p-5"
+          style={{ background: 'linear-gradient(135deg, rgba(129,140,248,0.12) 0%, rgba(167,139,202,0.10) 100%)', border: '1.5px solid rgba(129,140,248,0.25)' }}
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Brain className="w-5 h-5 shrink-0" style={{ color: 'var(--color-lavender-500)' }} strokeWidth={2} />
+            <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>🧠 {calibration.headline}</p>
+          </div>
+          {calibration.hasFactor && calibration.factor ? (
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between text-sm">
+                <span className="opacity-70">Personal factor</span>
+                <span className="font-bold tabular-nums" style={{ color: 'var(--color-lavender-500)' }}>{calibration.factor.toFixed(2)}×</span>
+              </div>
+              {tierLabel && (
+                <div className="flex items-center justify-between text-sm">
+                  <span className="opacity-70">Based on</span>
+                  <span className="font-semibold text-xs px-2 py-0.5 rounded-full" style={{ background: 'rgba(129,140,248,0.2)', color: 'var(--color-lavender-500)' }}>
+                    {calibration.sampleCount} sessions · {tierLabel}
+                  </span>
+                </div>
+              )}
+              {nextEstimate && (
+                <div className="mt-1 rounded-xl px-3 py-2 text-sm" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                  <span className="opacity-60">Next time you say </span>
+                  <span className="font-semibold">{originalMin} min</span>
+                  <span className="opacity-60"> → estimated </span>
+                  <span className="font-bold" style={{ color: 'var(--color-lavender-500)' }}>{nextEstimate} min</span>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="flex flex-col gap-2">
+              <div className="w-full rounded-full overflow-hidden" style={{ height: 6, background: 'rgba(255,255,255,0.08)' }}>
+                <div className="h-full rounded-full" style={{ width: `${Math.min(100, (calibration.exactMatchCount / 2) * 100)}%`, background: 'linear-gradient(90deg, var(--color-lavender-500), var(--color-coral-500))', transition: 'width 0.6s ease' }} />
+              </div>
+              <p className="text-xs opacity-60">
+                {calibration.exactMatchCount === 0
+                  ? `Complete "${state.taskName}" 2 more times to unlock exact-match calibration.`
+                  : calibration.exactMatchNeeded === 1
+                  ? `1 more session with "${state.taskName}" unlocks exact calibration.`
+                  : `${calibration.exactMatchCount} of 2 sessions recorded.`}
+              </p>
+            </div>
+          )}
+        </motion.div>
+      )}
+
+      {/* 4. Keep the Momentum (chain task) */}
+      {!chainDismissed && (
+        <motion.div
+          {...cardAnim(0.34)}
+          className="w-full max-w-md mx-auto rounded-3xl p-5"
+          style={{ background: 'linear-gradient(135deg, rgba(125,175,156,0.14) 0%, rgba(125,175,156,0.08) 100%)', border: '1.5px solid rgba(125,175,156,0.3)' }}
+        >
+          <div className="flex items-center gap-2 mb-2">
+            <Link2 className="w-5 h-5 shrink-0" style={{ color: 'var(--color-sage-500)' }} strokeWidth={2} />
+            <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>Keep the Momentum</p>
+            <button className="ml-auto text-xs opacity-40 hover:opacity-70 transition-opacity" style={{ color: 'var(--fg)' }} onClick={() => setChainDismissed(true)} aria-label="Dismiss">✕</button>
+          </div>
+          <p className="text-xs opacity-60 mb-3">You're in the zone — what's next?</p>
+          <div className="relative mb-3">
+            <button
+              id="chain-task-dropdown"
+              className="w-full flex items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-semibold"
+              style={{ background: 'var(--card)', border: '1.5px solid var(--card-border)', color: 'var(--fg)' }}
+              onClick={() => setChainDropdownOpen(o => !o)}
+              aria-haspopup="listbox"
+              aria-expanded={chainDropdownOpen}
+            >
+              <span className="truncate">{selectedChainTask || 'Choose next task…'}</span>
+              <ChevronDown className="w-4 h-4 shrink-0 transition-transform" style={{ transform: chainDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
+            </button>
+            {chainDropdownOpen && (
+              <div className="absolute z-10 w-full mt-1 rounded-xl overflow-hidden" style={{ background: 'var(--card)', border: '1.5px solid var(--card-border)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }} role="listbox">
+                {recentTasks.map(t => (
+                  <button
+                    key={t.taskName}
+                    role="option"
+                    aria-selected={selectedChainTask === t.taskName}
+                    className="w-full text-left px-4 py-3 text-sm hover:opacity-80 transition-opacity flex items-center justify-between gap-2"
+                    style={{ color: 'var(--fg)', background: selectedChainTask === t.taskName ? 'rgba(125,175,156,0.15)' : 'transparent', borderBottom: '1px solid var(--card-border)' }}
+                    onClick={() => { setSelectedChainTask(t.taskName); setChainDropdownOpen(false); }}
+                  >
+                    <span className="truncate">{t.taskName}</span>
+                    {selectedChainTask === t.taskName && <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: 'var(--color-sage-500)' }} />}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <motion.button
+            whileHover={rm ? {} : { scale: 1.02, y: -1 }}
+            whileTap={rm ? {} : { scale: 0.97 }}
+            id="chain-task-start-btn"
+            onClick={() => handleChainTask(selectedChainTask)}
+            disabled={!selectedChainTask}
+            className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white"
+            style={{ background: selectedChainTask ? 'linear-gradient(135deg, var(--color-sage-500) 0%, #5a9982 100%)' : 'rgba(255,255,255,0.1)', opacity: selectedChainTask ? 1 : 0.5, minHeight: 44 }}
+          >
+            <Zap className="w-4 h-4 shrink-0" />
+            Start it now
+          </motion.button>
+        </motion.div>
+      )}
+
+      {/* 5. Quick-stat badges */}
       <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+        {...cardAnim(0.42)}
         className="flex gap-3 justify-center flex-wrap"
       >
         {[
-          { Icon: Tv2,    val: episodesStr,                   unit: 'episodes' },
-          { Icon: Music,  val: songsStr,                      unit: 'songs'    },
-          { Icon: Timer,  val: `${state.actualMinutes}`,      unit: 'allocated'  },
+          { Icon: Tv2,    val: episodesStr,              unit: 'episodes' },
+          { Icon: Music,  val: songsStr,                 unit: 'songs'    },
+          { Icon: Timer,  val: `${state.actualMinutes}`, unit: 'allocated' },
         ].map(b => (
-          <div
-            key={b.unit}
-            className="flex flex-col items-center rounded-2xl px-4 py-2 glass-card"
-            style={{ border: '1.5px solid var(--color-cream-300)', minWidth: 80, transform: 'scale(0.9)' }}
-          >
+          <div key={b.unit} className="flex flex-col items-center rounded-2xl px-4 py-2 glass-card" style={{ border: '1.5px solid var(--color-cream-300)', minWidth: 80, transform: 'scale(0.9)' }}>
             <b.Icon className="w-5 h-5 mb-1" style={{ color: 'var(--color-coral-500)' }} strokeWidth={1.75} />
-            <span className="text-xl font-black tabular-nums text-white">
-              {b.val}
-            </span>
-            <span className="text-[10px] uppercase tracking-wider text-gray-300">
-              {b.unit}
-            </span>
+            <span className="text-xl font-black tabular-nums text-white">{b.val}</span>
+            <span className="text-[10px] uppercase tracking-wider text-gray-300">{b.unit}</span>
           </div>
         ))}
       </motion.div>
 
-      {/* ── Adulting Certificate (the capturable node) ─────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 24 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.3 }}
-        className="w-full max-w-md mx-auto"
-      >
-        <AdultingCertificate
-          certRef={certRef}
-          taskName={state.taskName}
-          episodes={episodesStr}
-          songs={songsStr}
-          tagline={tagline}
-          dateStr={dateStr}
-          theme={certTheme}
-          milestone={milestone}
-        />
+      {/* 6. Adulting Certificate */}
+      <motion.div {...cardAnim(0.5)} className="w-full max-w-md mx-auto">
+        <AdultingCertificate certRef={certRef} taskName={state.taskName} episodes={episodesStr} songs={songsStr} tagline={tagline} dateStr={dateStr} theme={certTheme} milestone={milestone} />
       </motion.div>
 
-      {/* ── Action buttons ─────────────────────────────────────────────────── */}
-      <motion.div
-        initial={{ opacity: 0, y: 16 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.45 }}
-        className="flex flex-col gap-3 w-full"
-      >
-        {/* ── Certificate Theme Toggle Row ────────────────────────────────── */}
-        <div
-          role="radiogroup"
-          aria-label="Certificate Theme"
-          className="flex items-center justify-center gap-2 p-1.5 rounded-2xl w-full"
-          style={{
-            background: 'var(--card)',
-            border: '1.5px solid var(--card-border)',
-            backdropFilter: 'blur(8px)',
-          }}
-        >
-          {(
-            [
-              { id: 'classic', label: 'Classic', Icon: GraduationCap },
-              { id: 'dark',    label: 'Night',   Icon: Moon           },
-              { id: 'chaos',   label: 'Chaos',   Icon: Sparkles       },
-            ] as const
-          ).map((t) => {
+      {/* 7. Actions */}
+      <motion.div {...cardAnim(0.58)} className="flex flex-col gap-3 w-full">
+        <div role="radiogroup" aria-label="Certificate Theme" className="flex items-center justify-center gap-2 p-1.5 rounded-2xl w-full" style={{ background: 'var(--card)', border: '1.5px solid var(--card-border)', backdropFilter: 'blur(8px)' }}>
+          {([{ id: 'classic', label: 'Classic', Icon: GraduationCap }, { id: 'dark', label: 'Night', Icon: Moon }, { id: 'chaos', label: 'Chaos', Icon: Sparkles }] as const).map(t => {
             const active = certTheme === t.id;
             return (
-              <motion.button
-                key={t.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.96 }}
-                type="button"
-                role="radio"
-                aria-checked={active}
-                onClick={() => setCertTheme(t.id)}
+              <motion.button key={t.id} whileHover={rm ? {} : { scale: 1.02 }} whileTap={rm ? {} : { scale: 0.96 }} type="button" role="radio" aria-checked={active} onClick={() => setCertTheme(t.id)}
                 className="flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none"
-                style={{
-                  background: active
-                    ? 'linear-gradient(135deg, var(--color-coral-500) 0%, var(--color-coral-600) 100%)'
-                    : 'transparent',
-                  color: active ? '#ffffff' : 'var(--fg)',
-                  boxShadow: active ? '0 2px 10px rgba(242,129,90,0.35)' : 'none',
-                }}
-              >
-                <t.Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
-                {t.label}
-              </motion.button>
+                style={{ background: active ? 'linear-gradient(135deg, var(--color-coral-500) 0%, var(--color-coral-600) 100%)' : 'transparent', color: active ? '#ffffff' : 'var(--fg)', boxShadow: active ? '0 2px 10px rgba(242,129,90,0.35)' : 'none' }}
+              ><t.Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />{t.label}</motion.button>
             );
           })}
         </div>
-
-        {/* Download */}
-        <motion.button
-          whileHover={{ scale: 1.03, y: -2 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={handleDownload}
-          disabled={downloading}
-          id="download-cert-btn"
+        <motion.button whileHover={rm ? {} : { scale: 1.03, y: -2 }} whileTap={rm ? {} : { scale: 0.97 }} onClick={handleDownload} disabled={downloading} id="download-cert-btn"
           className="w-full flex items-center justify-center gap-3 rounded-2xl py-4 text-lg font-bold text-white"
-          style={{
-            background:
-              'linear-gradient(135deg, var(--color-coral-500) 0%, var(--color-coral-600) 100%)',
-            boxShadow: '0 6px 22px rgba(242,129,90,0.42)',
-            opacity: downloading ? 0.75 : 1,
-            minHeight: 64,
-          }}
+          style={{ background: 'linear-gradient(135deg, var(--color-coral-500) 0%, var(--color-coral-600) 100%)', boxShadow: '0 6px 22px rgba(242,129,90,0.42)', opacity: downloading ? 0.75 : 1, minHeight: 64 }}
           aria-label="Download your adulting certificate as a PNG"
         >
           <Download className="w-5 h-5 shrink-0" />
           {downloading ? 'Generating…' : 'Download Certificate'}
         </motion.button>
-
-        {/* ── Social share row (icon-only, native share-sheet style) ──────── */}
-        <div className="flex flex-row justify-center gap-4 mt-4">
-          {/* Share to X */}
-          <motion.a
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            href={shareUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            id="share-x-btn"
-            className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105"
-            style={{
-              background: '#000000',
-              color: 'white',
-              textDecoration: 'none',
-            }}
-            aria-label="Share your achievement on X (Twitter)"
-          >
+        <div className="flex flex-row justify-center gap-4 mt-2">
+          <motion.a whileHover={rm ? {} : { scale: 1.1 }} whileTap={rm ? {} : { scale: 0.9 }} href={shareUrl} target="_blank" rel="noopener noreferrer" id="share-x-btn"
+            className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg" style={{ background: '#000000', color: 'white', textDecoration: 'none' }} aria-label="Share on X">
             <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z" /></svg>
           </motion.a>
-
-          {/* Share to WhatsApp */}
-          <motion.a
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            href={waShareUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            id="share-wa-btn"
-            className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105"
-            style={{
-              background: '#25D366',
-              color: 'white',
-              textDecoration: 'none',
-            }}
-            aria-label="Share your achievement on WhatsApp"
-          >
+          <motion.a whileHover={rm ? {} : { scale: 1.1 }} whileTap={rm ? {} : { scale: 0.9 }} href={waShareUrl} target="_blank" rel="noopener noreferrer" id="share-wa-btn"
+            className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg" style={{ background: '#25D366', color: 'white', textDecoration: 'none' }} aria-label="Share on WhatsApp">
             <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>
           </motion.a>
-
-          {/* Native Share (mobile only) */}
           {canNativeShare && (
-            <motion.button
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={handleNativeShare}
-              id="share-native-btn"
-              className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg transition-transform hover:scale-105"
-              style={{
-                background: 'linear-gradient(135deg, var(--color-lavender-500) 0%, var(--color-lavender-600) 100%)',
-                color: 'white',
-              }}
-              aria-label="Share via your device's share menu"
-            >
-              <Smartphone className="w-5 h-5" />
-            </motion.button>
+            <motion.button whileHover={rm ? {} : { scale: 1.1 }} whileTap={rm ? {} : { scale: 0.9 }} onClick={handleNativeShare} id="share-native-btn"
+              className="w-12 h-12 rounded-full flex items-center justify-center shadow-lg"
+              style={{ background: 'linear-gradient(135deg, var(--color-lavender-500) 0%, var(--color-lavender-600) 100%)', color: 'white' }}
+              aria-label="Share via device share menu"><Smartphone className="w-5 h-5" /></motion.button>
           )}
         </div>
-
-        {/* Start again */}
-        <motion.button
-          whileHover={{ scale: 1.01 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={handleReset}
-          id="new-mission-btn"
+        <motion.button whileHover={rm ? {} : { scale: 1.01 }} whileTap={rm ? {} : { scale: 0.98 }} onClick={handleNewMission} id="new-mission-btn"
           className="w-full flex items-center justify-center gap-2 rounded-2xl py-3 text-base font-semibold"
-          style={{
-            background: 'transparent',
-            border: '2px solid var(--color-cream-300)',
-            color: 'var(--color-ink-500)',
-            minHeight: 52,
-          }}
+          style={{ background: 'transparent', border: '2px solid var(--color-cream-300)', color: 'var(--color-ink-500)', minHeight: 52 }}
           aria-label="Start a new mission"
         >
           <RotateCcw className="w-4 h-4 shrink-0" />

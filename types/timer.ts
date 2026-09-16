@@ -93,6 +93,13 @@ export interface TimerState {
 
   /** The durable active mission object. Only present if a mission is started. */
   activeMission?: any;
+
+  /**
+   * The localStorage record ID written by completeMission().
+   * Passed into success state so SuccessScreen can look up exactly the right
+   * record without assuming getTaskHistory()[0] is always correct.
+   */
+  completedRecordId?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -202,6 +209,18 @@ export interface RecalculateMissionAction {
   payload: { remainingMinutes: number };
 }
 
+/**
+ * Transitions from success → setup for a "chain task".
+ * Clears task-specific fields but preserves session context
+ * (category, taxMultiplier, transitionMinutes, isExactTime).
+ * Does NOT reload the page — uses the existing state machine.
+ */
+export interface ChainMissionAction {
+  type: 'CHAIN_MISSION';
+  /** Optional next task name to pre-fill on SetupScreen. */
+  payload?: { taskName?: string };
+}
+
 /** Discriminated union of every action the reducer handles. */
 export type TimerAction =
   | UpdateSetupAction
@@ -217,4 +236,5 @@ export type TimerAction =
   | RecoverMissionAction
   | MinimizeMissionAction
   | SetNotificationMessageIdAction
-  | RecalculateMissionAction;
+  | RecalculateMissionAction
+  | ChainMissionAction;

@@ -129,7 +129,7 @@ export function recalculateMission(mission: ActiveMission, remainingMinutes: num
 }
 
 
-export function completeMission(mission: ActiveMission, tagline?: string): void {
+export function completeMission(mission: ActiveMission, tagline?: string): string {
   const now = Date.now();
   
   // Calculate total duration discounting paused time
@@ -145,8 +145,8 @@ export function completeMission(mission: ActiveMission, tagline?: string): void 
   const predictionErrorSignedMs = actualDurationMs - calibratedEstimateMs;
   const predictionErrorAbsoluteMs = Math.abs(predictionErrorSignedMs);
   
-  // Record history
-  saveCompletedTask({
+  // Record history — capture returned ID so caller can pass it into React state
+  const completedRecordId = saveCompletedTask({
     taskName: mission.taskName,
     category: mission.category,
     optimisticMin: mission.optimisticMin,
@@ -186,7 +186,10 @@ export function completeMission(mission: ActiveMission, tagline?: string): void 
   
   clearActiveMission();
   clearAppBadge();
+
+  return completedRecordId;
 }
+
 
 /**
  * Idempotent lifecycle reconciliation function.

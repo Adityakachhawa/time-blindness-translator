@@ -184,12 +184,13 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
     case 'COMPLETE_MISSION': {
       if (!state.activeMission) return state;
       
-      completeMission(state.activeMission, state.tagline);
+      const completedRecordId = completeMission(state.activeMission, state.tagline);
       
       return {
         ...state,
         status: 'success',
         completedAt: Date.now(),
+        completedRecordId,
         activeMission: null, // Clear from React state
       };
     }
@@ -275,9 +276,47 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       };
     }
 
+    case 'CHAIN_MISSION': {
+      // Preserve session context (day-level prefs), clear task-specific state.
+      // Optionally pre-fills a chosen next task name.
+      const nextTaskName = action.payload?.taskName ?? '';
+      const nextActual = calculateActualTime(
+        INITIAL_ESTIMATE_DEFAULT,
+        state.isExactTime ? 1.0 : state.taxMultiplier,
+        state.isExactTime ?? false,
+      );
+      return {
+        ...state,
+        status: 'setup',
+        // Clear task-specific
+        taskName: nextTaskName,
+        initialEstimate: INITIAL_ESTIMATE_DEFAULT,
+        predictedSeconds: INITIAL_ESTIMATE_DEFAULT * 60,
+        optimisticMin: INITIAL_ESTIMATE_DEFAULT,
+        actualMinutes: nextActual,
+        allocatedMin: nextActual,
+        endTime: null,
+        startTime: undefined,
+        completedAt: undefined,
+        completedRecordId: undefined,
+        actualSeconds: undefined,
+        tagline: undefined,
+        wasAnnounced: undefined,
+        isOvertimeAcknowledged: false,
+        extensionCount: 0,
+        activeMission: null,
+        // Preserve session context
+        // category: state.category  ← intentionally NOT carried; SetupScreen re-guesses from new task name
+        taxMultiplier: state.taxMultiplier,
+        transitionMinutes: state.transitionMinutes,
+        isExactTime: state.isExactTime,
+        personalFactor: null, // Will be re-computed by SetupScreen when new task name is entered
+      };
+    }
+
     default:
       return state;
-  }
+    }
 }
 
 // ---------------------------------------------------------------------------
