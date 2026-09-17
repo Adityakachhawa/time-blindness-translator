@@ -714,14 +714,17 @@ function formatPreciseDuration(totalSeconds: number | undefined, fallbackMinutes
 
       {/* 7. Actions */}
       <motion.div {...cardAnim(0.58)} className="flex flex-col gap-3 w-full">
-        <div role="radiogroup" aria-label="Certificate Theme" className="flex items-center justify-center gap-2 p-1.5 rounded-2xl w-full" style={{ background: 'var(--card)', border: '1.5px solid var(--card-border)', backdropFilter: 'blur(8px)' }}>
+        <div role="radiogroup" aria-label="Certificate Theme" className="grid grid-cols-3 w-full gap-1 p-1.5 rounded-2xl" style={{ background: 'var(--card)', border: '1.5px solid var(--card-border)', backdropFilter: 'blur(8px)' }}>
           {([{ id: 'classic', label: 'Classic', Icon: GraduationCap }, { id: 'dark', label: 'Night', Icon: Moon }, { id: 'chaos', label: 'Chaos', Icon: Sparkles }] as const).map(t => {
             const active = certTheme === t.id;
             return (
               <motion.button key={t.id} whileHover={rm ? {} : { scale: 1.02 }} whileTap={rm ? {} : { scale: 0.96 }} type="button" role="radio" aria-checked={active} onClick={() => setCertTheme(t.id)}
-                className="flex-1 py-2.5 px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer select-none"
+                className="min-w-0 py-2.5 px-1 sm:px-3 rounded-xl text-xs sm:text-sm font-bold transition-all flex items-center justify-center gap-1 sm:gap-1.5 cursor-pointer select-none"
                 style={{ background: active ? 'linear-gradient(135deg, var(--color-coral-500) 0%, var(--color-coral-600) 100%)' : 'transparent', color: active ? '#ffffff' : 'var(--fg)', boxShadow: active ? '0 2px 10px rgba(242,129,90,0.35)' : 'none' }}
-              ><t.Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />{t.label}</motion.button>
+              >
+                <t.Icon className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+                <span className="truncate">{t.label}</span>
+              </motion.button>
             );
           })}
         </div>

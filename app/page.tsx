@@ -70,7 +70,7 @@ function HeaderIconBtn({
       whileTap={{ scale: 0.95 }}
       onClick={onClick}
       aria-label={label}
-      className="rounded-xl p-2 transition-colors flex items-center justify-center outline-none"
+      className="rounded-xl p-1.5 sm:p-2 min-w-11 min-h-11 sm:min-w-10 sm:min-h-10 shrink-0 transition-colors flex items-center justify-center outline-none"
       style={{ color: 'var(--fg)', opacity: 0.7 }}
     >
       {children}
@@ -221,7 +221,7 @@ function AppContent() {
 
       {/* ── Sticky header ───────────────────────────────────────────── */}
       <header
-        className="sticky top-0 z-20 border-b"
+        className="sticky top-0 z-20 border-b w-full"
         style={{
           background:       headerBg,
           backdropFilter:   'blur(14px)',
@@ -229,26 +229,26 @@ function AppContent() {
           borderColor:      borderClr,
         }}
       >
-        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+        <div className="max-w-5xl mx-auto px-1.5 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-1.5 sm:gap-4 w-full">
           {/* Brand Lockup */}
-          <div className="flex items-center gap-3 shrink-0 min-w-0">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink min-w-0">
             <motion.div 
               whileHover={{ rotate: 15 }} 
               transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-2xl select-none cursor-default origin-bottom" 
+              className="text-xl sm:text-2xl select-none cursor-default origin-bottom shrink-0" 
               aria-hidden
             >
               ⏳
             </motion.div>
-            <div className="flex flex-col justify-center min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="font-bold leading-none text-[13px] tracking-widest uppercase truncate" style={{ color: 'var(--fg)' }}>
+            <div className="flex flex-col justify-center min-w-0 shrink">
+              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                <h1 className="font-bold leading-none text-[11px] sm:text-[13px] tracking-wider sm:tracking-widest uppercase truncate shrink" style={{ color: 'var(--fg)' }}>
                   Time-Blindness Translator
                 </h1>
                 {/* Context-Aware Branding */}
-                {state.status === 'setup' && <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-coral-500 text-white">Translate Your Day</span>}
-                {state.status === 'active' && <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-amber-500 text-white">Mission In Progress</span>}
-                {state.status === 'success' && <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-emerald-500 text-white">Reality Captured</span>}
+                {state.status === 'setup' && <span className="hidden sm:inline-flex shrink-0 items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-coral-500 text-white">Translate Your Day</span>}
+                {state.status === 'active' && <span className="hidden sm:inline-flex shrink-0 items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-amber-500 text-white">Mission In Progress</span>}
+                {state.status === 'success' && <span className="hidden sm:inline-flex shrink-0 items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-emerald-500 text-white">Reality Captured</span>}
               </div>
               <p className="text-[11px] mt-1 hidden sm:block font-medium opacity-80 truncate" style={{ color: subtitleClr }}>
                 Translate what you think time is into what it actually is.
@@ -258,7 +258,7 @@ function AppContent() {
 
           {/* Utility Rail */}
           <div 
-            className="flex items-center gap-0.5 shrink-0 p-1 rounded-2xl shadow-sm" 
+            className="flex items-center gap-0 sm:gap-0.5 shrink-0 p-0.5 sm:p-1 rounded-2xl shadow-sm" 
             style={{ background: resolvedDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', border: `1px solid ${borderClr}` }}
           >
             {/* History */}
