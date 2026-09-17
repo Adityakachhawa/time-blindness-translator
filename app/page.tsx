@@ -66,12 +66,12 @@ function HeaderIconBtn({
 }) {
   return (
     <motion.button
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.93 }}
+      whileHover={{ scale: 1.05, backgroundColor: 'rgba(150,150,150,0.1)' }}
+      whileTap={{ scale: 0.95 }}
       onClick={onClick}
       aria-label={label}
-      className="rounded-xl p-2 transition-colors"
-      style={{ color: '#64748b' }}
+      className="rounded-xl p-2 transition-colors flex items-center justify-center outline-none"
+      style={{ color: 'var(--fg)', opacity: 0.7 }}
     >
       {children}
     </motion.button>
@@ -229,37 +229,45 @@ function AppContent() {
           borderColor:      borderClr,
         }}
       >
-        <div className="max-w-lg mx-auto px-4 py-3 flex items-center gap-3">
-          {/* Brand */}
-          <span className="text-2xl select-none" aria-hidden>⏳</span>
-          <div className="flex-1 min-w-0">
-            <p className="font-bold leading-none text-sm" style={{ color: 'var(--fg)' }}>
-              Time-Blindness Translator
-            </p>
-            <p className="text-xs mt-0.5 truncate" style={{ color: 'var(--muted)' }}>
-              for brains that think "15 minutes" is a social construct
-            </p>
-            {dailyCount !== null && (
-              <motion.p 
-                initial={{ opacity: 0 }} 
-                animate={{ opacity: 1 }} 
-                className="text-xs mt-0.5 font-medium" 
-                style={{ color: 'var(--color-coral-500)' }}
-              >
-                {dailyCount.toLocaleString()} missions completed today
-              </motion.p>
-            )}
+        <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          {/* Brand Lockup */}
+          <div className="flex items-center gap-3 shrink-0 min-w-0">
+            <motion.div 
+              whileHover={{ rotate: 15 }} 
+              transition={{ type: "spring", stiffness: 300, damping: 20 }}
+              className="text-2xl select-none cursor-default origin-bottom" 
+              aria-hidden
+            >
+              ⏳
+            </motion.div>
+            <div className="flex flex-col justify-center min-w-0">
+              <div className="flex items-center gap-2">
+                <h1 className="font-bold leading-none text-[13px] tracking-widest uppercase truncate" style={{ color: 'var(--fg)' }}>
+                  Time-Blindness Translator
+                </h1>
+                {/* Context-Aware Branding */}
+                {state.status === 'setup' && <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-coral-500 text-white">Translate Your Day</span>}
+                {state.status === 'active' && <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-amber-500 text-white">Mission In Progress</span>}
+                {state.status === 'success' && <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-emerald-500 text-white">Reality Captured</span>}
+              </div>
+              <p className="text-[11px] mt-1 hidden sm:block font-medium opacity-80 truncate" style={{ color: subtitleClr }}>
+                Translate what you think time is into what it actually is.
+              </p>
+            </div>
           </div>
 
-          {/* Controls */}
-          <div className="flex items-center gap-1 shrink-0">
+          {/* Utility Rail */}
+          <div 
+            className="flex items-center gap-0.5 shrink-0 p-1 rounded-2xl shadow-sm" 
+            style={{ background: resolvedDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', border: `1px solid ${borderClr}` }}
+          >
             {/* History */}
             <HeaderIconBtn
               onClick={() => setHistoryOpen(true)}
               label="View task history"
             >
               <div className="relative">
-                <History className="w-5 h-5" strokeWidth={2} />
+                <History className="w-4 h-4" strokeWidth={2.5} />
                 {hasWeeklyReport && (
                   <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2" 
                        style={{ background: 'var(--color-coral-500)', borderColor: headerBg }} 
@@ -273,7 +281,7 @@ function AppContent() {
               onClick={cycleTrack}
               label={TRACK_LABELS[currentTrack]}
             >
-              {TRACK_ICONS[currentTrack]}
+              <div className="scale-90">{TRACK_ICONS[currentTrack]}</div>
             </HeaderIconBtn>
 
             {/* Mute toggle */}
@@ -282,8 +290,8 @@ function AppContent() {
               label={muted ? 'Unmute completion sound' : 'Mute completion sound'}
             >
               {muted
-                ? <VolumeX className="w-5 h-5" strokeWidth={2} />
-                : <Volume2 className="w-5 h-5" strokeWidth={2} />
+                ? <VolumeX className="w-4 h-4" strokeWidth={2.5} />
+                : <Volume2 className="w-4 h-4" strokeWidth={2.5} />
               }
             </HeaderIconBtn>
 
@@ -293,8 +301,8 @@ function AppContent() {
               label={resolvedDark ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               {resolvedDark
-                ? <Sun  className="w-5 h-5" strokeWidth={2} />
-                : <Moon className="w-5 h-5" strokeWidth={2} />
+                ? <Sun  className="w-4 h-4" strokeWidth={2.5} />
+                : <Moon className="w-4 h-4" strokeWidth={2.5} />
               }
             </HeaderIconBtn>
           </div>
@@ -322,17 +330,35 @@ function AppContent() {
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <footer
-        className="w-full border-t py-3 text-center"
+        className="w-full border-t py-8 flex flex-col items-center justify-center gap-5 text-center mt-auto pb-[calc(2rem+env(safe-area-inset-bottom))]"
         style={{
           background:  headerBg,
           borderColor: borderClr,
         }}
       >
-        {/* AdSense slot — activate by swapping YOUR_ADSENSE_ID */}
-        {/* <ins className="adsbygoogle" data-ad-client="ca-pub-YOUR_ADSENSE_ID" data-ad-slot="XXXXXXXX" data-ad-format="auto" /> */}
-        <p className="text-xs" style={{ color: subtitleClr }}>
-          Free forever · No accounts · No personal data stored remotely · Made with <Heart className="inline w-3 h-3 mb-0.5 mx-0.5 fill-current" style={{ color: 'var(--color-coral-500)' }} />
-        </p>
+        <div className="flex flex-col items-center gap-2">
+          <p className="text-sm font-semibold tracking-wide flex items-center" style={{ color: 'var(--fg)' }}>
+            <span className="opacity-75 mr-2 select-none text-base">⌛</span>Estimate less. Learn your time.
+          </p>
+          <div className="flex items-center gap-2 text-[11px] opacity-60 font-medium" style={{ color: 'var(--fg)' }}>
+            <span>Local-first</span>
+            <span className="opacity-40">·</span>
+            <span>No account</span>
+            <span className="opacity-40">·</span>
+            <span>Your data stays on this device</span>
+          </div>
+        </div>
+        
+        {dailyCount !== null && (
+          <motion.p 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            className="text-[10px] font-bold tracking-widest opacity-40 uppercase" 
+            style={{ color: 'var(--fg)' }}
+          >
+            {dailyCount.toLocaleString()} missions translated today
+          </motion.p>
+        )}
       </footer>
 
       {/* ── History drawer ───────────────────────────────────────────── */}
