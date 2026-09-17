@@ -16,6 +16,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://time-blindness-translator.vercel.app"),
   title: "Time-Blindness Translator | ADHD-Friendly Timer",
   description:
     "A shame-free, neurodivergent-friendly timer that translates abstract minutes into relatable anchors like TV episodes and songs. Includes an ADHD Tax buffer and a visual countdown — no ticking clock.",

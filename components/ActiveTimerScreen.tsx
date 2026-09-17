@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { motion, useSpring, useMotionValue, AnimatePresence } from 'framer-motion';
+import { motion, useSpring, useMotionValue, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { toPng, toBlob } from 'html-to-image';
 import { useTimer } from '@/context/TimerContext';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -78,6 +78,7 @@ function MissionLaunchedCard({ taskName, allocatedMin, taxMultiplier, isExactTim
 
 export default function ActiveTimerScreen() {
   const { state, dispatch } = useTimer();
+  const prefersReducedMotion = useReducedMotion();
 
   // Reactive ms-remaining — updated every 100 ms for smooth visual + digit display
   const [msLeft, setMsLeft] = useState<number>(() =>
@@ -257,7 +258,7 @@ export default function ActiveTimerScreen() {
   useWakeLock(isActive);
 
   return (
-    <div className="flex flex-col items-center justify-between w-full min-h-[85vh] relative">
+    <div className="flex flex-col items-center justify-between w-full min-h-[85vh] relative pb-[env(safe-area-inset-bottom)]">
       {/* ── Immersive Full-Screen Background ───────────────────────────────── */}
       <div className="fixed inset-0 z-0 bg-slate-900 pointer-events-none" />
       <motion.div
@@ -314,8 +315,19 @@ export default function ActiveTimerScreen() {
           transition={{ delay: 0.12, duration: 0.4 }}
           className="flex flex-col items-center justify-center flex-1 my-12"
         >
+          {/* Accessibility announcement for overtime */}
+          <div role="status" aria-live="polite" className="sr-only">
+            {isOvertime ? 'Timer is over budget' : ''}
+          </div>
+
           {isOvertime ? (
-            <div className="flex flex-col items-center gap-3">
+            <motion.div
+              key="overtime-pulse"
+              initial={prefersReducedMotion ? { opacity: 0 } : { scale: 0.9, opacity: 0 }}
+              animate={prefersReducedMotion ? { opacity: 1 } : { scale: [0.95, 1.05, 1], opacity: 1 }}
+              transition={{ duration: 0.5, ease: 'easeOut' }}
+              className="flex flex-col items-center gap-3"
+            >
               <div className="px-5 py-2.5 rounded-full border-[1.5px] border-dashed border-red-400 text-red-400 font-bold tracking-widest uppercase text-xs">
                 OVER BUDGET
               </div>
@@ -342,7 +354,7 @@ export default function ActiveTimerScreen() {
                   +10m
                 </button>
               </div>
-            </div>
+            </motion.div>
           ) : (
             <div className="flex flex-col items-center">
               <div className="flex items-center gap-2 mb-2 bg-black/10 px-3 py-1 rounded-full">
@@ -422,7 +434,7 @@ export default function ActiveTimerScreen() {
             whileTap={{ scale: 0.97 }}
             onClick={handleCompleteTap}
             id="complete-mission-btn"
-            className="flex items-center justify-center gap-3 rounded-2xl text-xl font-bold text-white shadow-2xl relative"
+            className="flex items-center justify-center gap-3 rounded-2xl text-xl font-bold text-white shadow-2xl relative overflow-hidden"
             style={{
               flex: 2,
               background: isCompleting
@@ -435,21 +447,36 @@ export default function ActiveTimerScreen() {
             }}
             aria-label={isCompleting ? 'Undo — cancel completion' : 'I completed the task'}
           >
-            {isCompleting ? (
-              <>
-                <Undo2 className="w-7 h-7 shrink-0" strokeWidth={2.5} />
-                Undo
-              </>
-            ) : (
-              <>
-                <CheckCircle className="w-7 h-7 shrink-0" strokeWidth={2.5} />
-                I Did It!
-              </>
+            {isCompleting && (
+              <motion.div
+                initial={{ scaleX: 1 }}
+                animate={{ scaleX: 0 }}
+                transition={{ duration: 3, ease: 'linear' }}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  background: 'rgba(0,0,0,0.15)',
+                  transformOrigin: 'left',
+                }}
+              />
             )}
+            <div className="relative z-10 flex items-center justify-center gap-3 pointer-events-none">
+              {isCompleting ? (
+                <>
+                  <Undo2 className="w-7 h-7 shrink-0" strokeWidth={2.5} />
+                  Undo
+                </>
+              ) : (
+                <>
+                  <CheckCircle className="w-7 h-7 shrink-0" strokeWidth={2.5} />
+                  I Did It!
+                </>
+              )}
+            </div>
           </motion.button>
         </div>
 
-        <p className="text-xs text-center pt-3" style={{ color: 'rgba(255,255,255,0.5)' }}>
+        <p className="text-xs text-center pt-3 pb-2" style={{ color: 'rgba(255,255,255,0.75)' }}>
           {isCompleting
             ? 'Changed your mind? Tap the button above to cancel.'
             : 'Tap any time you finish — even before the timer ends.'}
@@ -536,7 +563,7 @@ export default function ActiveTimerScreen() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
             transition={{ type: 'spring', stiffness: 350, damping: 26 }}
-            className="fixed bottom-6 inset-x-4 max-w-md mx-auto z-50 p-4 rounded-2xl shadow-2xl border flex flex-col gap-3"
+            className="fixed inset-x-4 max-w-md mx-auto z-50 p-4 rounded-2xl shadow-2xl border flex flex-col gap-3 bottom-[calc(1.5rem+env(safe-area-inset-bottom))]"
             style={{
               background: 'var(--card)',
               borderColor: 'var(--color-coral-400)',

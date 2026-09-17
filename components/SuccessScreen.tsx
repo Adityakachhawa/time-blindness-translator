@@ -565,7 +565,7 @@ function formatPreciseDuration(totalSeconds: number | undefined, fallbackMinutes
     : null;
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full pb-4">
+    <div className="flex flex-col items-center gap-6 w-full pb-[calc(1rem+env(safe-area-inset-bottom))]">
 
       {/* 1. Celebration */}
       <motion.div
@@ -591,18 +591,18 @@ function formatPreciseDuration(totalSeconds: number | undefined, fallbackMinutes
         <div className="flex justify-center items-stretch mb-4 rounded-2xl overflow-hidden" style={{ border: '1px solid rgba(255,255,255,0.1)' }}>
           <div className="flex-1 flex flex-col items-center justify-center py-4 px-2" style={{ borderRight: '1px solid rgba(255,255,255,0.1)' }}>
             <p className="text-3xl font-black tabular-nums">{originalMin}<span className="text-sm text-gray-400 ml-1">m</span></p>
-            <p className="text-[10px] uppercase tracking-widest mt-1 opacity-60">Original</p>
-            <p className="text-[10px] mt-0.5 opacity-40">your estimate</p>
+            <p className="text-[10px] uppercase tracking-widest mt-1 opacity-80">Original</p>
+            <p className="text-[10px] mt-0.5 opacity-60">your estimate</p>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center py-4 px-2" style={{ background: 'rgba(255,255,255,0.04)', borderRight: '1px solid rgba(255,255,255,0.1)' }}>
             <p className="text-3xl font-black tabular-nums" style={{ color: 'var(--color-amber-400)' }}>{calibratedMin}<span className="text-sm opacity-60 ml-1">m</span></p>
-            <p className="text-[10px] uppercase tracking-widest mt-1 opacity-60">Calibrated</p>
-            <p className="text-[10px] mt-0.5 opacity-40">after ADHD tax</p>
+            <p className="text-[10px] uppercase tracking-widest mt-1 opacity-80">Calibrated</p>
+            <p className="text-[10px] mt-0.5 opacity-60">after ADHD tax</p>
           </div>
           <div className="flex-1 flex flex-col items-center justify-center py-4 px-2">
             <p className="text-3xl font-black tabular-nums text-white">{actualDisplayStr}</p>
-            <p className="text-[10px] uppercase tracking-widest mt-1 opacity-60">Reality</p>
-            <p className="text-[10px] mt-0.5 opacity-40">what happened</p>
+            <p className="text-[10px] uppercase tracking-widest mt-1 opacity-80">Reality</p>
+            <p className="text-[10px] mt-0.5 opacity-60">what happened</p>
           </div>
         </div>
         <div className="flex flex-col items-center gap-1.5">
@@ -679,68 +679,33 @@ function formatPreciseDuration(totalSeconds: number | undefined, fallbackMinutes
             <button className="ml-auto text-xs opacity-40 hover:opacity-70 transition-opacity" style={{ color: 'var(--fg)' }} onClick={() => setChainDismissed(true)} aria-label="Dismiss">✕</button>
           </div>
           <p className="text-xs opacity-60 mb-3">You're in the zone — what's next?</p>
-          <div className="relative mb-3">
-            <button
-              id="chain-task-dropdown"
-              className="w-full flex items-center justify-between gap-2 rounded-xl px-4 py-3 text-left text-sm font-semibold"
-              style={{ background: 'var(--card)', border: '1.5px solid var(--card-border)', color: 'var(--fg)' }}
-              onClick={() => setChainDropdownOpen(o => !o)}
-              aria-haspopup="listbox"
-              aria-expanded={chainDropdownOpen}
-            >
-              <span className="truncate">{selectedChainTask || 'Choose next task…'}</span>
-              <ChevronDown className="w-4 h-4 shrink-0 transition-transform" style={{ transform: chainDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)' }} />
-            </button>
-            {chainDropdownOpen && (
-              <div className="absolute z-10 w-full mt-1 rounded-xl overflow-hidden" style={{ background: 'var(--card)', border: '1.5px solid var(--card-border)', boxShadow: '0 8px 24px rgba(0,0,0,0.12)' }} role="listbox">
-                {recentTasks.map(t => (
-                  <button
-                    key={t.taskName}
-                    role="option"
-                    aria-selected={selectedChainTask === t.taskName}
-                    className="w-full text-left px-4 py-3 text-sm hover:opacity-80 transition-opacity flex items-center justify-between gap-2"
-                    style={{ color: 'var(--fg)', background: selectedChainTask === t.taskName ? 'rgba(125,175,156,0.15)' : 'transparent', borderBottom: '1px solid var(--card-border)' }}
-                    onClick={() => { setSelectedChainTask(t.taskName); setChainDropdownOpen(false); }}
-                  >
-                    <span className="truncate">{t.taskName}</span>
-                    {selectedChainTask === t.taskName && <CheckCircle2 className="w-4 h-4 shrink-0" style={{ color: 'var(--color-sage-500)' }} />}
-                  </button>
-                ))}
-              </div>
-            )}
+          <div className="flex flex-col gap-2.5">
+            {recentTasks.map((t) => (
+              <motion.button
+                key={t.taskName}
+                whileHover={rm ? {} : { scale: 1.02, y: -1 }}
+                whileTap={rm ? {} : { scale: 0.97 }}
+                onClick={() => handleChainTask(t.taskName)}
+                className="w-full flex items-center justify-between gap-2 rounded-xl px-4 py-3.5 text-left text-sm font-bold shadow-sm"
+                style={{
+                  background: 'var(--card)',
+                  border: '1.5px solid var(--card-border)',
+                  color: 'var(--fg)',
+                }}
+                aria-label={`Start next task: ${t.taskName}`}
+              >
+                <span className="truncate">{t.taskName}</span>
+                <div className="flex items-center gap-1.5 shrink-0" style={{ color: 'var(--color-sage-500)' }}>
+                  <span className="text-[10px] uppercase tracking-wider font-black opacity-80">Start</span>
+                  <Zap className="w-3.5 h-3.5" strokeWidth={2.5} />
+                </div>
+              </motion.button>
+            ))}
           </div>
-          <motion.button
-            whileHover={rm ? {} : { scale: 1.02, y: -1 }}
-            whileTap={rm ? {} : { scale: 0.97 }}
-            id="chain-task-start-btn"
-            onClick={() => handleChainTask(selectedChainTask)}
-            disabled={!selectedChainTask}
-            className="w-full flex items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold text-white"
-            style={{ background: selectedChainTask ? 'linear-gradient(135deg, var(--color-sage-500) 0%, #5a9982 100%)' : 'rgba(255,255,255,0.1)', opacity: selectedChainTask ? 1 : 0.5, minHeight: 44 }}
-          >
-            <Zap className="w-4 h-4 shrink-0" />
-            Start it now
-          </motion.button>
         </motion.div>
       )}
 
-      {/* 5. Quick-stat badges */}
-      <motion.div
-        {...cardAnim(0.42)}
-        className="flex gap-3 justify-center flex-wrap"
-      >
-        {[
-          { Icon: Tv2,    val: episodesStr,              unit: 'episodes' },
-          { Icon: Music,  val: songsStr,                 unit: 'songs'    },
-          { Icon: Timer,  val: `${state.actualMinutes}`, unit: 'allocated' },
-        ].map(b => (
-          <div key={b.unit} className="flex flex-col items-center rounded-2xl px-4 py-2 glass-card" style={{ border: '1.5px solid var(--color-cream-300)', minWidth: 80, transform: 'scale(0.9)' }}>
-            <b.Icon className="w-5 h-5 mb-1" style={{ color: 'var(--color-coral-500)' }} strokeWidth={1.75} />
-            <span className="text-xl font-black tabular-nums text-white">{b.val}</span>
-            <span className="text-[10px] uppercase tracking-wider text-gray-300">{b.unit}</span>
-          </div>
-        ))}
-      </motion.div>
+
 
       {/* 6. Adulting Certificate */}
       <motion.div {...cardAnim(0.5)} className="w-full max-w-md mx-auto">

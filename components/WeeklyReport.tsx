@@ -96,7 +96,7 @@ export default function WeeklyReport() {
   };
 
   return (
-    <div className="w-full flex flex-col items-center gap-6 pb-24">
+    <div className="w-full flex flex-col items-center gap-6 pb-[calc(6rem+env(safe-area-inset-bottom))]">
       <div className="w-full relative px-2 max-w-110 mx-auto">
         {/* The exportable container */}
         <div

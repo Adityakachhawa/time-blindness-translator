@@ -159,7 +159,7 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
               </div>
               <button
                 onClick={onClose}
-                className="rounded-xl p-1.5 transition-colors"
+                className="rounded-xl p-2.5 min-w-11 min-h-11 flex items-center justify-center transition-colors"
                 style={{ color: '#64748b' }}
                 aria-label="Close history drawer"
               >
@@ -267,7 +267,7 @@ export default function HistoryDrawer({ open, onClose }: HistoryDrawerProps) {
 
             {/* Footer */}
             <div
-              className="px-5 py-4 border-t text-center"
+              className="px-5 pt-4 pb-[calc(1rem+env(safe-area-inset-bottom))] border-t text-center"
               style={{ borderColor: 'rgba(0,0,0,0.08)' }}
             >
               <p className="text-xs" style={{ color: '#94a3b8' }}>

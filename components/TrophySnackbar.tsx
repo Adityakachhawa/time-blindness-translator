@@ -30,7 +30,7 @@ export default function TrophySnackbar({ trophyId }: { trophyId: string | null }
           initial={{ opacity: 0, y: 50, scale: 0.9 }}
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 20, scale: 0.95 }}
-          className="fixed bottom-6 left-0 right-0 mx-auto w-max z-50 px-4 py-3 rounded-full flex items-center gap-3 shadow-2xl"
+          className="fixed left-0 right-0 mx-auto w-max z-50 px-4 py-3 rounded-full flex items-center gap-3 shadow-2xl bottom-[calc(1.5rem+env(safe-area-inset-bottom))]"
           style={{
             background: 'rgba(30, 41, 59, 0.95)',
             backdropFilter: 'blur(12px)',

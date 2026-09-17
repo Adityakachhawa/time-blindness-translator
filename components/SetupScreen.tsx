@@ -449,40 +449,6 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
             </p>
           </motion.button>
         )}
-
-        <div className="flex gap-2 w-full">
-          <motion.button
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={{ opacity: 1, scale: 1 }}
-            onClick={() => setShowFitCheck(true)}
-            className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-2.5 px-3 cursor-pointer hover:opacity-90 transition-opacity"
-            style={{
-              background: 'transparent',
-              border: '1.5px dashed var(--card-border)',
-            }}
-          >
-            <Clock className="w-4 h-4 shrink-0" style={{ color: 'var(--muted)' }} />
-            <p className="font-bold text-xs" style={{ color: 'var(--muted)' }}>
-              Fit this in?
-            </p>
-          </motion.button>
-          
-          <motion.button
-            initial={{ opacity: 0, scale: 0.85 }}
-            animate={{ opacity: 1, scale: 1 }}
-            onClick={() => setShowDeadline(true)}
-            className="flex-1 flex items-center justify-center gap-2 rounded-2xl py-2.5 px-3 cursor-pointer hover:opacity-90 transition-opacity"
-            style={{
-              background: 'transparent',
-              border: '1.5px dashed var(--card-border)',
-            }}
-          >
-            <CalendarClock className="w-4 h-4 shrink-0" style={{ color: 'var(--muted)' }} />
-            <p className="font-bold text-xs" style={{ color: 'var(--muted)' }}>
-              When to start?
-            </p>
-          </motion.button>
-        </div>
       </div>
 
       {/* ── Challenge Banner ───────────────────────────────────────────── */}
@@ -518,44 +484,7 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         </p>
       </motion.div>
 
-      {/* ── Feature 3: Quick-Start Templates ───────────────────────────── */}
-      <motion.div variants={itemVariants} className="flex flex-col gap-2">
-        <p
-          className="text-xs uppercase tracking-widest font-semibold"
-          style={{ color: '#94a3b8' }}
-        >
-          Quick start →
-        </p>
-        <div className="flex flex-wrap gap-2 pb-1 -mx-1 px-1">
-          {TEMPLATES.map(t => (
-            <motion.button
-              key={t.label}
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.96 }}
-              onClick={() => {
-                const category = guessCategory(t.label);
-                const cal = calculatePersonalFactor(t.label, category);
-                setCalibrationTier(cal?.tier ?? null);
-                setCalibrationSamples(cal?.sampleCount ?? 0);
-                dispatch({
-                  type: 'UPDATE_SETUP',
-                  payload: { taskName: t.label, category, initialEstimate: t.minutes, personalFactor: cal?.factor ?? null, isManualOverride: false },
-                });
-              }}
-              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium shrink-0 whitespace-nowrap"
-              style={{
-                background: 'var(--card)',
-                border: '1.5px solid var(--card-border)',
-                color: 'var(--fg)',
-              }}
-              aria-label={`Quick start: ${t.label}, ${t.minutes} minutes`}
-            >
-              <LucideIconComponent name={t.icon} className="w-4 h-4 shrink-0" strokeWidth={2} />
-              <span>{t.label}</span>
-            </motion.button>
-          ))}
-        </div>
-      </motion.div>
+
 
       {/* ── Task name ──────────────────────────────────────────────────── */}
       <motion.div variants={itemVariants} className="flex flex-col gap-2">
@@ -653,6 +582,45 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         )}
       </motion.div>
 
+      {/* ── Feature 3: Quick-Start Templates (Moved below input) ──────── */}
+      <motion.div variants={itemVariants} className="flex flex-col gap-2 mt-[-10px] mb-2 px-1">
+        <p
+          className="text-xs uppercase tracking-widest font-semibold"
+          style={{ color: 'var(--muted)' }}
+        >
+          Quick start →
+        </p>
+        <div className="flex flex-wrap gap-2 pb-1">
+          {TEMPLATES.map(t => (
+            <motion.button
+              key={t.label}
+              whileHover={{ scale: 1.05, y: -2 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => {
+                const category = guessCategory(t.label);
+                const cal = calculatePersonalFactor(t.label, category);
+                setCalibrationTier(cal?.tier ?? null);
+                setCalibrationSamples(cal?.sampleCount ?? 0);
+                dispatch({
+                  type: 'UPDATE_SETUP',
+                  payload: { taskName: t.label, category, initialEstimate: t.minutes, personalFactor: cal?.factor ?? null, isManualOverride: false },
+                });
+              }}
+              className="flex items-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium shrink-0 whitespace-nowrap"
+              style={{
+                background: 'transparent',
+                border: '1.5px solid var(--card-border)',
+                color: 'var(--muted)',
+              }}
+              aria-label={`Quick start: ${t.label}, ${t.minutes} minutes`}
+            >
+              <LucideIconComponent name={t.icon} className="w-4 h-4 shrink-0" strokeWidth={2} />
+              <span>{t.label}</span>
+            </motion.button>
+          ))}
+        </div>
+      </motion.div>
+
       {/* ── Feature 6: Make it tiny ──────────────────────────────────────── */}
       {showTinyMode ? (
         <motion.div variants={itemVariants} className="flex flex-col gap-3">
@@ -737,138 +705,7 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         </div>
       </motion.div>
 
-      {/* ── Exact Time Toggle ──────────────────────────────────────────────── */}
-      <motion.div variants={itemVariants}>
-        <motion.button
-          id="exact-time-toggle"
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.97 }}
-          onClick={() => dispatch({
-            type: 'UPDATE_SETUP',
-            payload: { isExactTime: !state.isExactTime },
-          })}
-          className="w-full flex items-center gap-3 rounded-2xl px-5 py-4 transition-all"
-          style={{
-            background: state.isExactTime
-              ? 'linear-gradient(135deg, rgba(99,102,241,0.18), rgba(139,92,246,0.12))'
-              : 'var(--card)',
-            border: state.isExactTime
-              ? '2px solid rgba(99,102,241,0.55)'
-              : '2px solid var(--card-border)',
-            boxShadow: state.isExactTime
-              ? '0 4px 20px rgba(99,102,241,0.18)'
-              : 'none',
-          }}
-          aria-pressed={state.isExactTime}
-          aria-label="Toggle Exact Time mode"
-        >
-          {/* Icon */}
-          <div
-            className="flex items-center justify-center rounded-xl shrink-0"
-            style={{
-              width: 40,
-              height: 40,
-              background: state.isExactTime
-                ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
-                : 'var(--card-border)',
-              transition: 'background 250ms ease',
-            }}
-          >
-            {state.isExactTime
-              ? <Zap className="w-5 h-5" style={{ color: '#fff' }} strokeWidth={2.5} />
-              : <Target className="w-5 h-5" style={{ color: 'var(--muted)' }} strokeWidth={2} />
-            }
-          </div>
 
-          {/* Text */}
-          <div className="flex-1 text-left">
-            <p
-              className="font-bold text-sm"
-              style={{ color: state.isExactTime ? '#818cf8' : 'var(--fg)' }}
-            >
-              Exact Time
-              {state.isExactTime && (
-                <span
-                  className="ml-2 text-[10px] font-black uppercase tracking-widest rounded-full px-2 py-0.5 align-middle"
-                  style={{ background: 'rgba(99,102,241,0.2)', color: '#818cf8' }}
-                >
-                  ON
-                </span>
-              )}
-            </p>
-            <p className="text-xs mt-0.5" style={{ color: 'var(--muted)' }}>
-              {state.isExactTime
-                ? 'No ADHD tax — 1 min in = exactly 1 min on the clock'
-                : 'Enable for a strict, 1-to-1 micro-task timer'}
-            </p>
-          </div>
-
-          {/* Pill toggle */}
-          <div
-            className="relative shrink-0"
-            style={{ width: 44, height: 24 }}
-          >
-            <div
-              className="absolute inset-0 rounded-full transition-colors"
-              style={{
-                background: state.isExactTime
-                  ? 'linear-gradient(135deg, #6366f1, #8b5cf6)'
-                  : 'var(--card-border)',
-                transition: 'background 250ms ease',
-              }}
-            />
-            <div
-              className="absolute top-1 rounded-full bg-white transition-transform"
-              style={{
-                width: 16,
-                height: 16,
-                left: state.isExactTime ? 24 : 4,
-                transition: 'left 200ms ease',
-              }}
-            />
-          </div>
-        </motion.button>
-      </motion.div>
-
-      {/* ── Transition Time Budgeting (hidden in exact mode) ───────────────── */}
-      <AnimatePresence>
-        {!state.isExactTime && (
-          <motion.div
-            key="transition-block"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25 }}
-            className="flex flex-col gap-2 mt-1 overflow-hidden"
-          >
-            <label
-              className="text-xs font-semibold uppercase tracking-wide px-1"
-              style={{ color: 'var(--muted)' }}
-            >
-              Include setup / transition time?
-            </label>
-            <div className="flex items-center gap-2">
-              {[0, 5, 10].map((mins) => {
-                const isSelected = (state.transitionMinutes || 0) === mins;
-                return (
-                  <button
-                    key={mins}
-                    onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { transitionMinutes: mins } })}
-                    className="flex-1 py-2 px-3 rounded-xl text-sm font-semibold transition-colors border"
-                    style={{
-                      backgroundColor: isSelected ? 'var(--color-ink-900)' : 'var(--card)',
-                      color: isSelected ? '#ffffff' : 'var(--fg)',
-                      borderColor: isSelected ? 'var(--color-ink-900)' : 'var(--card-border)',
-                    }}
-                  >
-                    {mins === 0 ? 'No' : `+${mins} min`}
-                  </button>
-                );
-              })}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
       {/* ── Smart Predictions or ADHD Tax Slider (hidden in exact mode) ────── */}
       <AnimatePresence>
@@ -1155,26 +992,104 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         </div>
       </motion.div>
 
-      {/* ── Background Alarms Toggle ────────────────────────────────────── */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between px-2 pt-2">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg" style={{ background: pushOptIn ? 'var(--color-sage-500)' : 'var(--card-border)', color: pushOptIn ? '#fff' : 'var(--muted)' }}>
-            {pushOptIn ? <Bell className="w-4 h-4" /> : <BellOff className="w-4 h-4" />}
-          </div>
-          <div>
-            <p className="text-sm font-semibold" style={{ color: 'var(--fg)' }}>Background Alarms</p>
-            <p className="text-[11px]" style={{ color: 'var(--muted)' }}>Notify me even when the app is closed</p>
-          </div>
+      {/* ── Tools & Options (Secondary) ────────────────────────────────── */}
+      <motion.div variants={itemVariants} className="flex flex-col gap-3 mt-4 pt-4 border-t" style={{ borderColor: 'var(--card-border)' }}>
+        <p className="text-xs uppercase tracking-widest font-semibold px-1" style={{ color: 'var(--muted)' }}>
+          Tools & Options
+        </p>
+
+        {/* Fit Check & Deadline */}
+        <div className="flex gap-2 w-full">
+          <button
+            onClick={() => setShowFitCheck(true)}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 transition-colors border"
+            style={{ background: 'transparent', borderColor: 'var(--card-border)' }}
+          >
+            <Clock className="w-4 h-4 shrink-0" style={{ color: 'var(--muted)' }} />
+            <span className="font-semibold text-xs" style={{ color: 'var(--muted)' }}>Fit this in?</span>
+          </button>
+          <button
+            onClick={() => setShowDeadline(true)}
+            className="flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 px-3 transition-colors border"
+            style={{ background: 'transparent', borderColor: 'var(--card-border)' }}
+          >
+            <CalendarClock className="w-4 h-4 shrink-0" style={{ color: 'var(--muted)' }} />
+            <span className="font-semibold text-xs" style={{ color: 'var(--muted)' }}>When to start?</span>
+          </button>
         </div>
+
+        {/* Exact Time Toggle */}
         <button
-          onClick={handlePushToggle}
-          className="relative inline-flex h-6 w-11 items-center rounded-full transition-colors"
-          style={{ background: pushOptIn ? 'var(--color-sage-500)' : 'var(--card-border)' }}
+          onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { isExactTime: !state.isExactTime } })}
+          className="flex items-center justify-between w-full px-4 py-3 rounded-xl transition-colors border"
+          style={{
+            background: state.isExactTime ? 'rgba(99,102,241,0.08)' : 'transparent',
+            borderColor: state.isExactTime ? 'rgba(99,102,241,0.3)' : 'var(--card-border)',
+          }}
         >
-          <span
-            className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${pushOptIn ? 'translate-x-6' : 'translate-x-1'}`}
-          />
+          <div className="flex items-center gap-3">
+            <Zap className="w-4 h-4" style={{ color: state.isExactTime ? '#818cf8' : 'var(--muted)' }} />
+            <div className="text-left">
+              <span className="text-sm font-semibold block leading-tight" style={{ color: state.isExactTime ? '#818cf8' : 'var(--fg)' }}>Exact Time Mode</span>
+              <span className="text-[10px] font-medium" style={{ color: 'var(--muted)' }}>No ADHD tax applied</span>
+            </div>
+          </div>
+          <div className="relative shrink-0" style={{ width: 36, height: 20 }}>
+            <div className="absolute inset-0 rounded-full transition-colors" style={{ background: state.isExactTime ? '#818cf8' : 'var(--card-border)' }} />
+            <div className="absolute top-1 rounded-full bg-white transition-transform" style={{ width: 12, height: 12, left: state.isExactTime ? 20 : 4 }} />
+          </div>
         </button>
+
+        {/* Transition Time */}
+        <AnimatePresence>
+          {!state.isExactTime && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="flex items-center justify-between w-full px-4 py-3 rounded-xl border overflow-hidden"
+              style={{ background: 'transparent', borderColor: 'var(--card-border)' }}
+            >
+              <span className="text-sm font-semibold" style={{ color: 'var(--fg)' }}>Add setup time</span>
+              <div className="flex items-center gap-1">
+                {[0, 5, 10].map((mins) => {
+                  const isSelected = (state.transitionMinutes || 0) === mins;
+                  return (
+                    <button
+                      key={mins}
+                      onClick={() => dispatch({ type: 'UPDATE_SETUP', payload: { transitionMinutes: mins } })}
+                      className="py-1 px-2.5 rounded-lg text-xs font-bold transition-colors"
+                      style={{
+                        backgroundColor: isSelected ? 'var(--color-ink-900)' : 'transparent',
+                        color: isSelected ? '#ffffff' : 'var(--muted)',
+                      }}
+                    >
+                      {mins === 0 ? 'None' : `+${mins}m`}
+                    </button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Background Alarms */}
+        <div className="flex items-center justify-between w-full px-4 py-3 rounded-xl border" style={{ background: 'transparent', borderColor: 'var(--card-border)' }}>
+          <div className="flex items-center gap-3">
+            {pushOptIn ? <Bell className="w-4 h-4" style={{ color: 'var(--color-sage-500)' }} /> : <BellOff className="w-4 h-4" style={{ color: 'var(--muted)' }} />}
+            <div className="text-left">
+              <span className="text-sm font-semibold block leading-tight" style={{ color: 'var(--fg)' }}>Background Alarms</span>
+              <span className="text-[10px] font-medium" style={{ color: 'var(--muted)' }}>Notify when app is closed</span>
+            </div>
+          </div>
+          <button
+            onClick={handlePushToggle}
+            className="relative shrink-0" style={{ width: 36, height: 20 }}
+          >
+            <div className="absolute inset-0 rounded-full transition-colors" style={{ background: pushOptIn ? 'var(--color-sage-500)' : 'var(--card-border)' }} />
+            <div className="absolute top-1 rounded-full bg-white transition-transform" style={{ width: 12, height: 12, left: pushOptIn ? 20 : 4 }} />
+          </button>
+        </div>
       </motion.div>
 
       {/* ── Start Mission CTA ──────────────────────────────────────────── */}
