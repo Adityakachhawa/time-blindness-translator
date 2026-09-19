@@ -28,7 +28,10 @@ import FitCheckModal from '@/components/FitCheckModal';
 import DeadlineModal from '@/components/DeadlineModal';
 import { generateWeeklyReport } from '@/lib/analytics';
 import { requestNotificationPermission } from '@/lib/notifications/notificationManager';
+import { isPushSupported } from '@/lib/notifications/pushManager';
 import { BarChart } from 'lucide-react';
+import NotificationOnboardingModal from '@/components/NotificationOnboardingModal';
+import ProductGuideModal from '@/components/ProductGuideModal';
 
 // ---------------------------------------------------------------------------
 // Stagger animation variants
@@ -327,6 +330,8 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
 
   // Background Push Notifications State
   const [pushOptIn, setPushOptIn] = useState(false);
+  const [showNotificationOnboarding, setShowNotificationOnboarding] = useState(false);
+  const [showProductGuide, setShowProductGuide] = useState(false);
 
   useEffect(() => { 
      if (typeof window !== 'undefined') {
@@ -380,6 +385,21 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
       setHasWeeklyMissions(true);
     }
   }, []);
+
+  // Notification Onboarding Logic
+  useEffect(() => {
+    // Only show when the quiz is done (hasSeenQuiz is true)
+    if (hasSeenQuiz && typeof window !== 'undefined') {
+      const seen = localStorage.getItem('notificationOnboardingSeen') === 'true';
+      if (!seen && isPushSupported() && Notification.permission === 'default') {
+        // slight delay to not jar the user immediately after quiz exit
+        const timer = setTimeout(() => {
+          setShowNotificationOnboarding(true);
+        }, 300);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [hasSeenQuiz]);
 
   // Feature 5: Surprise Me
   function handleSurpriseMe() {
@@ -583,7 +603,7 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
       </motion.div>
 
       {/* ── Feature 3: Quick-Start Templates (Moved below input) ──────── */}
-      <motion.div variants={itemVariants} className="flex flex-col gap-2 mt-[-10px] mb-2 px-1">
+      <motion.div variants={itemVariants} className="flex flex-col gap-2 -mt-2.5 mb-2 px-1">
         <p
           className="text-xs uppercase tracking-widest font-semibold"
           style={{ color: 'var(--muted)' }}
@@ -1138,11 +1158,11 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         )}
 
         <button
-          onClick={() => setHasSeenQuiz(false)}
+          onClick={() => setShowProductGuide(true)}
           className="w-full mt-6 text-sm font-semibold flex items-center justify-center gap-2 transition-colors hover:text-slate-600"
           style={{ color: 'var(--muted)' }}
         >
-          🎯 Need help starting?
+          🎯 How does this work?
         </button>
 
         {deferredPrompt && (
@@ -1208,6 +1228,20 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
     <WeeklyReportModal isOpen={showWeeklyReport} onClose={() => setShowWeeklyReport(false)} />
     <FitCheckModal isOpen={showFitCheck} onClose={() => setShowFitCheck(false)} />
     <DeadlineModal isOpen={showDeadline} onClose={() => setShowDeadline(false)} />
+    <NotificationOnboardingModal 
+      isOpen={showNotificationOnboarding} 
+      onClose={(markSeen) => {
+        setShowNotificationOnboarding(false);
+        if (markSeen) {
+          localStorage.setItem('notificationOnboardingSeen', 'true');
+        }
+      }}
+      onSuccess={() => {
+        setPushOptIn(true);
+        localStorage.setItem('pushOptIn', 'true');
+      }}
+    />
+    <ProductGuideModal isOpen={showProductGuide} onClose={() => setShowProductGuide(false)} />
     </>
   );
 }
