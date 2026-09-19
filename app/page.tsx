@@ -330,7 +330,7 @@ function AppContent() {
 
       {/* ── Footer ──────────────────────────────────────────────────── */}
       <footer
-        className="w-full border-t py-8 flex flex-col items-center justify-center gap-5 text-center mt-auto pb-[calc(2rem+env(safe-area-inset-bottom))]"
+        className="relative z-10 w-full border-t py-8 flex flex-col items-center justify-center gap-5 text-center mt-auto pb-[calc(2rem+env(safe-area-inset-bottom))]"
         style={{
           background:  headerBg,
           borderColor: borderClr,
