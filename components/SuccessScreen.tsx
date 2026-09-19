@@ -575,8 +575,8 @@ function formatPreciseDuration(totalSeconds: number | undefined, fallbackMinutes
         className="text-center"
       >
         <Trophy className="w-16 h-16 block mb-3 mx-auto" style={{ color: 'var(--color-amber-400)', filter: 'drop-shadow(0 4px 12px rgba(245,166,35,0.4))' }} />
-        <h2 className="text-3xl font-black leading-tight text-white">You actually did it.</h2>
-        <p className="mt-2 text-base text-gray-200">
+        <h2 className="text-3xl font-black leading-tight" style={{ color: 'var(--fg)' }}>You actually did it.</h2>
+        <p className="mt-2 text-base" style={{ color: 'var(--muted)' }}>
           <strong style={{ color: 'var(--color-coral-500)' }}>{state.taskName}</strong>{' '}— officially complete. No cap.
         </p>
       </motion.div>
