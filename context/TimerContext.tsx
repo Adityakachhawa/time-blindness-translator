@@ -46,6 +46,7 @@ const initialState: TimerState = {
   endTime: null,
   extensionCount: 0,
   isExactTime: false,
+  isMicroStep: false,
 };
 
 // ---------------------------------------------------------------------------
@@ -96,6 +97,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       const nextOverride = action.payload.isManualOverride !== undefined ? action.payload.isManualOverride : state.isManualOverride;
       const nextTransition = action.payload.transitionMinutes !== undefined ? action.payload.transitionMinutes : (state.transitionMinutes || 0);
       const nextExact = action.payload.isExactTime !== undefined ? action.payload.isExactTime : (state.isExactTime ?? false);
+      const nextMicroStep = action.payload.isMicroStep !== undefined ? action.payload.isMicroStep : (state.isMicroStep ?? false);
 
       // In exact-time mode: force multiplier = 1.0, no transition time, no rounding
       const effectiveMultiplier = nextExact ? 1.0 : ((!nextOverride && nextPersonalFactor) ? nextPersonalFactor : nextTax);
@@ -114,6 +116,7 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         isManualOverride: nextOverride,
         transitionMinutes: effectiveTransition,
         isExactTime: nextExact,
+        isMicroStep: nextMicroStep,
         actualMinutes: nextActual,
         allocatedMin: nextActual,
       };
@@ -131,7 +134,8 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         state.taxMultiplier,
         state.actualMinutes,
         state.transitionMinutes,
-        state.category
+        state.category,
+        state.isMicroStep
       );
 
       return {
@@ -316,11 +320,11 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
         isOvertimeAcknowledged: false,
         extensionCount: 0,
         activeMission: null,
-        // Preserve session context
         // category: state.category  ← intentionally NOT carried; SetupScreen re-guesses from new task name
         taxMultiplier: state.taxMultiplier,
         transitionMinutes: state.transitionMinutes,
         isExactTime: state.isExactTime,
+        isMicroStep: false,
         personalFactor: null, // Will be re-computed by SetupScreen when new task name is entered
       };
     }

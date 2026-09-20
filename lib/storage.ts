@@ -27,6 +27,7 @@ export interface TaskRecord {
   originalEstimateMs?: number;
   predictionErrorSignedMs?: number;
   predictionErrorAbsoluteMs?: number;
+  isMicroStep?: boolean;
 }
 
 export type ThemePreference = 'system' | 'light' | 'dark';

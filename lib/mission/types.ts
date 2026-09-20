@@ -63,4 +63,6 @@ export interface ActiveMission {
    * sentinel so reconcileMission never fires sendCatchUpNotification twice.
    */
   catchUpNotifiedAt?: number;
+  
+  isMicroStep?: boolean;
 }

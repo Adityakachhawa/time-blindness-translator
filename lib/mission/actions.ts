@@ -14,7 +14,8 @@ export function startMission(
   taxMultiplier: number,
   allocatedMin: number,
   transitionMinutes?: number,
-  category?: any
+  category?: any,
+  isMicroStep?: boolean
 ): ActiveMission {
   const now = Date.now();
   const initialEndAt = now + plannedDurationMs;
@@ -37,6 +38,7 @@ export function startMission(
     taxMultiplier,
     allocatedMin,
     transitionMinutes,
+    isMicroStep,
 
     // Version 1 = the initial schedule. Incremented on every timing change.
     notificationVersion: 1,
@@ -184,6 +186,7 @@ export function completeMission(
     originalEstimateMs,
     predictionErrorSignedMs,
     predictionErrorAbsoluteMs,
+    isMicroStep: mission.isMicroStep,
   });
 
   trackEvent('mission_completed', {

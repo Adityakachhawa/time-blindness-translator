@@ -108,6 +108,9 @@ export interface TimerState {
    * record without assuming getTaskHistory()[0] is always correct.
    */
   completedRecordId?: string;
+
+  /** Identifies if this task was initiated via the Start Me micro-step flow */
+  isMicroStep?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -132,7 +135,7 @@ export type CertTheme = 'classic' | 'dark' | 'chaos';
  */
 export interface UpdateSetupAction {
   type: 'UPDATE_SETUP';
-  payload: Partial<Pick<TimerState, 'taskName' | 'category' | 'initialEstimate' | 'taxMultiplier' | 'personalFactor' | 'isManualOverride' | 'transitionMinutes' | 'isExactTime'>>;
+  payload: Partial<Pick<TimerState, 'taskName' | 'category' | 'initialEstimate' | 'taxMultiplier' | 'personalFactor' | 'isManualOverride' | 'transitionMinutes' | 'isExactTime' | 'isMicroStep'>>;
 }
 
 /** Transitions from setup → active, setting an absolute endTime. */

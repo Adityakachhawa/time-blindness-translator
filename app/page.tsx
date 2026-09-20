@@ -1,385 +1,196 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
-import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
-import { Moon, Sun, Volume2, VolumeX, History, Headphones, Waves, Brain, Coffee, Heart } from 'lucide-react';
-import { useAmbientAudio, type Track } from '@/hooks/useAmbientAudio';
-import { TimerProvider, useTimer } from '@/context/TimerContext';
-import { useTabProgressIndicator } from '@/hooks/useTabProgressIndicator';
-import SetupScreen from '@/components/SetupScreen';
-import ActiveTimerScreen from '@/components/ActiveTimerScreen';
-import SuccessScreen from '@/components/SuccessScreen';
-import TimesUpScreen from '@/components/TimesUpScreen';
-import HistoryDrawer from '@/components/HistoryDrawer';
-import ActiveMissionBanner from '@/components/ActiveMissionBanner';
-import {
-  getThemePreference,
-  setThemePreference,
-  getMutePreference,
-  setMutePreference,
-  syncHistoricalData,
-  getWeeklyStats,
-  getReportLastViewed,
-  type ThemePreference,
-} from '@/lib/storage';
+import Link from 'next/link';
+import { motion } from 'framer-motion';
+import Header from '@/components/hyperdopa/Header';
+import Footer from '@/components/hyperdopa/Footer';
+import { ArrowRight, Clock, Rocket, RotateCcw, BrainCircuit } from 'lucide-react';
 
-// ---------------------------------------------------------------------------
-// Theme helpers
-// ---------------------------------------------------------------------------
-
-function applyThemeToDom(pref: ThemePreference) {
-  const el = document.documentElement;
-  el.dataset.theme = resolveTheme(pref);
-}
-
-function resolveTheme(pref: ThemePreference): 'light' | 'dark' {
-  if (pref !== 'system') return pref;
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-}
-
-// ---------------------------------------------------------------------------
-// Background gradients (theme-aware)
-// ---------------------------------------------------------------------------
-
-const BG_LIGHT =
-  'linear-gradient(160deg, var(--color-cream-50) 0%, var(--color-cream-200) 60%, #eddfc8 100%)';
-const BG_DARK =
-  'linear-gradient(160deg, #1a1614 0%, #201c1a 60%, #261f1a 100%)';
-
-const HEADER_BG_LIGHT = 'rgba(253, 246, 236, 0.88)';
-const HEADER_BG_DARK  = 'rgba(26, 22, 20, 0.88)';
-const BORDER_LIGHT    = 'rgba(229, 210, 186, 0.8)';
-const BORDER_DARK     = 'rgba(255, 255, 255, 0.08)';
-
-// ---------------------------------------------------------------------------
-// Icon button — reusable header control
-// ---------------------------------------------------------------------------
-
-function HeaderIconBtn({
-  onClick,
-  label,
-  children,
-}: {
-  onClick: () => void;
-  label: string;
-  children: React.ReactNode;
-}) {
+export default function HyperDopaHome() {
   return (
-    <motion.button
-      whileHover={{ scale: 1.05, backgroundColor: 'rgba(150,150,150,0.1)' }}
-      whileTap={{ scale: 0.95 }}
-      onClick={onClick}
-      aria-label={label}
-      className="rounded-xl p-1.5 sm:p-2 min-w-11 min-h-11 sm:min-w-10 sm:min-h-10 shrink-0 transition-colors flex items-center justify-center outline-none"
-      style={{ color: 'var(--fg)', opacity: 0.7 }}
-    >
-      {children}
-    </motion.button>
-  );
-}
+    <div className="min-h-dvh flex flex-col relative overflow-hidden">
+      <Header />
 
-// ---------------------------------------------------------------------------
-// App content (consumes TimerContext)
-// ---------------------------------------------------------------------------
-
-// Map ambient track → icon + colour
-const TRACK_ICONS: Record<Track, React.ReactNode> = {
-  'off':         <Headphones className="w-5 h-5 opacity-50" strokeWidth={2} />,
-  'brown-noise': <Waves      className="w-5 h-5 text-amber-600 dark:text-amber-400" strokeWidth={2} />,
-  'lofi':        <Brain      className="w-5 h-5 text-purple-600 dark:text-purple-400" strokeWidth={2} />,
-  'cafe':        <Coffee     className="w-5 h-5 text-amber-800 dark:text-amber-600" strokeWidth={2} />,
-};
-
-const TRACK_LABELS: Record<Track, string> = {
-  'off':         'Ambient audio: off',
-  'brown-noise': 'Now playing: Brown Noise',
-  'lofi':        'Now playing: Lo-fi',
-  'cafe':        'Now playing: Café Ambience',
-};
-
-function AppContent() {
-  const { state } = useTimer();
-
-  // ── Mission Counter ────────────────────────────────────────────────────
-  const [dailyCount, setDailyCount] = useState<number | null>(null);
-
-  useEffect(() => {
-    async function fetchCount() {
-      try {
-        const res = await fetch('/api/mission-count');
-        if (!res.ok) return;
-        const data = await res.json();
-        if (typeof data.count === 'number' && data.count > 0) {
-          setDailyCount(data.count);
-        }
-      } catch {
-        // Silently ignore
-      }
-    }
-    fetchCount();
-  }, []);
-
-  // ── Theme state ────────────────────────────────────────────────────────
-  const [themePref,    setThemePref]    = useState<ThemePreference>('system');
-  const [resolvedDark, setResolvedDark] = useState(false);
-
-  // ── Mute state ─────────────────────────────────────────────────────────
-  const [muted, setMuted] = useState(false);
-
-  // ── History drawer ─────────────────────────────────────────────────────
-  const [historyOpen, setHistoryOpen] = useState(false);
-  const [hasWeeklyReport, setHasWeeklyReport] = useState(false);
-
-  // ── Ambient audio ──────────────────────────────────────────────────────
-  const { currentTrack, cycleTrack, setTrack } = useAmbientAudio();
-
-  // ── Tab progress ───────────────────────────────────────────────────────
-  useTabProgressIndicator();
-
-  // Hydrate prefs from localStorage after mount (SSR-safe)
-  // ── Sync Historical Data & Theme ───────────────────────────────────────────
-  useEffect(() => {
-    syncHistoricalData();
-    
-    const checkReportBadge = () => {
-      const stats = getWeeklyStats();
-      const lastViewed = getReportLastViewed();
-      const isRecent = Date.now() - lastViewed < 24 * 60 * 60 * 1000;
-      setHasWeeklyReport(stats.totalMissions > 0 && !isRecent);
-    };
-    checkReportBadge();
-
-    window.addEventListener('tbt_report_viewed', checkReportBadge);
-
-    setMuted(getMutePreference());
-    const storedTheme = getThemePreference();
-    applyThemeToDom(storedTheme);
-    setThemePref(storedTheme);
-    setResolvedDark(resolveTheme(storedTheme) === 'dark');
-
-    const handleThemeChange = () => {
-      const current = getThemePreference();
-      if (current === 'system') {
-        applyThemeToDom('system');
-        setResolvedDark(resolveTheme('system') === 'dark');
-      }
-    };
-    const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const handleOsThemeChange = () => {
-      if (getThemePreference() === 'system') {
-        const resolved = mq.matches ? 'dark' : 'light';
-        document.documentElement.dataset.theme = resolved;
-        setResolvedDark(resolved === 'dark');
-      }
-    };
-    mq.addEventListener('change', handleOsThemeChange);
-    return () => {
-      mq.removeEventListener('change', handleOsThemeChange);
-      window.removeEventListener('tbt_report_viewed', checkReportBadge);
-    };
-  }, []);
-
-  // ── Toggle handlers ────────────────────────────────────────────────────
-
-  const toggleTheme = useCallback(() => {
-    setThemePref(prev => {
-      const next: ThemePreference =
-        prev === 'dark' ? 'light' : 'dark';
-      setThemePreference(next);
-      applyThemeToDom(next);
-      setResolvedDark(next === 'dark');
-      return next;
-    });
-  }, []);
-
-  const toggleMute = useCallback(() => {
-    setMuted(prev => {
-      const next = !prev;
-      setMutePreference(next);
-      return next;
-    });
-  }, []);
-
-  // Screen router
-  function renderScreen() {
-    switch (state.status) {
-      case 'setup':   return <SetupScreen setTrack={setTrack} />;
-      case 'active':  return <ActiveTimerScreen />;
-      case 'success': return <SuccessScreen />;
-      case 'expired': return <ActiveTimerScreen />;
-    }
-  }
-
-  const bg         = resolvedDark ? BG_DARK       : BG_LIGHT;
-  const headerBg   = resolvedDark ? HEADER_BG_DARK  : HEADER_BG_LIGHT;
-  const borderClr  = resolvedDark ? BORDER_DARK     : BORDER_LIGHT;
-  const subtitleClr = resolvedDark ? '#a8a29e'       : '#78716c';
-
-  return (
-    <div className="min-h-dvh flex flex-col" style={{ background: bg }}>
-      <ActiveMissionBanner />
-
-      {/* ── Sticky header ───────────────────────────────────────────── */}
-      <header
-        className="sticky top-0 z-20 border-b w-full"
-        style={{
-          background:       headerBg,
-          backdropFilter:   'blur(14px)',
-          WebkitBackdropFilter: 'blur(14px)',
-          borderColor:      borderClr,
-        }}
-      >
-        <div className="max-w-5xl mx-auto px-1.5 sm:px-4 py-2 sm:py-3 flex items-center justify-between gap-1.5 sm:gap-4 w-full">
-          {/* Brand Lockup */}
-          <div className="flex items-center gap-1.5 sm:gap-3 shrink min-w-0">
-            <motion.div 
-              whileHover={{ rotate: 15 }} 
-              transition={{ type: "spring", stiffness: 300, damping: 20 }}
-              className="text-xl sm:text-2xl select-none cursor-default origin-bottom shrink-0" 
-              aria-hidden
+      <main className="flex-1 w-full relative z-10">
+        {/* Hero Section */}
+        <section className="max-w-3xl mx-auto px-4 pt-24 pb-16 text-center">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight mb-6">
+              Tools for when your brain gets <span style={{ color: 'var(--color-coral-500)' }}>stuck.</span>
+            </h1>
+            <p className="text-lg md:text-xl opacity-80 mb-10 max-w-2xl mx-auto font-medium">
+              You don't need another productivity system. You need help with the specific moment where you can't move forward.
+            </p>
+            
+            <Link 
+              href="/time-translator"
+              className="inline-flex items-center gap-2 px-8 py-4 rounded-2xl text-white font-bold text-lg transition-transform hover:scale-105 active:scale-95 shadow-lg outline-none"
+              style={{ backgroundColor: 'var(--color-coral-500)' }}
             >
-              ⏳
-            </motion.div>
-            <div className="flex flex-col justify-center min-w-0 shrink">
-              <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                <h1 className="font-bold leading-none text-[11px] sm:text-[13px] tracking-wider sm:tracking-widest uppercase truncate shrink" style={{ color: 'var(--fg)' }}>
-                  Time-Blindness Translator
-                </h1>
-                {/* Context-Aware Branding */}
-                {state.status === 'setup' && <span className="hidden sm:inline-flex shrink-0 items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-coral-500 text-white">Translate Your Day</span>}
-                {state.status === 'active' && <span className="hidden sm:inline-flex shrink-0 items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-amber-500 text-white">Mission In Progress</span>}
-                {state.status === 'success' && <span className="hidden sm:inline-flex shrink-0 items-center px-1.5 py-0.5 rounded text-[9px] uppercase tracking-widest font-bold bg-emerald-500 text-white">Reality Captured</span>}
+              Try Time Translator <ArrowRight className="w-5 h-5" />
+            </Link>
+          </motion.div>
+        </section>
+
+        {/* Tools Grid Section */}
+        <section id="tools" className="max-w-5xl mx-auto px-4 py-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* Flagship Tool */}
+            <Link href="/time-translator" className="block outline-none">
+              <motion.div 
+                whileHover={{ y: -4 }}
+                className="glass-card rounded-3xl p-8 h-full flex flex-col relative overflow-hidden group cursor-pointer"
+                style={{
+                  border: '2px solid var(--color-coral-500)',
+                }}
+              >
+                <div className="absolute top-6 right-6 px-3 py-1 bg-coral-500 text-white text-xs font-bold uppercase tracking-widest rounded-full">
+                  Live
+                </div>
+                <div className="w-12 h-12 rounded-xl mb-6 flex items-center justify-center bg-coral-500/10 text-coral-500">
+                  <Clock className="w-6 h-6" />
+                </div>
+                <h2 className="text-2xl font-bold mb-3 flex items-center gap-2">
+                  Time Translator
+                </h2>
+                <p className="text-sm font-semibold opacity-60 mb-2 italic">
+                  "Can't tell how long something will actually take?"
+                </p>
+                <p className="opacity-80 font-medium mb-8">
+                  Estimate it. Translate it. Run the mission. Learn from reality.
+                </p>
+                <div className="mt-auto flex items-center gap-2 text-coral-500 font-bold text-sm uppercase tracking-wider group-hover:gap-3 transition-all">
+                  Open Time Translator <ArrowRight className="w-4 h-4" />
+                </div>
+              </motion.div>
+            </Link>
+
+            {/* Future Tools - Experiments */}
+            <div className="glass-card rounded-3xl p-8 h-full flex flex-col relative opacity-80 cursor-default">
+              <div className="absolute top-6 right-6 px-3 py-1 bg-amber-500/20 text-amber-600 dark:text-amber-400 text-xs font-bold uppercase tracking-widest rounded-full">
+                Experiment
               </div>
-              <p className="text-[11px] mt-1 hidden sm:block font-medium opacity-80 truncate" style={{ color: subtitleClr }}>
-                Translate what you think time is into what it actually is.
+              <div className="w-12 h-12 rounded-xl mb-6 flex items-center justify-center bg-amber-500/10 text-amber-500">
+                <Rocket className="w-6 h-6" />
+              </div>
+              <h2 className="text-2xl font-bold mb-3">Start Me</h2>
+              <p className="text-sm font-semibold opacity-60 mb-2 italic">
+                "I know what I need to do. I just can't start."
+              </p>
+              <div className="mt-auto pt-8">
+                <button 
+                  className="px-4 py-2 rounded-xl text-sm font-bold bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 transition-colors w-full sm:w-auto outline-none"
+                  onClick={(e) => { e.preventDefault(); alert("We're currently exploring how to build this. Check back later!"); }}
+                >
+                  Join Waitlist
+                </button>
+              </div>
+            </div>
+
+            <div className="glass-card rounded-3xl p-8 h-full flex flex-col relative opacity-80 cursor-default">
+              <div className="absolute top-6 right-6 px-3 py-1 text-xs font-bold uppercase tracking-widest rounded-full" style={{ background: 'var(--card-border)' }}>
+                Coming Soon
+              </div>
+              <div className="w-12 h-12 rounded-xl mb-6 flex items-center justify-center bg-ink-500/10 text-ink-500 dark:text-ink-300">
+                <RotateCcw className="w-6 h-6" />
+              </div>
+              <h2 className="text-2xl font-bold mb-3">Reset My Day</h2>
+              <p className="text-sm font-semibold opacity-60 mb-2 italic">
+                "My plan fell apart. What can I realistically still do?"
               </p>
             </div>
-          </div>
 
-          {/* Utility Rail */}
-          <div 
-            className="flex items-center gap-0 sm:gap-0.5 shrink-0 p-0.5 sm:p-1 rounded-2xl shadow-sm" 
-            style={{ background: resolvedDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', border: `1px solid ${borderClr}` }}
-          >
-            {/* History */}
-            <HeaderIconBtn
-              onClick={() => setHistoryOpen(true)}
-              label="View task history"
-            >
-              <div className="relative">
-                <History className="w-4 h-4" strokeWidth={2.5} />
-                {hasWeeklyReport && (
-                  <div className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border-2" 
-                       style={{ background: 'var(--color-coral-500)', borderColor: headerBg }} 
-                  />
-                )}
+            <div className="glass-card rounded-3xl p-8 h-full flex flex-col relative opacity-80 cursor-default">
+              <div className="absolute top-6 right-6 px-3 py-1 bg-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-bold uppercase tracking-widest rounded-full">
+                Experiment
               </div>
-            </HeaderIconBtn>
+              <div className="w-12 h-12 rounded-xl mb-6 flex items-center justify-center bg-purple-500/10 text-purple-500">
+                <BrainCircuit className="w-6 h-6" />
+              </div>
+              <h2 className="text-2xl font-bold mb-3">Brain Dump</h2>
+              <p className="text-sm font-semibold opacity-60 mb-2 italic">
+                "Too much in my head?"
+              </p>
+              <div className="mt-auto pt-8">
+                <button 
+                  className="px-4 py-2 rounded-xl text-sm font-bold bg-purple-500/10 text-purple-600 dark:text-purple-400 hover:bg-purple-500/20 transition-colors w-full sm:w-auto outline-none"
+                  onClick={(e) => { e.preventDefault(); alert("This concept is in early validation phase."); }}
+                >
+                  Express Interest
+                </button>
+              </div>
+            </div>
 
-            {/* Ambient audio cycle */}
-            <HeaderIconBtn
-              onClick={cycleTrack}
-              label={TRACK_LABELS[currentTrack]}
-            >
-              <div className="scale-90">{TRACK_ICONS[currentTrack]}</div>
-            </HeaderIconBtn>
-
-            {/* Mute toggle */}
-            <HeaderIconBtn
-              onClick={toggleMute}
-              label={muted ? 'Unmute completion sound' : 'Mute completion sound'}
-            >
-              {muted
-                ? <VolumeX className="w-4 h-4" strokeWidth={2.5} />
-                : <Volume2 className="w-4 h-4" strokeWidth={2.5} />
-              }
-            </HeaderIconBtn>
-
-            {/* Dark mode toggle */}
-            <HeaderIconBtn
-              onClick={toggleTheme}
-              label={resolvedDark ? 'Switch to light mode' : 'Switch to dark mode'}
-            >
-              {resolvedDark
-                ? <Sun  className="w-4 h-4" strokeWidth={2.5} />
-                : <Moon className="w-4 h-4" strokeWidth={2.5} />
-              }
-            </HeaderIconBtn>
           </div>
-        </div>
-      </header>
+        </section>
 
-      {/* ── Main content ────────────────────────────────────────────── */}
-      <main
-        id="main-content"
-        className="flex-1 w-full max-w-lg mx-auto px-4 pt-8 pb-24"
-      >
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={state.status}
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -24 }}
-            transition={{ duration: 0.28, ease: 'easeInOut' }}
-            className="w-full"
-          >
-            {renderScreen()}
-          </motion.div>
-        </AnimatePresence>
+        {/* How It Works / Core Loop */}
+        <section id="how-it-works" className="max-w-4xl mx-auto px-4 py-20 text-center">
+          <h2 className="text-3xl font-bold mb-16">The Time Translator Philosophy</h2>
+          
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-4 items-start relative">
+            {/* Steps line for desktop */}
+            <div className="hidden md:block absolute top-6 left-[10%] right-[10%] h-0.5 bg-ink-300/20 z-0"></div>
+
+            <div className="flex flex-col items-center relative z-10">
+              <div className="w-12 h-12 rounded-full glass-card flex items-center justify-center font-bold mb-4 shadow-sm text-coral-500">1</div>
+              <h3 className="font-bold text-sm uppercase tracking-wider mb-2">Estimate</h3>
+              <p className="text-xs opacity-70">Guess how long a task takes.</p>
+            </div>
+
+            <div className="flex flex-col items-center relative z-10">
+              <div className="w-12 h-12 rounded-full glass-card flex items-center justify-center font-bold mb-4 shadow-sm text-amber-500">2</div>
+              <h3 className="font-bold text-sm uppercase tracking-wider mb-2">Translate</h3>
+              <p className="text-xs opacity-70">Convert abstract time to real anchors.</p>
+            </div>
+
+            <div className="flex flex-col items-center relative z-10">
+              <div className="w-12 h-12 rounded-full glass-card flex items-center justify-center font-bold mb-4 shadow-sm text-sage-500">3</div>
+              <h3 className="font-bold text-sm uppercase tracking-wider mb-2">Mission</h3>
+              <p className="text-xs opacity-70">Run the timer and do the work.</p>
+            </div>
+
+            <div className="flex flex-col items-center relative z-10">
+              <div className="w-12 h-12 rounded-full glass-card flex items-center justify-center font-bold mb-4 shadow-sm text-lavender-500">4</div>
+              <h3 className="font-bold text-sm uppercase tracking-wider mb-2">Reality</h3>
+              <p className="text-xs opacity-70">Log when you actually finish.</p>
+            </div>
+            
+            <div className="flex flex-col items-center relative z-10">
+              <div className="w-12 h-12 rounded-full glass-card flex items-center justify-center font-bold mb-4 shadow-sm text-coral-500">5</div>
+              <h3 className="font-bold text-sm uppercase tracking-wider mb-2">Learn</h3>
+              <p className="text-xs opacity-70">See your personal time bias.</p>
+            </div>
+            
+            <div className="flex flex-col items-center relative z-10">
+              <div className="w-12 h-12 rounded-full glass-card flex items-center justify-center font-bold mb-4 shadow-sm text-sage-500">6</div>
+              <h3 className="font-bold text-sm uppercase tracking-wider mb-2 text-balance">Estimate Better</h3>
+              <p className="text-xs opacity-70">Future estimates adjust automatically.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* Why it is different */}
+        <section className="max-w-3xl mx-auto px-4 py-16">
+          <div className="glass-card rounded-3xl p-8 md:p-12 text-center border-t-4" style={{ borderTopColor: 'var(--color-coral-500)' }}>
+            <h2 className="text-2xl font-bold mb-6">Why It's Different</h2>
+            <p className="opacity-80 font-medium mb-6 text-lg">
+              Time Translator doesn't just start a ticking clock. It is a personal learning loop.
+            </p>
+            <p className="opacity-80 font-medium">
+              By comparing what you expected, what your personal time model predicted, and what actually happened, it uses your completed missions to make your future estimates more realistic. It learns how your brain experiences time.
+            </p>
+          </div>
+        </section>
+
       </main>
 
-      {/* ── Footer ──────────────────────────────────────────────────── */}
-      <footer
-        className="relative z-10 w-full border-t py-8 flex flex-col items-center justify-center gap-5 text-center mt-auto pb-[calc(2rem+env(safe-area-inset-bottom))]"
-        style={{
-          background:  headerBg,
-          borderColor: borderClr,
-        }}
-      >
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-sm font-semibold tracking-wide flex items-center" style={{ color: 'var(--fg)' }}>
-            <span className="opacity-75 mr-2 select-none text-base">⌛</span>Estimate less. Learn your time.
-          </p>
-          <div className="flex items-center gap-2 text-[11px] opacity-60 font-medium" style={{ color: 'var(--fg)' }}>
-            <span>Local-first</span>
-            <span className="opacity-40">·</span>
-            <span>No account</span>
-            <span className="opacity-40">·</span>
-            <span>Your data stays on this device</span>
-          </div>
-        </div>
-        
-        {dailyCount !== null && (
-          <motion.p 
-            initial={{ opacity: 0 }} 
-            animate={{ opacity: 1 }} 
-            className="text-[10px] font-bold tracking-widest opacity-40 uppercase" 
-            style={{ color: 'var(--fg)' }}
-          >
-            {dailyCount.toLocaleString()} missions translated today
-          </motion.p>
-        )}
-      </footer>
-
-      {/* ── History drawer ───────────────────────────────────────────── */}
-      <HistoryDrawer
-        open={historyOpen}
-        onClose={() => setHistoryOpen(false)}
-      />
+      <Footer />
     </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Root page
-// ---------------------------------------------------------------------------
-
-export default function Home() {
-  return (
-    <TimerProvider>
-      <MotionConfig reducedMotion="user">
-        <AppContent />
-      </MotionConfig>
-    </TimerProvider>
   );
 }

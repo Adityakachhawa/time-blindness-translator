@@ -40,7 +40,7 @@ function calculateMedianRatio(sessions: any[]): number | null {
 export function calculatePersonalFactor(taskName: string, category: TaskCategory = 'other'): CalibrationResult | null {
   if (!taskName.trim()) return null;
   
-  const history = getTaskHistory();
+  const history = getTaskHistory().filter(r => !r.isMicroStep);
   const searchName = taskName.toLowerCase().trim();
   
   // Priority 1: Exact match
@@ -100,7 +100,7 @@ export function getTaskHistoricalRange(taskName: string): TaskRange | null {
   const searchName = taskName.toLowerCase().trim();
   
   const relevantSessions = history.filter(
-    (record) => record.taskName.toLowerCase().trim() === searchName
+    (record) => record.taskName.toLowerCase().trim() === searchName && !record.isMicroStep
   );
 
   if (relevantSessions.length === 0) return null;

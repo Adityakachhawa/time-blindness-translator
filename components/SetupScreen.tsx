@@ -20,6 +20,7 @@ import { unlockAudio } from '@/lib/audio';
 import { getTodayCount, getHasSeenQuiz, markQuizSeen, setMutePreference, getRecentUniqueTasks, type RecentTask } from '@/lib/storage';
 import { calculatePersonalFactor, formatConfidenceRange } from '@/lib/calibration';
 import { getTinyTemplates, guessCategory } from '@/lib/templates';
+import { generateTinyStep } from '@/lib/startMe';
 import type { Track } from '@/hooks/useAmbientAudio';
 import type { TaskCategory } from '@/types/timer';
 import OnboardingQuiz, { type QuizResult } from '@/components/OnboardingQuiz';
@@ -307,8 +308,9 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
 
   const canStart = state.taskName.trim().length > 0;
 
-  // Feature 6: Make it tiny
+  // Feature 6: Make it tiny / Start Me experiment
   const [showTinyMode, setShowTinyMode] = useState(false);
+  const [tinyStepGenerated, setTinyStepGenerated] = useState<string | null>(null);
 
   // Feature 2: today's streak count
   const [todayCount, setTodayCount] = useState(0);
@@ -591,12 +593,17 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         {canStart && (
           <div className="flex justify-end px-1 mt-1">
             <button
-              onClick={() => setShowTinyMode(!showTinyMode)}
-              className="text-xs font-semibold uppercase tracking-wide opacity-70 hover:opacity-100 transition-opacity flex items-center gap-1"
+              onClick={() => {
+                setShowTinyMode(!showTinyMode);
+                if (!showTinyMode && typeof window !== 'undefined') {
+                   localStorage.setItem('start-me-experiment-used', 'true');
+                }
+              }}
+              className="text-xs font-semibold uppercase tracking-wide opacity-70 hover:opacity-100 transition-opacity flex items-center justify-end gap-1 min-h-11 px-2 -mr-2"
               style={{ color: 'var(--color-coral-500)' }}
             >
               <Sparkles className="w-3 h-3" />
-              {showTinyMode ? 'Cancel tiny mode' : 'Feeling stuck?'}
+              {showTinyMode ? 'Cancel' : "Can't start?"}
             </button>
           </div>
         )}
@@ -641,58 +648,95 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         </div>
       </motion.div>
 
-      {/* ── Feature 6: Make it tiny ──────────────────────────────────────── */}
+      {/* ── Feature 6: Make it tiny / Start Me ──────────────────────────────────────── */}
       {showTinyMode ? (
-        <motion.div variants={itemVariants} className="flex flex-col gap-3">
-          <p className="text-sm font-semibold uppercase tracking-wide text-center" style={{ color: 'var(--muted)' }}>
-            Make it tiny (1-tap start)
-          </p>
-          <div className="flex gap-3">
-            {[
-              { min: 5, template: getTinyTemplates(state.taskName).min5 },
-              { min: 15, template: getTinyTemplates(state.taskName).min15 }
-            ].map((tiny) => (
-              <motion.button
-                key={tiny.min}
-                whileHover={{ scale: 1.02, y: -2 }}
-                whileTap={{ scale: 0.98 }}
+        <motion.div variants={itemVariants} className="flex flex-col gap-4 p-5 rounded-2xl border shadow-sm" style={{ background: 'var(--card)', borderColor: 'var(--card-border)' }}>
+          {!tinyStepGenerated ? (
+            <div className="flex flex-col items-center text-center gap-4">
+              <p className="text-base font-medium opacity-90" style={{ color: 'var(--fg)' }}>
+                Struggling to begin? Let's find the absolute smallest first action.
+              </p>
+              <button
+                onClick={() => setTinyStepGenerated(generateTinyStep(state.taskName))}
+                className="w-full min-h-11 rounded-xl font-bold flex items-center justify-center transition-opacity hover:opacity-90"
+                style={{ background: 'var(--color-coral-500)', color: '#fff' }}
+              >
+                Give me the tiniest first step
+              </button>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1 text-center">
+                 <span className="text-xs font-semibold uppercase tracking-widest opacity-60" style={{ color: 'var(--fg)' }}>Your next tiny step</span>
+                 <p className="text-xl font-black" style={{ color: 'var(--color-coral-500)' }}>
+                   {tinyStepGenerated}
+                 </p>
+              </div>
+              <button
                 onClick={() => {
-                  const quickTaskName = `${state.taskName.trim()} (${tiny.min}-Min Starter)`;
+                  if (typeof window !== 'undefined') {
+                    localStorage.setItem('start-me-experiment-started', 'true');
+                  }
+                  const quickTaskName = `${tinyStepGenerated} (for: ${state.taskName.trim()})`;
                   const category = guessCategory(quickTaskName);
                   dispatch({
                     type: 'UPDATE_SETUP',
                     payload: { 
                       taskName: quickTaskName, 
                       category,
-                      initialEstimate: tiny.min, 
+                      initialEstimate: 2, 
                       taxMultiplier: 1.0, 
                       isManualOverride: true, 
-                      transitionMinutes: 0 
+                      transitionMinutes: 0,
+                      isMicroStep: true 
                     },
                   });
-                  // Immediately start the mission
                   setTimeout(() => {
-                    if (!pushOptIn) {
-                      requestNotificationPermission().catch(() => {});
-                    }
+                    if (!pushOptIn) requestNotificationPermission().catch(() => {});
                     dispatch({ type: 'START_MISSION' });
                   }, 50);
                 }}
-                className="flex-1 flex flex-col gap-2 rounded-2xl p-4 text-left transition-colors border"
-                style={{
-                  background: 'var(--card)',
-                  borderColor: 'var(--color-coral-400)',
-                  boxShadow: '0 4px 12px rgba(242,129,90,0.1)',
-                }}
+                className="w-full min-h-11 rounded-xl font-bold flex items-center justify-center transition-opacity hover:opacity-90"
+                style={{ background: 'var(--color-coral-500)', color: '#fff' }}
               >
-                <div className="flex items-center gap-2">
-                  <Timer className="w-4 h-4" style={{ color: 'var(--color-coral-500)' }} />
-                  <span className="font-black text-lg" style={{ color: 'var(--fg)' }}>{tiny.min} min</span>
+                Start tiny step
+              </button>
+              
+              <div className="flex flex-col items-center gap-3 mt-2 pt-4" style={{ borderTop: '1px dashed var(--card-border)' }}>
+                <span className="text-xs font-semibold opacity-60 uppercase tracking-widest" style={{ color: 'var(--fg)' }}>Want a bigger chunk?</span>
+                <div className="flex gap-3 w-full">
+                  {[5, 15].map((min) => (
+                    <button
+                      key={min}
+                      onClick={() => {
+                        const quickTaskName = `${state.taskName.trim()} (${min}-Min Starter)`;
+                        const category = guessCategory(quickTaskName);
+                        dispatch({
+                          type: 'UPDATE_SETUP',
+                          payload: { 
+                            taskName: quickTaskName, 
+                            category,
+                            initialEstimate: min, 
+                            taxMultiplier: 1.0, 
+                            isManualOverride: true, 
+                            transitionMinutes: 0 
+                          },
+                        });
+                        setTimeout(() => {
+                          if (!pushOptIn) requestNotificationPermission().catch(() => {});
+                          dispatch({ type: 'START_MISSION' });
+                        }, 50);
+                      }}
+                      className="flex-1 min-h-11 rounded-xl font-semibold border transition-colors hover:bg-black/5 flex items-center justify-center"
+                      style={{ borderColor: 'var(--card-border)', color: 'var(--fg)', background: 'transparent' }}
+                    >
+                      {min} min
+                    </button>
+                  ))}
                 </div>
-                <p className="text-sm leading-snug" style={{ color: 'var(--muted)' }}>{tiny.template}</p>
-              </motion.button>
-            ))}
-          </div>
+              </div>
+            </div>
+          )}
         </motion.div>
       ) : (
         <>

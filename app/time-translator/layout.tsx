@@ -1,0 +1,48 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Time-Blindness Translator | ADHD-Friendly Timer",
+  description:
+    "A shame-free, neurodivergent-friendly timer that translates abstract minutes into relatable anchors like TV episodes and songs. Includes an ADHD Tax buffer and a visual countdown — no ticking clock.",
+  keywords: [
+    "ADHD timer",
+    "time blindness",
+    "neurodivergent productivity",
+    "ADHD tools",
+    "executive dysfunction",
+    "focus timer",
+    "adulting certificate",
+  ],
+  openGraph: {
+    title: "Time-Blindness Translator | Finally, a timer that gets your brain",
+    description:
+      "Turn 'I'll do it in 15 minutes' into something your ADHD brain can actually believe. A shame-free timer with real-world anchors, an ADHD Tax buffer, and dopamine rewards.",
+    url: "https://time-blindness-translator.vercel.app/time-translator",
+    siteName: "Time-Blindness Translator",
+    type: "website",
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "Time-Blindness Translator — an ADHD-friendly timer that translates minutes into episodes, songs, and real-world anchors",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Time-Blindness Translator | ADHD-Friendly Timer",
+    description:
+      "A shame-free ADHD timer with real-world time anchors, an automatic ADHD Tax buffer, and dopamine rewards when you finish. Made for brains that think '15 minutes' is a social construct.",
+    creator: "@Aditya_X_Writes",
+    images: ["/og-image.png"],
+  },
+};
+
+export default function TimeTranslatorLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return children;
+}
