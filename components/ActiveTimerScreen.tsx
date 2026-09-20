@@ -122,7 +122,6 @@ export default function ActiveTimerScreen() {
     const canNativeShare = isMobile && typeof navigator !== 'undefined' && typeof navigator.share === 'function';
 
     if (canNativeShare) {
-      console.warn('[DEV] Witness Me Branch: Mobile Native Share (Async Image Generation)');
       try {
         if (!cardRef.current) throw new Error('No card ref');
         const blob = await toBlob(cardRef.current, {
@@ -148,7 +147,6 @@ export default function ActiveTimerScreen() {
         await navigator.share(sharePayload);
       } catch (err: unknown) {
         if (err instanceof Error && err.name === 'AbortError') return;
-        console.warn('[DEV] Witness Me Branch: Mobile Share Failed -> Fallback to Twitter Intent');
         window.open(intentUrl, '_blank', 'noopener,noreferrer');
       }
       return;
@@ -156,7 +154,6 @@ export default function ActiveTimerScreen() {
 
     // Desktop (PC / Mac) fallback OR mobile without share support:
     // Open Twitter intent immediately and synchronously to avoid popup blockers.
-    console.warn('[DEV] Witness Me Branch: Desktop Twitter Intent (Sync)');
     if (typeof window !== 'undefined') {
       window.open(intentUrl, '_blank', 'noopener,noreferrer');
     }
@@ -179,7 +176,7 @@ export default function ActiveTimerScreen() {
         link.href = dataUrl;
         link.click();
       }).catch(err => {
-        console.warn('[DEV] Off-screen image capture failed:', err);
+        console.error('Off-screen image capture failed:', err);
       });
     }
   }, [state.actualMinutes, state.taskName, dispatch]);
