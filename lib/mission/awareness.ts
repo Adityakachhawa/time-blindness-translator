@@ -79,7 +79,7 @@ export function getMissionAwarenessEvents(mission: ActiveMission, now: number): 
   
   if (isPast(expiredMs)) {
     events.push({
-      id: makeId('expired'),
+      id: makeId('time-up'),
       type: 'EXPIRED',
       title: 'Time Check',
       message: 'Reality check',

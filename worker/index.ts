@@ -6,16 +6,20 @@ declare let self: ServiceWorkerGlobalScope;
 
 self.addEventListener('push', (event: any) => {
   const promiseChain = (async () => {
-    let title = 'Time check';
-    let body = 'Your mission budget is up. Open the app to review it.';
+    let title = 'Time Check';
+    let body = 'Your mission budget is up — open the app to review it';
     let url = '/';
     let missionId = 'timer-alarm';
+    let version = 1;
 
     if (event.data) {
       try {
         const data = event.data.json();
         if (data.missionId) {
           missionId = data.missionId;
+        }
+        if (data.notificationVersion) {
+          version = data.notificationVersion;
         }
         if (data.title) title = data.title;
         if (data.body) body = data.body;
@@ -25,14 +29,38 @@ self.addEventListener('push', (event: any) => {
       }
     }
 
+    const windowClients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    let isFocused = false;
+    for (let i = 0; i < windowClients.length; i++) {
+      if (windowClients[i].focused) {
+        isFocused = true;
+        break;
+      }
+    }
+
+    const tag = `mission:${missionId}:v${version}:time-up`;
+
+    if (isFocused) {
+      // The app is visible. Show a silent notification and close it immediately
+      // to satisfy the Web Push "user-visible notification" requirement 
+      // without annoying the user with a duplicate alert, preventing Chrome's 
+      // fallback "Tap to copy the URL" notification.
+      await self.registration.showNotification('', { tag, silent: true });
+      const notifications = await self.registration.getNotifications({ tag });
+      for (const n of notifications) {
+        n.close();
+      }
+      return;
+    }
+
     const options = {
       body,
-      icon: '/icons/icon-192x192.png',
-      badge: '/icons/icon-192x192.png',
+      icon: '/icon-192x192.png',
+      badge: '/icon-192x192.png',
       data: { url: '/', missionId },
       requireInteraction: true,
       vibrate: [500, 200, 500, 200, 500, 200, 500, 200, 500, 200, 500],
-      tag: missionId,
+      tag,
       renotify: true
     };
 

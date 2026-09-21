@@ -49,7 +49,7 @@ export function sendCatchUpNotification(mission: ActiveMission): void {
   // We only support notifications in supported browsers with permission
   if (!hasNotificationPermission()) return;
   
-  const eventId = `mission:${mission.id}:time-up`;
+  const eventId = `mission:${mission.id}:v${mission.notificationVersion || 1}:time-up`;
   const events = getAcknowledgedEvents();
   
   if (events.includes(eventId)) {
@@ -64,13 +64,19 @@ export function sendCatchUpNotification(mission: ActiveMission): void {
     return;
   }
   
+  // If a background push is scheduled, it is responsible for the catch-up notification.
+  if (mission.notificationMessageId) {
+    markEventAcknowledged(eventId);
+    return;
+  }
+  
   // Check if Service Worker is ready to show the notification
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then((registration) => {
       registration.showNotification('Time is up! 🚀', {
         body: `Your mission "${mission.taskName}" allocated time has completed.`,
         icon: '/icon-192x192.png',
-        tag: 'mission-time-up', // Prevents multiple notifications piling up
+        tag: eventId, // Prevents multiple notifications piling up
         vibrate: [200, 100, 200, 100, 200],
         data: {
           url: '/'
@@ -93,7 +99,7 @@ function showFallbackNotification(mission: ActiveMission, eventId: string) {
     const notification = new Notification('Time is up! 🚀', {
       body: `Your mission "${mission.taskName}" allocated time has completed.`,
       icon: '/icon-192x192.png',
-      tag: 'mission-time-up',
+      tag: eventId,
     });
     
     notification.onclick = () => {
@@ -122,6 +128,13 @@ export function sendAwarenessNotification(mission: ActiveMission, eventId: strin
   // If the app is currently visible to the user, the in-app UI is already alerting them.
   // We do not need an OS-level notification. Acknowledge and skip.
   if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+    markEventAcknowledged(eventId);
+    return;
+  }
+  
+  const canonicalTimeUpId = `mission:${mission.id}:v${mission.notificationVersion || 1}:time-up`;
+  if (eventId === canonicalTimeUpId && mission.notificationMessageId) {
+    // A background push is scheduled, let QStash / Service Worker handle it to prevent double-buzzing
     markEventAcknowledged(eventId);
     return;
   }

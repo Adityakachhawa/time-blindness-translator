@@ -67,7 +67,8 @@ async function handler(request: Request) {
         subData.pushSubscription,
         JSON.stringify({
           missionId,
-          event: 'expired'
+          event: 'expired',
+          notificationVersion
         }),
         { urgency: 'high' }
       );
