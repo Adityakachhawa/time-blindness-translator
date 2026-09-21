@@ -52,6 +52,16 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} h-full antialiased`}>
       <head>
         <link rel="manifest" href="/manifest.json" />
+        <script dangerouslySetInnerHTML={{
+          __html: `
+            try {
+              let theme = localStorage.getItem('tbt-theme');
+              if (theme) {
+                document.documentElement.setAttribute('data-theme', theme);
+              }
+            } catch (e) {}
+          `
+        }} />
         {/* Google AdSense — replace YOUR_ADSENSE_ID with your publisher ID */}
         {/* <script
           async

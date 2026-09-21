@@ -57,6 +57,13 @@ export function sendCatchUpNotification(mission: ActiveMission): void {
     return;
   }
   
+  // If the app is currently visible to the user, the in-app UI is already alerting them.
+  // We do not need an OS-level notification. Acknowledge and skip.
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+    markEventAcknowledged(eventId);
+    return;
+  }
+  
   // Check if Service Worker is ready to show the notification
   if ('serviceWorker' in navigator) {
     navigator.serviceWorker.ready.then((registration) => {
@@ -109,6 +116,13 @@ export function sendAwarenessNotification(mission: ActiveMission, eventId: strin
   const events = getAcknowledgedEvents();
   
   if (events.includes(eventId)) {
+    return;
+  }
+  
+  // If the app is currently visible to the user, the in-app UI is already alerting them.
+  // We do not need an OS-level notification. Acknowledge and skip.
+  if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+    markEventAcknowledged(eventId);
     return;
   }
   

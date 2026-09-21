@@ -3,10 +3,27 @@
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
-import { Menu, X } from 'lucide-react';
+import { Menu, X, Sun, Moon } from 'lucide-react';
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark' | null>(null);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('tbt-theme') as 'light' | 'dark' | null;
+    if (saved) {
+      setTheme(saved);
+    } else {
+      setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    localStorage.setItem('tbt-theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+  };
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -33,21 +50,31 @@ export default function Header() {
           <span className="font-bold tracking-widest uppercase text-sm">HYPERDOPA</span>
         </Link>
 
-        {/* Desktop Nav */}
-        <nav className="hidden md:flex items-center gap-6 text-sm font-medium opacity-80">
-          <Link href="/time-translator" className="hover:opacity-100 transition-opacity outline-none">Time Translator</Link>
-          <Link href="/#how-it-works" className="hover:opacity-100 transition-opacity outline-none">How It Works</Link>
-          <Link href="/privacy" className="hover:opacity-100 transition-opacity outline-none">Privacy</Link>
-        </nav>
+        <div className="flex items-center gap-1 md:gap-6">
+          {/* Desktop Nav */}
+          <nav className="hidden md:flex items-center gap-6 text-sm font-medium opacity-80">
+            <Link href="/time-translator" className="hover:opacity-100 transition-opacity outline-none">Time Translator</Link>
+            <Link href="/#how-it-works" className="hover:opacity-100 transition-opacity outline-none">How It Works</Link>
+            <Link href="/privacy" className="hover:opacity-100 transition-opacity outline-none">Privacy</Link>
+          </nav>
 
-        {/* Mobile Nav Toggle */}
-        <button 
-          className="md:hidden opacity-80 hover:opacity-100 outline-none min-w-11 min-h-11 flex items-center justify-center -mr-2"
-          onClick={() => setMenuOpen(!menuOpen)}
-          aria-label="Toggle menu"
-        >
-          {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-        </button>
+          <button 
+            onClick={toggleTheme}
+            className="opacity-80 hover:opacity-100 outline-none min-w-11 min-h-11 flex items-center justify-center transition-opacity"
+            aria-label="Toggle theme"
+          >
+            {theme === 'dark' ? <Sun className="w-5 h-5" /> : theme === 'light' ? <Moon className="w-5 h-5" /> : <div className="w-5 h-5" />}
+          </button>
+
+          {/* Mobile Nav Toggle */}
+          <button 
+            className="md:hidden opacity-80 hover:opacity-100 outline-none min-w-11 min-h-11 flex items-center justify-center -mr-2"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label="Toggle menu"
+          >
+            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+        </div>
       </div>
 
       {/* Mobile Menu */}
