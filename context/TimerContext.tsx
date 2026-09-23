@@ -363,8 +363,8 @@ export function TimerProvider({ children }: { children: ReactNode }) {
     console.table(getAccuracyImprovement());
     console.groupEnd();
 
-    function handleReconcile() {
-      const recovered = reconcileMission();
+    async function handleReconcile() {
+      const recovered = await reconcileMission();
       if (recovered) {
         dispatch({ type: 'RECOVER_MISSION', payload: recovered });
       }

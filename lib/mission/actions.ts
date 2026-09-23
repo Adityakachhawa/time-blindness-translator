@@ -2,7 +2,8 @@ import { ActiveMission } from './types';
 import { setActiveMission, clearActiveMission, getActiveMission } from './storage';
 import { saveCompletedTask, incrementLifetimeStats, incrementDailyCount } from '../storage';
 import { getRandomTagline } from '../calculations';
-import { sendCatchUpNotification } from '../notifications/notificationManager';
+import { sendCatchUpNotificationAsync } from '../notifications/notificationManager';
+import { claimNotification, releaseNotificationClaim } from '../notifications/swDeliveryStore';
 import { setAppBadge, clearAppBadge } from '../notifications/badgeManager';
 import { trackEvent } from '../analytics/localAnalytics';
 import { enqueueInvalidation, flushPendingActions } from '../notifications/pendingActions';
@@ -234,7 +235,26 @@ export function completeMission(
  *   initialExpectedEndAt  ← startedAt + plannedDurationMs  (the original
  *                            deadline as it was at mission start)
  */
-export function reconcileMission(): ActiveMission | null {
+/**
+ * Idempotent lifecycle reconciliation function.
+ * Called on startup, visibilitychange, focus, and pageshow.
+ *
+ * Async because it reads the SW delivery record from IndexedDB to determine
+ * whether a background push already showed the OS notification, enforcing the
+ * invariant:  SCHEDULED (notificationMessageId) ≠ DELIVERED (IDB record).
+ *
+ * Catch-up decision matrix (Atomic Claim):
+ *   claim 'already-claimed'  → SW won, acknowledge silently, no OS notification
+ *   claim 'claimed'          → page won, sendCatchUpNotificationAsync
+ *   claim 'error'            → coordination failed, suppress OS notification
+ *
+ * LEGACY MIGRATION (P0 semantics fix, added 2026-09):
+ * Missions created before this fix lack `initialCalibratedMs` and
+ * `initialExpectedEndAt`.  We derive safe values once and persist them so
+ * every downstream consumer (extendMission, completeMission) has the
+ * correct immutable anchors without needing `?? fallback` on every call.
+ */
+export async function reconcileMission(): Promise<ActiveMission | null> {
   let mission = getActiveMission();
   if (!mission) return null;
 
@@ -260,16 +280,54 @@ export function reconcileMission(): ActiveMission | null {
   }
 
   const now = Date.now();
-  // If the mission has passed its expectedEndAt and we haven't yet sent a
-  // local catch-up notification for this session, do so exactly once.
+  // If the mission has passed its expectedEndAt and we haven't yet acknowledged
+  // the expiration event for this session, decide whether to send a catch-up
+  // OS notification.
+  //
   // The catchUpNotifiedAt sentinel persists in localStorage, so repeated
-  // reconcile calls (visibilitychange, focus, pageshow) are all no-ops.
+  // reconcile calls (visibilitychange, focus, pageshow) are all no-ops after
+  // the first pass.
   if (mission.status === 'running' && now >= mission.expectedEndAt) {
     if (!mission.catchUpNotifiedAt) {
-      sendCatchUpNotification(mission);
-      setAppBadge(1);
-      // Write the sentinel back before returning so the next reconcile skips.
-      setActiveMission({ ...mission, catchUpNotifiedAt: now });
+      // ── SW delivery gate / Atomic Claim ──────────────────────────────────
+      // Attempt to claim atomic ownership of this canonical time-up event.
+      const claim = await claimNotification(
+        mission.id,
+        mission.notificationVersion,
+        'page'
+      );
+
+      if (claim.status === 'error') {
+        // Coordination unavailable (IDB failed). We MUST suppress the OS
+        // notification to avoid duplicates.
+        // We do NOT set catchUpNotifiedAt because we have not successfully
+        // handled it. The in-app Reality Check will still show since we return
+        // the mission, but we let a future lifecycle pass retry the claim.
+        return mission;
+      }
+
+      if (claim.status === 'already-claimed') {
+        // The Service Worker already won the race and showed the OS notification
+        // (or is currently doing so). No additional OS notification is needed.
+        // Acknowledge locally so we don't keep trying.
+        setAppBadge(1);
+        setActiveMission({ ...mission, catchUpNotifiedAt: now });
+        return mission;
+      }
+
+      // claim.status === 'claimed'
+      // We won the claim! We are responsible for the catch-up notification.
+      try {
+        await sendCatchUpNotificationAsync(mission);
+        
+        // Only mark as successfully handled if the notification didn't throw
+        setAppBadge(1);
+        setActiveMission({ ...mission, catchUpNotifiedAt: now });
+      } catch (err) {
+        // If we claimed the event but failed to show it, release the claim
+        // so that a subsequent catch-up attempt is allowed.
+        await releaseNotificationClaim(mission.id, mission.notificationVersion);
+      }
     }
   }
 

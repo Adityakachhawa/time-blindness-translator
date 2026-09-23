@@ -1,7 +1,25 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { sendCatchUpNotification, sendAwarenessNotification, KEY_NOTIFICATION_EVENTS } from '../lib/notifications/notificationManager';
+import { sendCatchUpNotificationAsync, sendAwarenessNotification, KEY_NOTIFICATION_EVENTS } from '../lib/notifications/notificationManager';
 import { ActiveMission } from '../lib/mission/types';
+import * as swDeliveryStore from '../lib/notifications/swDeliveryStore';
 
+vi.mock('../lib/notifications/swDeliveryStore', () => ({
+  claimNotification: vi.fn(),
+  releaseNotificationClaim: vi.fn(),
+}));
+
+/**
+ * These tests exercise sendCatchUpNotification() and sendAwarenessNotification()
+ * in isolation — the notificationManager layer only.
+ *
+ * The higher-level reconcileMission() + SW delivery record gate is tested in
+ * __tests__/actions.test.ts (Tests A & B).
+ *
+ * Semantic note:
+ *   The notificationMessageId guard inside sendCatchUpNotification is a
+ *   SECONDARY defence-in-depth guard, NOT the primary delivery gate.
+ *   Primary gate: isSWDeliveryRecorded() in reconcileMission (actions.test.ts).
+ */
 describe('Notification Deduplication Architecture', () => {
   let mockMission: ActiveMission;
   const mockShowNotification = vi.fn();
@@ -51,18 +69,21 @@ describe('Notification Deduplication Architecture', () => {
     vi.restoreAllMocks();
   });
 
-  it('TEST 1: Mission expires while foreground', () => {
+  // ── Original tests ─────────────────────────────────────────────────────────
+
+  it('TEST 1 / TEST 7 (foreground expiration): mission expires while app is visible — no OS notification', async () => {
     vi.stubGlobal('document', { visibilityState: 'visible' });
     
     sendAwarenessNotification(mockMission, `mission:${mockMission.id}:v1:time-up`, 'Title', 'Body');
-    sendCatchUpNotification(mockMission);
+    await sendCatchUpNotificationAsync(mockMission);
 
+    // Foreground: both paths skip OS notification and mark acknowledged
     expect(mockShowNotification).not.toHaveBeenCalled();
     expect(window.localStorage.setItem).toHaveBeenCalled(); // marked as acknowledged
   });
 
-  it('TEST 2: Mission expires while backgrounded (no QStash scheduled)', async () => {
-    sendCatchUpNotification(mockMission);
+  it('TEST 2: mission expires while backgrounded (no QStash scheduled) — fires once', async () => {
+    await sendCatchUpNotificationAsync(mockMission);
     
     // allow microtasks to flush
     await new Promise(r => setTimeout(r, 0));
@@ -74,63 +95,79 @@ describe('Notification Deduplication Architecture', () => {
     );
   });
 
-  it('TEST 3 & 4: Background expiration happens, QStash scheduled, then user opens app', async () => {
-    // QStash is handling it
+  it('TEST 3: notificationMessageId no longer suppresses sendCatchUpNotification', async () => {
+    // notificationMessageId = QStash was scheduled. We removed the secondary guard
+    // so that if IDB fails or QStash fails, catch-up still fires (SCHEDULED != DELIVERED).
     mockMission.notificationMessageId = 'msg_123';
     
-    // Background awareness interval tries to fire
+    // Background awareness interval tries to fire (will be suppressed by notificationMessageId
+    // since awareness doesn't need to fire if a push is scheduled)
     sendAwarenessNotification(mockMission, `mission:${mockMission.id}:v1:time-up`, 'Title', 'Body');
     
-    // User opens app (visibility becomes visible, reconcile fires catch up)
-    vi.stubGlobal('document', { visibilityState: 'visible' });
-    sendCatchUpNotification(mockMission);
+    // User is in background (visibility hidden) and reconcile triggers catch-up
+    vi.stubGlobal('document', { visibilityState: 'hidden' });
+    await sendCatchUpNotificationAsync(mockMission);
     
     await new Promise(r => setTimeout(r, 0));
     
-    // The main thread should NEVER show an OS notification because QStash handles it
-    // and visibility is visible when they return.
+    // Catch-up should fire because notificationMessageId does not suppress it
+    expect(mockShowNotification).toHaveBeenCalledTimes(1);
+    // Note: swDeliveryStore mock calls are no longer asserted here since claim logic moved to reconcileMission
+  });
+
+  it('TEST 5 / TEST 6: visibilitychange + focus + pageshow all fire after same expiration — max 1 notification', async () => {
+    // First reconcile call (e.g., visibilitychange)
+    await sendCatchUpNotificationAsync(mockMission);
+    
+    // Simulate the event being recorded in localStorage
+    vi.mocked(window.localStorage.getItem).mockReturnValue(JSON.stringify([`mission:${mockMission.id}:v1:time-up`]));
+    
+    // Subsequent reconcile calls (focus, pageshow) — all should be no-ops
+    await sendCatchUpNotificationAsync(mockMission);
+    await sendCatchUpNotificationAsync(mockMission);
+    sendAwarenessNotification(mockMission, `mission:${mockMission.id}:v1:time-up`, 'Title', 'Body');
+    
+    await new Promise(r => setTimeout(r, 0));
+    
+    expect(mockShowNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('TEST 6 / repeated processing: same missionId + notificationVersion processed repeatedly — 1 notification max', async () => {
+    sendAwarenessNotification(mockMission, `mission:${mockMission.id}:v1:time-up`, 'Title', 'Body');
+    
+    vi.mocked(window.localStorage.getItem).mockReturnValue(JSON.stringify([`mission:${mockMission.id}:v1:time-up`]));
+    
+    sendAwarenessNotification(mockMission, `mission:${mockMission.id}:v1:time-up`, 'Title', 'Body');
+    await sendCatchUpNotificationAsync(mockMission);
+    
+    await new Promise(r => setTimeout(r, 0));
+    expect(mockShowNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('TEST 8: completed mission status — sendCatchUpNotification does not fire for running missions that are completed', async () => {
+    // A completed mission would have been cleared from localStorage (clearActiveMission).
+    // At the notificationManager level: if the event was already acknowledged, it skips.
+    vi.mocked(window.localStorage.getItem).mockReturnValue(
+      JSON.stringify([`mission:${mockMission.id}:v1:time-up`])
+    );
+    
+    await sendCatchUpNotificationAsync(mockMission);
+    
+    await new Promise(r => setTimeout(r, 0));
     expect(mockShowNotification).not.toHaveBeenCalled();
   });
 
-  it('TEST 6: visibilitychange + focus + pageshow all happen after the same expiration', async () => {
-    // Simulate multiple calls due to lifecycle events
-    sendCatchUpNotification(mockMission);
-    
-    // Once it's in localStorage, subsequent calls should be ignored.
+  it('TEST 9 (stale version): v1 acknowledged, v2 is a new canonical event and fires', async () => {
+    // old version acknowledged in localStorage
     vi.mocked(window.localStorage.getItem).mockReturnValue(JSON.stringify([`mission:${mockMission.id}:v1:time-up`]));
     
-    sendCatchUpNotification(mockMission);
-    sendCatchUpNotification(mockMission);
-    sendAwarenessNotification(mockMission, `mission:${mockMission.id}:v1:time-up`, 'Title', 'Body');
-    
-    await new Promise(r => setTimeout(r, 0));
-    
-    expect(mockShowNotification).toHaveBeenCalledTimes(1);
-  });
-
-  it('TEST 7: same mission + same notificationVersion processed repeatedly', async () => {
-    sendAwarenessNotification(mockMission, `mission:${mockMission.id}:v1:time-up`, 'Title', 'Body');
-    
-    vi.mocked(window.localStorage.getItem).mockReturnValue(JSON.stringify([`mission:${mockMission.id}:v1:time-up`]));
-    
-    sendAwarenessNotification(mockMission, `mission:${mockMission.id}:v1:time-up`, 'Title', 'Body');
-    sendCatchUpNotification(mockMission);
-    
-    await new Promise(r => setTimeout(r, 0));
-    expect(mockShowNotification).toHaveBeenCalledTimes(1);
-  });
-
-  it('TEST 9: mission timing extended/recalculated', async () => {
-    // old version
-    vi.mocked(window.localStorage.getItem).mockReturnValue(JSON.stringify([`mission:${mockMission.id}:v1:time-up`]));
-    
-    // mission gets extended to v2
+    // mission gets extended to v2 (new notificationVersion = new canonical event)
     mockMission.notificationVersion = 2;
-    sendCatchUpNotification(mockMission);
+    await sendCatchUpNotificationAsync(mockMission);
     
     await new Promise(r => setTimeout(r, 0));
     
-    // Should fire because v2 is a new canonical event
+    // Should fire because v2 is a new canonical event ID
     expect(mockShowNotification).toHaveBeenCalledTimes(1);
     expect(mockShowNotification).toHaveBeenCalledWith(
       expect.anything(),

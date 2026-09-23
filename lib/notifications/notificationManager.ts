@@ -1,5 +1,6 @@
 import { ActiveMission } from '../mission/types';
 
+
 export const KEY_NOTIFICATION_EVENTS = 'tbt_notification_events';
 
 function getAcknowledgedEvents(): string[] {
@@ -44,8 +45,10 @@ export function hasNotificationPermission(): boolean {
 /**
  * Fires a catch-up notification if the time is up, preventing duplicate alerts
  * by using a stable event ID based on the mission ID.
+ * Returns a Promise that rejects if the OS notification fails, allowing the caller
+ * to release their atomic claim.
  */
-export function sendCatchUpNotification(mission: ActiveMission): void {
+export async function sendCatchUpNotificationAsync(mission: ActiveMission): Promise<void> {
   // We only support notifications in supported browsers with permission
   if (!hasNotificationPermission()) return;
   
@@ -64,53 +67,44 @@ export function sendCatchUpNotification(mission: ActiveMission): void {
     return;
   }
   
-  // If a background push is scheduled, it is responsible for the catch-up notification.
-  if (mission.notificationMessageId) {
-    markEventAcknowledged(eventId);
-    return;
-  }
-  
-  // Check if Service Worker is ready to show the notification
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.ready.then((registration) => {
-      registration.showNotification('Time is up! 🚀', {
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      await registration.showNotification('Time is up! 🚀', {
         body: `Your mission "${mission.taskName}" allocated time has completed.`,
         icon: '/icon-192x192.png',
         tag: eventId, // Prevents multiple notifications piling up
         vibrate: [200, 100, 200, 100, 200],
         data: {
-          url: '/'
+          url: '/time-translator'
         }
       } as NotificationOptions & { vibrate?: number[] });
       // Mark as acknowledged so we don't spam them on next reconcile
       markEventAcknowledged(eventId);
-    }).catch((err) => {
+    } catch (err) {
       console.warn('Failed to show notification via service worker', err);
-      // Fallback to standard web notification
+      // Fallback to standard web notification. Throws if it fails, which rejects the Promise.
       showFallbackNotification(mission, eventId);
-    });
+    }
   } else {
     showFallbackNotification(mission, eventId);
   }
 }
 
 function showFallbackNotification(mission: ActiveMission, eventId: string) {
-  try {
-    const notification = new Notification('Time is up! 🚀', {
-      body: `Your mission "${mission.taskName}" allocated time has completed.`,
-      icon: '/icon-192x192.png',
-      tag: eventId,
-    });
-    
-    notification.onclick = () => {
-      window.focus();
-      notification.close();
-    };
-    
-    markEventAcknowledged(eventId);
-  } catch (err) {
-    console.warn('Failed to show fallback notification', err);
-  }
+  // We don't catch here so the caller can know if it failed and release the claim.
+  const notification = new Notification('Time is up! 🚀', {
+    body: `Your mission "${mission.taskName}" allocated time has completed.`,
+    icon: '/icon-192x192.png',
+    tag: eventId,
+  });
+  
+  notification.onclick = () => {
+    window.focus();
+    notification.close();
+  };
+  
+  markEventAcknowledged(eventId);
 }
 
 /**

@@ -10,6 +10,7 @@ import {
 import * as storage from '../lib/mission/storage';
 import * as badgeManager from '../lib/notifications/badgeManager';
 import * as notificationManager from '../lib/notifications/notificationManager';
+import * as swDeliveryStore from '../lib/notifications/swDeliveryStore';
 import * as localAnalytics from '../lib/analytics/localAnalytics';
 import * as pendingActions from '../lib/notifications/pendingActions';
 import { ActiveMission } from '../lib/mission/types';
@@ -19,6 +20,10 @@ vi.mock('../lib/mission/storage');
 vi.mock('../lib/storage');
 vi.mock('../lib/notifications/badgeManager');
 vi.mock('../lib/notifications/notificationManager');
+vi.mock('../lib/notifications/swDeliveryStore', () => ({
+  claimNotification: vi.fn(),
+  releaseNotificationClaim: vi.fn(),
+}));
 vi.mock('../lib/analytics/localAnalytics');
 vi.mock('../lib/notifications/pendingActions');
 
@@ -52,6 +57,9 @@ describe('Mission Actions & Notification Correctness', () => {
     };
     
     (storage.getActiveMission as any).mockReturnValue(mockMission);
+    // Default: assume claimNotification fails (fail-open) so catch-up tests still run
+    // or assume claim succeeds. We'll set the default to 'claimed' for page wins.
+    (swDeliveryStore.claimNotification as any).mockResolvedValue({ status: 'claimed' });
   });
 
   afterEach(() => {
@@ -98,26 +106,96 @@ describe('Mission Actions & Notification Correctness', () => {
     });
   });
 
-  describe('reconcileMission (Duplicate Prevention)', () => {
-    it('sends catch-up notification when expectedEndAt is passed and sentinel is missing', () => {
+  describe('reconcileMission (async — SW delivery gate)', () => {
+    it('sends catch-up notification when expectedEndAt is passed and claim succeeds', async () => {
       vi.setSystemTime(now + 120000); // 2 minutes later, mission is expired
-      const result = reconcileMission();
+      // claimNotification returns 'claimed' → page wins
+      (swDeliveryStore.claimNotification as any).mockResolvedValue({ status: 'claimed' });
+
+      await reconcileMission();
       
-      expect(notificationManager.sendCatchUpNotification).toHaveBeenCalledWith(mockMission);
+      expect(swDeliveryStore.claimNotification).toHaveBeenCalledWith(
+        mockMission.id,
+        mockMission.notificationVersion,
+        'page'
+      );
+      expect(notificationManager.sendCatchUpNotificationAsync).toHaveBeenCalledWith(mockMission);
       expect(badgeManager.setAppBadge).toHaveBeenCalledWith(1);
       expect(storage.setActiveMission).toHaveBeenCalledWith(
         expect.objectContaining({ catchUpNotifiedAt: now + 120000 })
       );
     });
 
-    it('does NOT send catch-up notification if sentinel is present (duplicate prevention)', () => {
+    it('does NOT send catch-up notification when claim is already-claimed', async () => {
       vi.setSystemTime(now + 120000);
-      mockMission.catchUpNotifiedAt = now + 60000; // already notified
+      // claimNotification returns 'already-claimed' → SW won
+      (swDeliveryStore.claimNotification as any).mockResolvedValue({ status: 'already-claimed' });
+
+      await reconcileMission();
+
+      expect(swDeliveryStore.claimNotification).toHaveBeenCalledWith(
+        mockMission.id,
+        mockMission.notificationVersion,
+        'page'
+      );
+      // Badge and sentinel are STILL set (expiration was acknowledged)
+      expect(badgeManager.setAppBadge).toHaveBeenCalledWith(1);
+      expect(storage.setActiveMission).toHaveBeenCalledWith(
+        expect.objectContaining({ catchUpNotifiedAt: now + 120000 })
+      );
+      // But NO OS notification
+      expect(notificationManager.sendCatchUpNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('[TEST A] notificationMessageId set but claim succeeds → catch-up is allowed', async () => {
+      vi.setSystemTime(now + 120000);
+      // QStash was scheduled but push was never delivered
+      mockMission.notificationMessageId = 'qstash-msg-123';
+      (storage.getActiveMission as any).mockReturnValue(mockMission);
+      (swDeliveryStore.claimNotification as any).mockResolvedValue({ status: 'claimed' });
+
+      await reconcileMission();
+
+      // SCHEDULED != DELIVERED: notificationMessageId alone does not suppress catch-up
+      expect(notificationManager.sendCatchUpNotificationAsync).toHaveBeenCalledWith(mockMission);
+    });
+
+    it('[TEST B] notificationMessageId set AND claim is already-claimed → zero additional notifications', async () => {
+      vi.setSystemTime(now + 120000);
+      mockMission.notificationMessageId = 'qstash-msg-123';
+      (storage.getActiveMission as any).mockReturnValue(mockMission);
+      (swDeliveryStore.claimNotification as any).mockResolvedValue({ status: 'already-claimed' });
+
+      await reconcileMission();
+
+      expect(notificationManager.sendCatchUpNotificationAsync).not.toHaveBeenCalled();
+    });
+
+    it('does NOT send catch-up if sentinel is already present (idempotent)', async () => {
+      vi.setSystemTime(now + 120000);
+      mockMission.catchUpNotifiedAt = now + 60000; // already acknowledged
+      (storage.getActiveMission as any).mockReturnValue(mockMission);
+
+      await reconcileMission();
       
-      const result = reconcileMission();
-      
-      expect(notificationManager.sendCatchUpNotification).not.toHaveBeenCalled();
+      // Neither IDB check nor notification fired
+      expect(swDeliveryStore.claimNotification).not.toHaveBeenCalled();
+      expect(notificationManager.sendCatchUpNotificationAsync).not.toHaveBeenCalled();
       expect(badgeManager.setAppBadge).not.toHaveBeenCalled();
+    });
+
+    it('when IDB read fails (claim returns error), suppresses OS notification but keeps Reality Check state', async () => {
+      vi.setSystemTime(now + 120000);
+      // Simulate IDB failure
+      (swDeliveryStore.claimNotification as any).mockResolvedValue({ status: 'error' });
+
+      const result = await reconcileMission();
+
+      // In-app state is returned so Reality Check triggers
+      expect(result?.status).toBe('running');
+      // But no OS notification fires (avoids duplication race)
+      expect(notificationManager.sendCatchUpNotificationAsync).not.toHaveBeenCalled();
+      // And sentinel is NOT set, so we can retry on next reconcile
       expect(storage.setActiveMission).not.toHaveBeenCalled();
     });
   });
