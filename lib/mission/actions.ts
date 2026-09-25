@@ -7,6 +7,7 @@ import { claimNotification, releaseNotificationClaim } from '../notifications/sw
 import { setAppBadge, clearAppBadge } from '../notifications/badgeManager';
 import { trackEvent } from '../analytics/localAnalytics';
 import { enqueueInvalidation, flushPendingActions } from '../notifications/pendingActions';
+import { clampTimerMinutes } from '../duration';
 
 export function startMission(
   taskName: string,
@@ -97,7 +98,16 @@ export function resumeMission(mission: ActiveMission): ActiveMission {
 
 export function extendMission(mission: ActiveMission, extraMinutes: number): ActiveMission {
   const now = Date.now();
-  const extraMs = extraMinutes * 60_000;
+  
+  // Calculate new total allocation
+  const requestedTotalMin = mission.allocatedMin + extraMinutes;
+  const clampedTotalMin = clampTimerMinutes(requestedTotalMin);
+  const actualExtraMin = clampedTotalMin - mission.allocatedMin;
+  
+  // If we're already at max and can't add more, return unmodified (no-op safely)
+  if (actualExtraMin <= 0) return mission;
+  
+  const extraMs = actualExtraMin * 60_000;
 
   // If the mission is already in overtime (expectedEndAt is in the past), measure
   // from NOW so that "+5m" always means 5 additional minutes from the current moment,
@@ -107,7 +117,7 @@ export function extendMission(mission: ActiveMission, extraMinutes: number): Act
   const updated: ActiveMission = {
     ...mission,
     expectedEndAt: baseEndAt + extraMs,
-    allocatedMin: mission.allocatedMin + extraMinutes, // reflect in history/stats
+    allocatedMin: clampedTotalMin, // reflect in history/stats
     updatedAt: now,
     // if it was expired/overtime and they added time, ensure it goes back to running
     status: mission.status === 'completed' || mission.status === 'cancelled' ? mission.status : 'running',
@@ -123,14 +133,25 @@ export function extendMission(mission: ActiveMission, extraMinutes: number): Act
 
 export function recalculateMission(mission: ActiveMission, remainingMinutes: number): ActiveMission {
   const now = Date.now();
-  const remainingMs = remainingMinutes * 60_000;
   
-  const newExpectedEndAt = now + remainingMs;
+  const elapsedMs = now - mission.startedAt;
+  const requestedRemainingMs = remainingMinutes * 60_000;
+  
+  // Calculate total minutes needed (rounded up to nearest minute to cover the exact ms)
+  const requestedTotalMin = Math.ceil((elapsedMs + requestedRemainingMs) / 60_000);
+  const clampedTotalMin = clampTimerMinutes(requestedTotalMin);
+  
+  // If the clamped limit restricts us, we cap the remaining time. 
+  // Otherwise, we grant exactly the requested time from NOW.
+  const maxPossibleRemainingMs = (clampedTotalMin * 60_000) - elapsedMs;
+  const finalRemainingMs = Math.min(requestedRemainingMs, Math.max(0, maxPossibleRemainingMs));
+
+  const newExpectedEndAt = now + finalRemainingMs;
   
   const updated: ActiveMission = {
     ...mission,
     expectedEndAt: newExpectedEndAt,
-    allocatedMin: Math.round((newExpectedEndAt - mission.startedAt) / 60_000),
+    allocatedMin: clampedTotalMin,
     updatedAt: now,
     status: mission.status === 'completed' || mission.status === 'cancelled' ? mission.status : 'running',
     notificationVersion: mission.notificationVersion + 1,

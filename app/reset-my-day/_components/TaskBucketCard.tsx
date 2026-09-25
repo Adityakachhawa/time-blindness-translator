@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { History, Clock } from 'lucide-react';
+import { History, Clock, CheckCircle2 } from 'lucide-react';
 import type { SequencedTask, BucketKey } from '../lib/sequencer';
 import StartMeInline from './StartMeInline';
 
@@ -75,12 +75,17 @@ function TaskItem({
     >
       <div className="flex items-start gap-2">
         <div className="flex-1 min-w-0">
-          <p
-            className="font-bold text-sm leading-snug"
-            style={{ color: 'var(--fg)' }}
-          >
-            {task.name}
-          </p>
+          <div className="flex items-center gap-2">
+            <p
+              className={`font-bold text-sm leading-snug ${task.completedAt ? 'line-through opacity-60' : ''}`}
+              style={{ color: 'var(--fg)' }}
+            >
+              {task.name}
+            </p>
+            {task.completedAt && (
+              <CheckCircle2 className="w-4 h-4" style={{ color: 'var(--color-sage-500)' }} />
+            )}
+          </div>
           {/* Duration / history */}
           <div
             className="flex items-center gap-1.5 mt-1"
@@ -107,8 +112,8 @@ function TaskItem({
         </div>
       </div>
 
-      {/* Start Me — only for DO_NOW / THEN */}
-      {showStartMe && <StartMeInline task={task} />}
+      {/* Start Me — only for DO_NOW / THEN (and only if not completed) */}
+      {showStartMe && !task.completedAt && <StartMeInline task={task} />}
     </div>
   );
 }

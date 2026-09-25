@@ -12,6 +12,7 @@ import SuccessScreen from '@/components/SuccessScreen';
 import TimesUpScreen from '@/components/TimesUpScreen';
 import HistoryDrawer from '@/components/HistoryDrawer';
 import ActiveMissionBanner from '@/components/ActiveMissionBanner';
+import { HamburgerIcon, MobileNavDrawer } from '@/components/hyperdopa/Header';
 import {
   getThemePreference,
   setThemePreference,
@@ -129,6 +130,10 @@ function AppContent() {
   // ── History drawer ─────────────────────────────────────────────────────
   const [historyOpen, setHistoryOpen] = useState(false);
   const [hasWeeklyReport, setHasWeeklyReport] = useState(false);
+  
+  // ── Navigation drawer ──────────────────────────────────────────────────
+  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+  const closeNavDrawer = useCallback(() => setNavDrawerOpen(false), []);
 
   // ── Ambient audio ──────────────────────────────────────────────────────
   const { currentTrack, cycleTrack, setTrack } = useAmbientAudio();
@@ -305,9 +310,23 @@ function AppContent() {
                 : <Moon className="w-4 h-4" strokeWidth={2.5} />
               }
             </HeaderIconBtn>
+            
+            {/* Mobile Nav Hamburger */}
+            <div className="md:hidden">
+              <HeaderIconBtn
+                onClick={() => setNavDrawerOpen(o => !o)}
+                label="Menu"
+              >
+                <div style={{ color: navDrawerOpen ? 'var(--color-coral-500)' : 'currentColor' }}>
+                  <HamburgerIcon open={navDrawerOpen} />
+                </div>
+              </HeaderIconBtn>
+            </div>
           </div>
         </div>
       </header>
+      
+      <MobileNavDrawer drawerOpen={navDrawerOpen} closeDrawer={closeNavDrawer} />
 
       {/* ── Main content ────────────────────────────────────────────── */}
       <main

@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Trash2, ChevronUp, ChevronDown, ListChecks, Clock, History } from 'lucide-react';
 import { getRecentUniqueTasks } from '@/lib/storage';
 import { getTaskHistoricalRange } from '@/lib/calibration';
+import { clampTimerMinutes } from '@/lib/duration';
 import type { RmdTask, TaskPriority } from '../lib/sequencer';
 
 // ---------------------------------------------------------------------------
@@ -27,6 +28,7 @@ interface DraftTask {
   hasHistory: boolean;
   historicalRange?: string;
   historicalMedian?: number;
+  overrideHistory?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -44,6 +46,7 @@ function newDraft(name = ''): DraftTask {
     priority: 'important',
     estimate: 30,
     hasHistory: false,
+    overrideHistory: false,
   };
 }
 
@@ -76,9 +79,10 @@ function TaskRow({ draft, index, total, onChange, onRemove, onMoveUp, onMoveDown
         hasHistory: true,
         historicalRange: formatRange(range.lower, range.upper),
         historicalMedian: range.median,
+        overrideHistory: false,
       });
     } else {
-      onChange({ ...draft, name: name.trim(), hasHistory: false, historicalRange: undefined, historicalMedian: undefined });
+      onChange({ ...draft, name: name.trim(), hasHistory: false, historicalRange: undefined, historicalMedian: undefined, overrideHistory: false });
     }
   }
 
@@ -201,52 +205,74 @@ function TaskRow({ draft, index, total, onChange, onRemove, onMoveUp, onMoveDown
         </div>
 
         {/* Duration — show history range or manual estimate */}
-        {draft.hasHistory ? (
-          <div
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
-            style={{
-              background: 'var(--color-sage-500)' + '22',
-              border: '1.5px solid var(--color-sage-500)',
-              color: 'var(--color-sage-600)',
-            }}
-          >
-            <History className="w-3.5 h-3.5 shrink-0" />
-            <span>{draft.historicalRange}</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-2">
-            <label
-              htmlFor={estimateId}
-              className="text-xs font-bold"
-              style={{ color: 'var(--muted)' }}
-            >
-              <Clock className="w-3.5 h-3.5 inline mr-1" />
-              ~
-            </label>
-            <input
-              id={estimateId}
-              type="number"
-              min={5}
-              max={300}
-              step={5}
-              value={draft.estimate}
-              onChange={(e) => {
-                const v = parseInt(e.target.value, 10);
-                if (!isNaN(v)) onChange({ ...draft, estimate: Math.max(5, Math.min(300, v)) });
-              }}
-              className="rounded-xl px-2 py-1.5 text-sm font-bold text-center outline-none"
-              style={{
-                background: 'var(--card)',
-                border: '1.5px solid var(--card-border)',
-                color: 'var(--fg)',
-                width: 64,
-                minHeight: 36,
-              }}
-              aria-label={`Estimate minutes for task ${index + 1}`}
-            />
-            <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>
-              min
-            </span>
+        <div className="flex items-center gap-2">
+          {draft.hasHistory && !draft.overrideHistory ? (
+            <div className="flex items-center gap-2">
+              <div
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold"
+                style={{
+                  background: 'var(--color-sage-500)' + '22',
+                  border: '1.5px solid var(--color-sage-500)',
+                  color: 'var(--color-sage-600)',
+                }}
+              >
+                <History className="w-3.5 h-3.5 shrink-0" />
+                <span>{draft.historicalRange}</span>
+              </div>
+              <button
+                onClick={() => onChange({ ...draft, overrideHistory: true, estimate: draft.historicalMedian || 30 })}
+                className="text-xs font-semibold underline transition-opacity hover:opacity-80 outline-none"
+                style={{ color: 'var(--muted)' }}
+              >
+                Use a different estimate
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <label
+                htmlFor={estimateId}
+                className="text-xs font-bold"
+                style={{ color: 'var(--muted)' }}
+              >
+                <Clock className="w-3.5 h-3.5 inline mr-1" />
+                {draft.overrideHistory ? 'Your estimate' : '~'}
+              </label>
+              <input
+                id={estimateId}
+                type="number"
+                min={1}
+                max={300}
+                step={1}
+                value={draft.estimate}
+                onChange={(e) => {
+                  const v = parseInt(e.target.value, 10);
+                  if (!isNaN(v)) onChange({ ...draft, estimate: v });
+                }}
+                className="rounded-xl px-2 py-1.5 text-sm font-bold text-center outline-none"
+                style={{
+                  background: 'var(--card)',
+                  border: '1.5px solid var(--card-border)',
+                  color: 'var(--fg)',
+                  width: 64,
+                  minHeight: 36,
+                }}
+                aria-label={`Estimate minutes for task ${index + 1}`}
+              />
+              <span className="text-xs font-semibold" style={{ color: 'var(--muted)' }}>
+                min
+              </span>
+              {draft.overrideHistory && (
+                <span className="text-xs opacity-60 ml-2" style={{ color: 'var(--muted)' }}>
+                  (History: {draft.historicalRange})
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+        {/* Validation Error */}
+        {draft.estimate > 300 && (
+          <div className="w-full mt-2 text-xs font-semibold" style={{ color: 'var(--color-coral-500)' }}>
+            That task is longer than one timer can hold. Split it into smaller tasks.
           </div>
         )}
       </div>
@@ -301,6 +327,7 @@ export default function TaskCaptureStep({
   function handleConfirm() {
     const valid = drafts.filter((d) => d.name.trim().length > 0);
     if (valid.length === 0) return;
+    if (valid.some(d => d.estimate > 300)) return;
 
     const rmdTasks: RmdTask[] = valid.map((d, i) => {
       const estimatedMinutes = d.hasHistory
@@ -321,6 +348,9 @@ export default function TaskCaptureStep({
   }
 
   const validCount = drafts.filter((d) => d.name.trim().length > 0).length;
+  const hasError = drafts.some((d) => d.estimate > 300);
+  const isSubmitDisabled = validCount === 0 || hasError;
+
   const budgetLabel =
     budgetMinutes >= 60
       ? `${Math.floor(budgetMinutes / 60)}h ${budgetMinutes % 60 > 0 ? `${budgetMinutes % 60}m` : ''}`.trim()
@@ -432,17 +462,17 @@ export default function TaskCaptureStep({
         <button
           id="build-plan-btn"
           onClick={handleConfirm}
-          disabled={validCount === 0}
+          disabled={isSubmitDisabled}
           className="flex-1 rounded-2xl font-bold text-base outline-none transition-all"
           style={{
             minHeight: 52,
-            background: validCount > 0 ? 'var(--color-coral-500)' : 'var(--card)',
-            color: validCount > 0 ? 'white' : 'var(--muted)',
-            border: validCount > 0 ? '2px solid transparent' : '2px solid var(--card-border)',
-            cursor: validCount > 0 ? 'pointer' : 'not-allowed',
-            opacity: validCount > 0 ? 1 : 0.6,
+            background: !isSubmitDisabled ? 'var(--color-coral-500)' : 'var(--card)',
+            color: !isSubmitDisabled ? 'white' : 'var(--muted)',
+            border: !isSubmitDisabled ? '2px solid transparent' : '2px solid var(--card-border)',
+            cursor: !isSubmitDisabled ? 'pointer' : 'not-allowed',
+            opacity: !isSubmitDisabled ? 1 : 0.6,
           }}
-          aria-disabled={validCount === 0}
+          aria-disabled={isSubmitDisabled}
         >
           Build my plan →
         </button>

@@ -102,7 +102,10 @@ function timerReducer(state: TimerState, action: TimerAction): TimerState {
       // In exact-time mode: force multiplier = 1.0, no transition time, no rounding
       const effectiveMultiplier = nextExact ? 1.0 : ((!nextOverride && nextPersonalFactor) ? nextPersonalFactor : nextTax);
       const effectiveTransition = nextExact ? 0 : nextTransition;
-      const nextActual = calculateActualTime(nextEstimate, effectiveMultiplier, nextExact) + effectiveTransition;
+      const calculatedActual = calculateActualTime(nextEstimate, effectiveMultiplier, nextExact) + effectiveTransition;
+      
+      // Enforce the 300 minute domain invariant
+      const nextActual = Math.max(1, Math.min(300, calculatedActual));
 
       return {
         ...state,

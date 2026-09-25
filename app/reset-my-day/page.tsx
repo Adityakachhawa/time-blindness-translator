@@ -8,6 +8,8 @@ import type { RmdTask, RecoveryPlan } from './lib/sequencer';
 import TimeBudgetStep, { type TimeBudget } from './_components/TimeBudgetStep';
 import TaskCaptureStep from './_components/TaskCaptureStep';
 import RecoveryPlanView from './_components/RecoveryPlanView';
+import { getRmdSession, saveRmdSession, clearRmdSession } from './lib/session';
+import { getTaskHistory } from '@/lib/storage';
 
 // ---------------------------------------------------------------------------
 // Flow steps
@@ -23,6 +25,47 @@ export default function ResetMyDayPage() {
   const [step, setStep] = useState<Step>('budget');
   const [budget, setBudget] = useState<TimeBudget | null>(null);
   const [plan, setPlan] = useState<RecoveryPlan | null>(null);
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  // Initialize and reconcile session on mount
+  useState(() => {
+    if (typeof window !== 'undefined') {
+      const session = getRmdSession();
+      if (session) {
+        const history = getTaskHistory();
+        
+        const reconcileBucket = (tasks: typeof session.plan.doNow) => {
+          return tasks.map(task => {
+            if (task.startedAt && !task.completedAt) {
+              const match = history.find(
+                h => h.completedAt > task.startedAt! && h.taskName.toLowerCase() === task.name.toLowerCase()
+              );
+              if (match) {
+                return { ...task, completedAt: match.completedAt };
+              }
+            }
+            return task;
+          });
+        };
+
+        const reconciledPlan = {
+          ...session.plan,
+          doNow: reconcileBucket(session.plan.doNow),
+          then: reconcileBucket(session.plan.then),
+          optional: reconcileBucket(session.plan.optional),
+          skip: reconcileBucket(session.plan.skip),
+        };
+
+        // Update session if reconciliation changed anything
+        saveRmdSession({ ...session, plan: reconciledPlan });
+        
+        setBudget({ minutes: reconciledPlan.budgetMinutes });
+        setPlan(reconciledPlan);
+        setStep('plan');
+      }
+      setIsInitializing(false);
+    }
+  });
 
   function handleBudgetConfirm(b: TimeBudget) {
     setBudget(b);
@@ -33,18 +76,22 @@ export default function ResetMyDayPage() {
     if (!budget) return;
     const recoveryPlan = buildRecoveryPlan(tasks, budget.minutes);
     setPlan(recoveryPlan);
+    saveRmdSession({ plan: recoveryPlan, createdAt: Date.now() });
     setStep('plan');
   }
 
   function handleReset() {
     setBudget(null);
     setPlan(null);
+    clearRmdSession();
     setStep('budget');
   }
 
   // Progress indicator (steps 1-2, hidden on plan view)
   const showProgress = step !== 'plan';
   const stepNumber = step === 'budget' ? 1 : 2;
+
+  if (isInitializing) return null; // Wait for hydration and session logic
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-12 pb-20">

@@ -93,38 +93,39 @@ const STATIC_TEMPLATES: RecentTask[] = [
 
 function fireCelebrationConfetti() {
   const warmColors = ['#f2815a', '#7daf9c', '#a78bca', '#f5a623', '#fdf6ec', '#f9c45a'];
-  const end = Date.now() + 3500;
 
-  (function frame() {
+  const fire = (ratio: number) => {
     confetti({
-      particleCount: 4,
+      particleCount: Math.floor(100 * ratio),
       angle: 60,
       spread: 60,
-      origin:     { x: 0, y: 0.65 },
-      colors:     warmColors,
-      scalar:     1.1,
-      gravity:    0.9,
+      origin: { x: 0, y: 0.65 },
+      colors: warmColors,
+      scalar: 1.1,
+      gravity: 0.9,
     });
     confetti({
-      particleCount: 4,
+      particleCount: Math.floor(100 * ratio),
       angle: 120,
       spread: 60,
-      origin:     { x: 1, y: 0.65 },
-      colors:     warmColors,
-      scalar:     1.1,
-      gravity:    0.9,
+      origin: { x: 1, y: 0.65 },
+      colors: warmColors,
+      scalar: 1.1,
+      gravity: 0.9,
     });
-    if (Date.now() < end) requestAnimationFrame(frame);
-  })();
+  };
+
+  fire(1);
+  setTimeout(() => fire(0.8), 200);
+  setTimeout(() => fire(0.5), 400);
 }
 
 function fireMilestoneConfetti() {
   const milestoneColors = ['#ffd700', '#ff8c00', '#ff0080', '#00ff00', '#00bfff', '#9400d3'];
-  const end = Date.now() + 6000; // 6 seconds for milestones
 
-  (function frame() {
+  const fire = (ratio: number) => {
     confetti({
-      particleCount: 8, // Denser
+      particleCount: Math.floor(150 * ratio),
       angle: 60,
       spread: 80,
       origin: { x: 0, y: 0.8 },
@@ -133,7 +134,7 @@ function fireMilestoneConfetti() {
       gravity: 0.8,
     });
     confetti({
-      particleCount: 8,
+      particleCount: Math.floor(150 * ratio),
       angle: 120,
       spread: 80,
       origin: { x: 1, y: 0.8 },
@@ -141,8 +142,12 @@ function fireMilestoneConfetti() {
       scalar: 1.2,
       gravity: 0.8,
     });
-    if (Date.now() < end) requestAnimationFrame(frame);
-  })();
+  };
+
+  fire(1);
+  setTimeout(() => fire(0.8), 250);
+  setTimeout(() => fire(0.6), 500);
+  setTimeout(() => fire(0.4), 750);
 }
 
 // ---------------------------------------------------------------------------

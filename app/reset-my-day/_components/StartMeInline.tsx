@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp, Lightbulb, Clock } from 'lucide-react';
 import { generateTinyStep } from '@/lib/startMe';
 import { getActiveMission } from '@/lib/mission/storage';
+import { getRmdSession, saveRmdSession } from '../lib/session';
 import type { SequencedTask } from '../lib/sequencer';
 
 // ---------------------------------------------------------------------------
@@ -52,6 +53,8 @@ function buildLaunchUrl(task: SequencedTask): string {
     source: 'reset-my-day',
     mode: 'exact',
     autostart: '1',
+    session: 'rmd_active_session_v1',
+    taskId: task.id,
   });
   return `/time-translator?${params.toString()}`;
 }
@@ -72,6 +75,19 @@ export default function StartMeInline({ task }: StartMeInlineProps) {
     if (active && (active.status === 'running' || active.status === 'paused')) {
       setActiveMissionBlocked(true);
       return;
+    }
+
+    const session = getRmdSession();
+    if (session) {
+      const markActive = (tasks: SequencedTask[]) => 
+        tasks.map(t => t.id === task.id ? { ...t, startedAt: Date.now() } : t);
+      
+      session.plan.doNow = markActive(session.plan.doNow);
+      session.plan.then = markActive(session.plan.then);
+      session.plan.optional = markActive(session.plan.optional);
+      session.plan.skip = markActive(session.plan.skip);
+      
+      saveRmdSession(session);
     }
 
     // Navigate to TBT with the RMD launch-intent URL.

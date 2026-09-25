@@ -47,6 +47,8 @@ export interface RmdTask {
 
 export interface SequencedTask extends RmdTask {
   bucket: BucketKey;
+  startedAt?: number;
+  completedAt?: number;
 }
 
 export interface RecoveryPlan {

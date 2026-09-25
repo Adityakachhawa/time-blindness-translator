@@ -10,7 +10,7 @@ import { usePathname } from 'next/navigation';
 // Navigation links
 // ---------------------------------------------------------------------------
 
-const NAV_LINKS = [
+export const NAV_LINKS = [
   { href: '/time-translator', label: 'Time Translator' },
   { href: '/reset-my-day',    label: 'Reset My Day' },
   { href: '/#how-it-works',   label: 'How It Works' },
@@ -21,7 +21,7 @@ const NAV_LINKS = [
 // Hamburger icon — morphs to X via SVG path animation
 // ---------------------------------------------------------------------------
 
-function HamburgerIcon({ open }: { open: boolean }) {
+export function HamburgerIcon({ open }: { open: boolean }) {
   return (
     <svg
       width="22"
@@ -53,31 +53,17 @@ function HamburgerIcon({ open }: { open: boolean }) {
 }
 
 // ---------------------------------------------------------------------------
-// Main Header
+// Reusable Mobile Nav Drawer
 // ---------------------------------------------------------------------------
 
-export default function Header() {
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark' | null>(null);
+export function MobileNavDrawer({ 
+  drawerOpen, 
+  closeDrawer 
+}: { 
+  drawerOpen: boolean; 
+  closeDrawer: () => void;
+}) {
   const pathname = usePathname();
-
-  useEffect(() => {
-    const saved = localStorage.getItem('tbt-theme') as 'light' | 'dark' | null;
-    if (saved) {
-      setTheme(saved);
-    } else {
-      setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-    }
-  }, []);
-
-  const toggleTheme = () => {
-    const next = theme === 'dark' ? 'light' : 'dark';
-    setTheme(next);
-    localStorage.setItem('tbt-theme', next);
-    document.documentElement.setAttribute('data-theme', next);
-  };
-
-  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
   // Close on Escape
   useEffect(() => {
@@ -103,6 +89,127 @@ export default function Header() {
   useEffect(() => {
     closeDrawer();
   }, [pathname, closeDrawer]);
+
+  return (
+    <AnimatePresence>
+      {drawerOpen && (
+        <>
+          {/* Backdrop */}
+          <motion.div
+            key="backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-40 md:hidden"
+            style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
+            onClick={closeDrawer}
+            aria-hidden="true"
+          />
+
+          {/* Drawer panel */}
+          <motion.div
+            key="drawer"
+            id="mobile-nav-drawer"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            initial={{ x: '100%' }}
+            animate={{ x: 0 }}
+            exit={{ x: '100%' }}
+            transition={{ type: 'spring', stiffness: 340, damping: 38, mass: 0.8 }}
+            className="fixed top-0 right-0 bottom-0 z-50 md:hidden flex flex-col"
+            style={{
+              width: 'min(320px, 85vw)',
+              background: 'var(--card)',
+              backdropFilter: 'blur(24px)',
+              WebkitBackdropFilter: 'blur(24px)',
+              borderLeft: '1px solid var(--card-border)',
+              borderRadius: '20px 0 0 20px',
+              boxShadow: '-8px 0 40px rgba(0,0,0,0.18)',
+              paddingTop: 'env(safe-area-inset-top, 0px)',
+              paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            }}
+          >
+            {/* Drawer header */}
+            <div
+              className="flex items-center justify-between px-6 py-4"
+              style={{ borderBottom: '1px solid var(--card-border)' }}
+            >
+              <span className="font-bold tracking-widest uppercase text-sm">HYPERDOPA</span>
+              <button
+                onClick={closeDrawer}
+                className="min-w-11 min-h-11 flex items-center justify-center rounded-xl outline-none"
+                style={{
+                  background: 'var(--bg)',
+                  border: '1px solid var(--card-border)',
+                }}
+                aria-label="Close menu"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {/* Nav links */}
+            <nav className="flex flex-col flex-1 px-4 py-4 gap-1" aria-label="Mobile navigation">
+              {NAV_LINKS.map((link, i) => {
+                const isActive = pathname === link.href;
+                return (
+                  <motion.div
+                    key={link.href}
+                    initial={{ opacity: 0, x: 24 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.04 + i * 0.05, duration: 0.22, ease: 'easeOut' }}
+                  >
+                    <Link
+                      href={link.href}
+                      onClick={closeDrawer}
+                      aria-current={isActive ? 'page' : undefined}
+                      className="flex items-center justify-between px-4 py-3.5 rounded-2xl font-semibold text-base outline-none transition-all min-h-11"
+                      style={{
+                        background: isActive ? 'var(--color-coral-500)' + '14' : 'transparent',
+                        color: isActive ? 'var(--color-coral-500)' : 'var(--fg)',
+                      }}
+                    >
+                      {link.label}
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </nav>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Main Header
+// ---------------------------------------------------------------------------
+
+export default function Header() {
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [theme, setTheme] = useState<'light' | 'dark' | null>(null);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const saved = localStorage.getItem('tbt-theme') as 'light' | 'dark' | null;
+    if (saved) {
+      setTheme(saved);
+    } else {
+      setTheme(window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    }
+  }, []);
+
+  const toggleTheme = () => {
+    const next = theme === 'dark' ? 'light' : 'dark';
+    setTheme(next);
+    localStorage.setItem('tbt-theme', next);
+    document.documentElement.setAttribute('data-theme', next);
+  };
+
+  const closeDrawer = useCallback(() => setDrawerOpen(false), []);
 
   return (
     <>
@@ -170,125 +277,7 @@ export default function Header() {
       </header>
 
       {/* ── Mobile slide drawer ── */}
-      <AnimatePresence>
-        {drawerOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              key="backdrop"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 md:hidden"
-              style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(2px)' }}
-              onClick={closeDrawer}
-              aria-hidden="true"
-            />
-
-            {/* Drawer panel */}
-            <motion.div
-              key="drawer"
-              id="mobile-nav-drawer"
-              role="dialog"
-              aria-modal="true"
-              aria-label="Navigation menu"
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', stiffness: 340, damping: 38, mass: 0.8 }}
-              className="fixed top-0 right-0 bottom-0 z-50 md:hidden flex flex-col"
-              style={{
-                width: 'min(320px, 85vw)',
-                background: 'var(--card)',
-                backdropFilter: 'blur(24px)',
-                WebkitBackdropFilter: 'blur(24px)',
-                borderLeft: '1px solid var(--card-border)',
-                borderRadius: '20px 0 0 20px',
-                boxShadow: '-8px 0 40px rgba(0,0,0,0.18)',
-                paddingTop: 'env(safe-area-inset-top, 0px)',
-                paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-              }}
-            >
-              {/* Drawer header */}
-              <div
-                className="flex items-center justify-between px-6 py-4"
-                style={{ borderBottom: '1px solid var(--card-border)' }}
-              >
-                <span className="font-bold tracking-widest uppercase text-sm">HYPERDOPA</span>
-                <button
-                  onClick={closeDrawer}
-                  className="min-w-11 min-h-11 flex items-center justify-center rounded-xl outline-none"
-                  style={{
-                    background: 'var(--bg)',
-                    border: '1px solid var(--card-border)',
-                  }}
-                  aria-label="Close menu"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Nav links */}
-              <nav className="flex flex-col flex-1 px-4 py-4 gap-1" aria-label="Mobile navigation">
-                {NAV_LINKS.map((link, i) => {
-                  const isActive = pathname === link.href;
-                  return (
-                    <motion.div
-                      key={link.href}
-                      initial={{ opacity: 0, x: 24 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.04 + i * 0.05, duration: 0.22, ease: 'easeOut' }}
-                    >
-                      <Link
-                        href={link.href}
-                        onClick={closeDrawer}
-                        aria-current={isActive ? 'page' : undefined}
-                        className="flex items-center justify-between px-4 py-3.5 rounded-2xl font-semibold text-base outline-none transition-all min-h-11"
-                        style={{
-                          background: isActive ? 'var(--color-coral-500)' + '14' : 'transparent',
-                          color: isActive ? 'var(--color-coral-500)' : 'var(--fg)',
-                          fontWeight: isActive ? 700 : 500,
-                          border: isActive ? '1.5px solid ' + 'var(--color-coral-500)' + '30' : '1.5px solid transparent',
-                        }}
-                      >
-                        {link.label}
-                        {isActive && (
-                          <div
-                            className="w-2 h-2 rounded-full shrink-0"
-                            style={{ background: 'var(--color-coral-500)' }}
-                          />
-                        )}
-                      </Link>
-                    </motion.div>
-                  );
-                })}
-              </nav>
-
-              {/* Theme toggle at bottom */}
-              <div
-                className="px-6 py-4"
-                style={{ borderTop: '1px solid var(--card-border)' }}
-              >
-                <button
-                  onClick={() => { toggleTheme(); }}
-                  className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl font-semibold text-sm outline-none transition-colors min-h-11"
-                  style={{
-                    background: 'var(--bg)',
-                    border: '1px solid var(--card-border)',
-                    color: 'var(--fg)',
-                  }}
-                >
-                  {theme === 'dark'
-                    ? <><Sun className="w-4 h-4" /><span>Switch to Light Mode</span></>
-                    : <><Moon className="w-4 h-4" /><span>Switch to Dark Mode</span></>
-                  }
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+      <MobileNavDrawer drawerOpen={drawerOpen} closeDrawer={closeDrawer} />
     </>
   );
 }

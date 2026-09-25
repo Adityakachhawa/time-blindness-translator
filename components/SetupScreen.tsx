@@ -21,6 +21,7 @@ import { getTodayCount, getHasSeenQuiz, markQuizSeen, setMutePreference, getRece
 import { calculatePersonalFactor, formatConfidenceRange } from '@/lib/calibration';
 import { getTinyTemplates, guessCategory } from '@/lib/templates';
 import { generateTinyStep } from '@/lib/startMe';
+import { clampTimerMinutes, parseTimerMinutes, isValidTimerMinutes } from '@/lib/duration';
 import type { Track } from '@/hooks/useAmbientAudio';
 import type { TaskCategory } from '@/types/timer';
 import OnboardingQuiz, { type QuizResult } from '@/components/OnboardingQuiz';
@@ -153,8 +154,6 @@ function MinuteStepper({
   value: number;
   onChange: (v: number) => void;
 }) {
-  const clamp = (v: number) => Math.max(1, Math.min(300, v));
-
   // Temporary string allows the field to be empty while typing (e.g. backspace then retype).
   // On blur we validate and commit the final clamped value.
   const [raw, setRaw] = useState<string>(String(value));
@@ -183,7 +182,7 @@ function MinuteStepper({
       <motion.button
         whileTap={{ scale: 0.9 }}
         style={btnStyle}
-        onClick={() => { const next = clamp(value - 5); onChange(next); setRaw(String(next)); }}
+        onClick={() => { const next = clampTimerMinutes(value - 5); onChange(next); setRaw(String(next)); }}
         aria-label="Decrease estimate by 5 minutes"
         id="estimate-minus"
       >
@@ -202,11 +201,16 @@ function MinuteStepper({
           onChange={e => {
             const v = e.target.value;
             // Allow empty string and digits only while typing
-            if (v === '' || /^\d+$/.test(v)) setRaw(v);
+            if (v === '') {
+              setRaw(v);
+            } else if (/^\d+$/.test(v)) {
+              // Strip leading zeros unless it's a single "0"
+              const stripped = v.replace(/^0+(?=\d)/, '');
+              setRaw(stripped);
+            }
           }}
           onBlur={() => {
-            const n = parseInt(raw, 10);
-            const clamped = clamp(isNaN(n) ? value : n);
+            const clamped = parseTimerMinutes(raw, value);
             setRaw(String(clamped));
             onChange(clamped);
           }}
@@ -233,7 +237,7 @@ function MinuteStepper({
       <motion.button
         whileTap={{ scale: 0.9 }}
         style={btnStyle}
-        onClick={() => { const next = clamp(value + 5); onChange(next); setRaw(String(next)); }}
+        onClick={() => { const next = clampTimerMinutes(value + 5); onChange(next); setRaw(String(next)); }}
         aria-label="Increase estimate by 5 minutes"
         id="estimate-plus"
       >
@@ -257,6 +261,7 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
    * A useEffect will fire START_MISSION as soon as state confirms setup is ready.
    */
   const [pendingAutostart, setPendingAutostart] = useState(false);
+  const [urlLaunchError, setUrlLaunchError] = useState<string | null>(null);
 
   useEffect(() => {
     let bypassQuiz = false;
@@ -272,7 +277,10 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
       const rmdTask = params.get('task');
       if (rmdTask && minStr) {
         const min = parseInt(minStr, 10);
-        if (!isNaN(min)) {
+        if (!isValidTimerMinutes(min)) {
+          setUrlLaunchError('Time Translator supports timers from 1 to 300 minutes.');
+          window.history.replaceState({}, '', window.location.pathname);
+        } else {
           const isRmdSource = params.get('source') === 'reset-my-day';
           const isExactMode = isRmdSource && params.get('mode') === 'exact';
           const requestsAutostart = isExactMode && params.get('autostart') === '1';
@@ -310,7 +318,10 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
         const challenge = params.get('challenge');
         if (challenge && minStr) {
           const min = parseInt(minStr, 10);
-          if (!isNaN(min)) {
+          if (!isValidTimerMinutes(min)) {
+            setUrlLaunchError('Time Translator supports timers from 1 to 300 minutes.');
+            window.history.replaceState({}, '', window.location.pathname);
+          } else {
             setChallengeData({ taskName: challenge, min });
             const category = guessCategory(challenge);
             const cal = calculatePersonalFactor(challenge, category);
@@ -583,6 +594,24 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
           <Sparkles className="w-5 h-5 shrink-0" style={{ color: 'var(--color-sage-500)' }} />
           <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>
             Someone challenged you to do this in {challengeData.min} min. Up for it?
+          </p>
+        </motion.div>
+      )}
+
+      {/* ── URL Launch Error Banner ───────────────────────────────────────────── */}
+      {urlLaunchError && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.85 }}
+          animate={{ opacity: 1, scale: 1 }}
+          className="flex items-center justify-center gap-2 rounded-2xl py-2.5 px-4"
+          style={{
+            background: 'linear-gradient(135deg, rgba(242,129,90,0.15), rgba(242,129,90,0.10))',
+            border: '1.5px solid rgba(242,129,90,0.4)',
+          }}
+        >
+          <Sparkles className="w-5 h-5 shrink-0" style={{ color: 'var(--color-coral-500)' }} />
+          <p className="font-bold text-sm" style={{ color: 'var(--fg)' }}>
+            {urlLaunchError}
           </p>
         </motion.div>
       )}
