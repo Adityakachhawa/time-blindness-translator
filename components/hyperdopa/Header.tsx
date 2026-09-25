@@ -54,6 +54,7 @@ export default function Header() {
           {/* Desktop Nav */}
           <nav className="hidden md:flex items-center gap-6 text-sm font-medium opacity-80">
             <Link href="/time-translator" className="hover:opacity-100 transition-opacity outline-none">Time Translator</Link>
+            <Link href="/reset-my-day" className="hover:opacity-100 transition-opacity outline-none">Reset My Day</Link>
             <Link href="/#how-it-works" className="hover:opacity-100 transition-opacity outline-none">How It Works</Link>
             <Link href="/privacy" className="hover:opacity-100 transition-opacity outline-none">Privacy</Link>
           </nav>
@@ -92,6 +93,7 @@ export default function Header() {
           >
             <div className="flex flex-col px-4 py-2">
               <Link href="/time-translator" onClick={() => setMenuOpen(false)} className="py-3 font-medium outline-none min-h-11 flex items-center" style={{ borderBottom: '1px solid var(--card-border)' }}>Time Translator</Link>
+              <Link href="/reset-my-day" onClick={() => setMenuOpen(false)} className="py-3 font-medium outline-none min-h-11 flex items-center" style={{ borderBottom: '1px solid var(--card-border)' }}>Reset My Day</Link>
               <Link href="/#how-it-works" onClick={() => setMenuOpen(false)} className="py-3 font-medium outline-none min-h-11 flex items-center" style={{ borderBottom: '1px solid var(--card-border)' }}>How It Works</Link>
               <Link href="/privacy" onClick={() => setMenuOpen(false)} className="py-3 font-medium outline-none min-h-11 flex items-center">Privacy</Link>
             </div>

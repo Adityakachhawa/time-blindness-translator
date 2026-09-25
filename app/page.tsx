@@ -92,18 +92,32 @@ export default function HyperDopaHome() {
               </div>
             </div>
 
-            <div className="glass-card rounded-3xl p-8 h-full flex flex-col relative opacity-80 cursor-default">
-              <div className="absolute top-6 right-6 px-3 py-1 text-xs font-bold uppercase tracking-widest rounded-full" style={{ background: 'var(--card-border)' }}>
-                Coming Soon
-              </div>
-              <div className="w-12 h-12 rounded-xl mb-6 flex items-center justify-center bg-ink-500/10 text-ink-500 dark:text-ink-300">
-                <RotateCcw className="w-6 h-6" />
-              </div>
-              <h2 className="text-2xl font-bold mb-3">Reset My Day</h2>
-              <p className="text-sm font-semibold opacity-60 mb-2 italic">
-                "My plan fell apart. What can I realistically still do?"
-              </p>
-            </div>
+            <Link href="/reset-my-day" className="block outline-none">
+              <motion.div
+                whileHover={{ y: -4 }}
+                className="glass-card rounded-3xl p-8 h-full flex flex-col relative overflow-hidden group cursor-pointer"
+                style={{
+                  border: '2px solid var(--color-coral-400)',
+                }}
+              >
+                <div className="absolute top-6 right-6 px-3 py-1 text-xs font-bold uppercase tracking-widest rounded-full" style={{ background: 'var(--color-coral-500)', color: 'white' }}>
+                  Beta
+                </div>
+                <div className="w-12 h-12 rounded-xl mb-6 flex items-center justify-center bg-ink-500/10 text-ink-500 dark:text-ink-300">
+                  <RotateCcw className="w-6 h-6" />
+                </div>
+                <h2 className="text-2xl font-bold mb-3">Reset My Day</h2>
+                <p className="text-sm font-semibold opacity-60 mb-2 italic">
+                  "My plan fell apart. What can I realistically still do?"
+                </p>
+                <p className="opacity-80 font-medium mb-8">
+                  Tell it what time you have left and what still needs doing. It makes a realistic plan.
+                </p>
+                <div className="mt-auto flex items-center gap-2 text-coral-500 font-bold text-sm uppercase tracking-wider group-hover:gap-3 transition-all">
+                  Open Reset My Day <ArrowRight className="w-4 h-4" />
+                </div>
+              </motion.div>
+            </Link>
 
             <div className="glass-card rounded-3xl p-8 h-full flex flex-col relative opacity-80 cursor-default">
               <div className="absolute top-6 right-6 px-3 py-1 bg-purple-500/20 text-purple-600 dark:text-purple-400 text-xs font-bold uppercase tracking-widest rounded-full">

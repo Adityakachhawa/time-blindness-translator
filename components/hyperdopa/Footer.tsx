@@ -21,6 +21,8 @@ export default function Footer() {
       <div className="flex items-center gap-4 text-sm font-medium opacity-80 flex-wrap justify-center px-4">
         <Link href="/time-translator" className="hover:opacity-100 transition-opacity outline-none">Time Translator</Link>
         <span className="opacity-40">·</span>
+        <Link href="/reset-my-day" className="hover:opacity-100 transition-opacity outline-none">Reset My Day</Link>
+        <span className="opacity-40">·</span>
         <Link href="/privacy" className="hover:opacity-100 transition-opacity outline-none">Privacy</Link>
         <span className="opacity-40">·</span>
         <Link href="/support" className="hover:opacity-100 transition-opacity outline-none">Support</Link>
