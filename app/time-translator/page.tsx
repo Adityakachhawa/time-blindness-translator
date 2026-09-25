@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
-import { Moon, Sun, Volume2, VolumeX, History, Headphones, Waves, Brain, Coffee, Heart } from 'lucide-react';
+import { Moon, Sun, Volume2, VolumeX, History, Headphones, Waves, Brain, Coffee, Heart, X } from 'lucide-react';
 import { useAmbientAudio, type Track } from '@/hooks/useAmbientAudio';
 import { TimerProvider, useTimer } from '@/context/TimerContext';
 import { useTabProgressIndicator } from '@/hooks/useTabProgressIndicator';
@@ -11,8 +11,9 @@ import ActiveTimerScreen from '@/components/ActiveTimerScreen';
 import SuccessScreen from '@/components/SuccessScreen';
 import TimesUpScreen from '@/components/TimesUpScreen';
 import HistoryDrawer from '@/components/HistoryDrawer';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import ActiveMissionBanner from '@/components/ActiveMissionBanner';
-import { HamburgerIcon, MobileNavDrawer } from '@/components/hyperdopa/Header';
 import {
   getThemePreference,
   setThemePreference,
@@ -98,6 +99,309 @@ const TRACK_LABELS: Record<Track, string> = {
   'cafe':        'Now playing: Café Ambience',
 };
 
+function SimpleHamburger({ open }: { open: boolean }) {
+  return (
+    <div className="relative w-5 h-5 flex items-center justify-center">
+      <span 
+        className="absolute inset-0 flex items-center justify-center transition-all duration-200"
+        style={{ 
+          opacity: open ? 0 : 1, 
+          transform: open ? 'rotate(-90deg) scale(0.5)' : 'rotate(0deg) scale(1)' 
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="3" y1="6" x2="21" y2="6"></line>
+          <line x1="3" y1="12" x2="21" y2="12"></line>
+          <line x1="3" y1="18" x2="21" y2="18"></line>
+        </svg>
+      </span>
+      <span 
+        className="absolute inset-0 flex items-center justify-center transition-all duration-200"
+        style={{ 
+          opacity: open ? 1 : 0, 
+          transform: open ? 'rotate(0deg) scale(1)' : 'rotate(90deg) scale(0.5)' 
+        }}
+      >
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"></line>
+          <line x1="6" y1="6" x2="18" y2="18"></line>
+        </svg>
+      </span>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// TBT Mobile Navigation Drawer (Performance Optimized CSS Transitions)
+// ---------------------------------------------------------------------------
+
+function TBTMobileDrawer({
+  open,
+  onClose,
+  hasWeeklyReport,
+  onOpenHistory,
+  currentTrack,
+  cycleTrack,
+  muted,
+  toggleMute,
+  themePref,
+  resolvedDark,
+  toggleTheme,
+  pathname,
+}: {
+  open: boolean;
+  onClose: () => void;
+  hasWeeklyReport: boolean;
+  onOpenHistory: () => void;
+  currentTrack: Track;
+  cycleTrack: () => void;
+  muted: boolean;
+  toggleMute: () => void;
+  themePref: string;
+  resolvedDark: boolean;
+  toggleTheme: () => void;
+  pathname: string;
+}) {
+  useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => { document.body.style.overflow = ''; };
+  }, [open]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (open && e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [open, onClose]);
+
+  const ambientLabel = {
+    'off': 'Off',
+    'brown-noise': 'Brown Noise',
+    'lofi': 'Lo-fi',
+    'cafe': 'Café'
+  }[currentTrack];
+
+  return (
+    <>
+      {/* Backdrop */}
+      <div
+        className="fixed inset-0 z-40 md:hidden"
+        style={{
+          background: 'rgba(0,0,0,0.45)',
+          opacity: open ? 1 : 0,
+          visibility: open ? 'visible' : 'hidden',
+          pointerEvents: open ? 'auto' : 'none',
+          transition: 'opacity 200ms ease-out, visibility 200ms ease-out'
+        }}
+        onClick={onClose}
+        aria-hidden="true"
+      />
+
+      {/* Drawer */}
+      <div
+        id="tbt-mobile-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Mobile Navigation"
+        className="fixed top-0 right-0 bottom-0 z-50 flex flex-col md:hidden"
+        style={{
+          width: 'min(340px, 88vw)',
+          background: 'var(--card)',
+          borderLeft: '1px solid var(--card-border)',
+          borderTopLeftRadius: '20px',
+          borderBottomLeftRadius: '20px',
+          boxShadow: '-8px 0 40px rgba(0,0,0,0.18)',
+          paddingTop: 'env(safe-area-inset-top, 0px)',
+          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+          transform: open ? 'translate3d(0,0,0)' : 'translate3d(100%,0,0)',
+          visibility: open ? 'visible' : 'hidden',
+          transition: 'transform 200ms ease-out, visibility 200ms ease-out',
+          willChange: 'transform'
+        }}
+      >
+        {/* Drawer header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: 'var(--card-border)' }}>
+          <span className="font-bold tracking-widest uppercase text-sm" style={{ color: 'var(--fg)' }}>HYPERDOPA</span>
+          <button
+            onClick={onClose}
+            className="min-w-11 min-h-11 flex items-center justify-center rounded-xl outline-none transition-colors"
+            style={{ background: 'var(--bg)', border: '1px solid var(--card-border)' }}
+            aria-label="Close menu"
+          >
+            <X className="w-4 h-4" style={{ color: 'var(--fg)' }} />
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6">
+          {/* PRODUCT */}
+          <div>
+            <h3 className="px-2 text-[11px] font-bold tracking-widest uppercase opacity-50 mb-2" style={{ color: 'var(--fg)' }}>Product</h3>
+            <div className="flex flex-col gap-1">
+              {[
+                { href: '/time-translator', label: 'Time Translator' },
+                { href: '/reset-my-day', label: 'Reset My Day' }
+              ].map(link => {
+                const isActive = pathname === link.href;
+                return (
+                  <Link
+                    key={link.href}
+                    href={link.href}
+                    onClick={onClose}
+                    className="flex items-center justify-between px-4 py-3 rounded-2xl font-semibold text-sm transition-colors min-h-11 outline-none"
+                    style={{
+                      background: isActive ? 'var(--color-coral-500)14' : 'transparent',
+                      color: isActive ? 'var(--color-coral-500)' : 'var(--fg)'
+                    }}
+                  >
+                    {link.label}
+                    {isActive && <div className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--color-coral-500)' }} />}
+                  </Link>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* TOOLS */}
+          <div>
+            <h3 className="px-2 text-[11px] font-bold tracking-widest uppercase opacity-50 mb-2" style={{ color: 'var(--fg)' }}>Tools</h3>
+            <div className="flex flex-col gap-1">
+              <button
+                onClick={() => { onOpenHistory(); onClose(); }}
+                className="flex items-center justify-between px-4 py-3 rounded-2xl font-semibold text-sm min-h-11 outline-none w-full text-left"
+                style={{ color: 'var(--fg)' }}
+              >
+                <span>Task History</span>
+                {hasWeeklyReport && <div className="w-2 h-2 rounded-full shrink-0" style={{ background: 'var(--color-coral-500)' }} />}
+              </button>
+
+              <button
+                onClick={cycleTrack}
+                className="flex items-center justify-between px-4 py-3 rounded-2xl font-semibold text-sm min-h-11 outline-none w-full text-left"
+                style={{ color: 'var(--fg)' }}
+              >
+                <span>Ambient Sound</span>
+                <span className="opacity-60 text-xs">{ambientLabel}</span>
+              </button>
+
+              <button
+                onClick={toggleMute}
+                className="flex items-center justify-between px-4 py-3 rounded-2xl font-semibold text-sm min-h-11 outline-none w-full text-left"
+                style={{ color: 'var(--fg)' }}
+              >
+                <span>Completion Sound</span>
+                <span className="opacity-60 text-xs">{muted ? 'Muted' : 'Sound on'}</span>
+              </button>
+
+              <button
+                onClick={toggleTheme}
+                className="flex items-center justify-between px-4 py-3 rounded-2xl font-semibold text-sm min-h-11 outline-none w-full text-left"
+                style={{ color: 'var(--fg)' }}
+              >
+                <span>Appearance</span>
+                <span className="opacity-60 text-xs">{resolvedDark ? 'Dark' : 'Light'}</span>
+              </button>
+            </div>
+          </div>
+
+          <div className="border-t pt-4" style={{ borderColor: 'var(--card-border)' }}>
+            <div className="flex flex-col gap-1">
+              {[
+                { href: '/', label: 'Home' },
+                { href: '/#how-it-works', label: 'How It Works' },
+                { href: '/privacy', label: 'Privacy' }
+              ].map(link => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={onClose}
+                  className="flex items-center px-4 py-3 rounded-2xl font-medium text-sm opacity-80 min-h-11 transition-opacity hover:opacity-100 outline-none"
+                  style={{ color: 'var(--fg)' }}
+                >
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 py-4 opacity-60 text-xs font-medium border-t" style={{ color: 'var(--fg)', borderColor: 'var(--card-border)' }}>
+          <span className="mr-1">⌛</span> Estimate less. Learn time.
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Isolated Mobile Navigation State Component
+// ---------------------------------------------------------------------------
+
+function MobileHeaderNav({
+  hasWeeklyReport,
+  onOpenHistory,
+  currentTrack,
+  cycleTrack,
+  muted,
+  toggleMute,
+  themePref,
+  resolvedDark,
+  toggleTheme,
+  pathname,
+}: {
+  hasWeeklyReport: boolean;
+  onOpenHistory: () => void;
+  currentTrack: Track;
+  cycleTrack: () => void;
+  muted: boolean;
+  toggleMute: () => void;
+  themePref: string;
+  resolvedDark: boolean;
+  toggleTheme: () => void;
+  pathname: string;
+}) {
+  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+  const closeNavDrawer = useCallback(() => setNavDrawerOpen(false), []);
+
+  return (
+    <>
+      <div className="md:hidden shrink-0 flex items-center">
+        <button
+          onClick={() => setNavDrawerOpen(o => !o)}
+          className="min-w-11 min-h-11 flex items-center justify-center outline-none"
+          aria-label={navDrawerOpen ? "Close menu" : "Open menu"}
+          aria-expanded={navDrawerOpen}
+          aria-controls="tbt-mobile-drawer"
+          style={{ color: navDrawerOpen ? 'var(--color-coral-500)' : 'var(--fg)', opacity: 0.8 }}
+        >
+          <SimpleHamburger open={navDrawerOpen} />
+        </button>
+      </div>
+      
+      <TBTMobileDrawer 
+        open={navDrawerOpen} 
+        onClose={closeNavDrawer} 
+        hasWeeklyReport={hasWeeklyReport}
+        onOpenHistory={onOpenHistory}
+        currentTrack={currentTrack}
+        cycleTrack={cycleTrack}
+        muted={muted}
+        toggleMute={toggleMute}
+        themePref={themePref}
+        resolvedDark={resolvedDark}
+        toggleTheme={toggleTheme}
+        pathname={pathname}
+      />
+    </>
+  );
+}
+
 function AppContent() {
   const { state } = useTimer();
 
@@ -130,16 +434,15 @@ function AppContent() {
   // ── History drawer ─────────────────────────────────────────────────────
   const [historyOpen, setHistoryOpen] = useState(false);
   const [hasWeeklyReport, setHasWeeklyReport] = useState(false);
-  
-  // ── Navigation drawer ──────────────────────────────────────────────────
-  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
-  const closeNavDrawer = useCallback(() => setNavDrawerOpen(false), []);
 
   // ── Ambient audio ──────────────────────────────────────────────────────
   const { currentTrack, cycleTrack, setTrack } = useAmbientAudio();
 
   // ── Tab progress ───────────────────────────────────────────────────────
   useTabProgressIndicator();
+  
+  // ── Router ─────────────────────────────────────────────────────────────
+  const pathname = usePathname();
 
   // Hydrate prefs from localStorage after mount (SSR-safe)
   // ── Sync Historical Data & Theme ───────────────────────────────────────────
@@ -261,9 +564,9 @@ function AppContent() {
             </div>
           </div>
 
-          {/* Utility Rail */}
+          {/* Utility Rail (Desktop Only) */}
           <div 
-            className="flex items-center gap-0 sm:gap-0.5 shrink-0 p-0.5 sm:p-1 rounded-2xl shadow-sm" 
+            className="hidden md:flex items-center gap-0.5 shrink-0 p-1 rounded-2xl shadow-sm" 
             style={{ background: resolvedDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)', border: `1px solid ${borderClr}` }}
           >
             {/* History */}
@@ -310,23 +613,23 @@ function AppContent() {
                 : <Moon className="w-4 h-4" strokeWidth={2.5} />
               }
             </HeaderIconBtn>
-            
-            {/* Mobile Nav Hamburger */}
-            <div className="md:hidden">
-              <HeaderIconBtn
-                onClick={() => setNavDrawerOpen(o => !o)}
-                label="Menu"
-              >
-                <div style={{ color: navDrawerOpen ? 'var(--color-coral-500)' : 'currentColor' }}>
-                  <HamburgerIcon open={navDrawerOpen} />
-                </div>
-              </HeaderIconBtn>
-            </div>
           </div>
+          
+          {/* Mobile Nav Hamburger (Mobile Only) */}
+          <MobileHeaderNav 
+            hasWeeklyReport={hasWeeklyReport}
+            onOpenHistory={() => setHistoryOpen(true)}
+            currentTrack={currentTrack}
+            cycleTrack={cycleTrack}
+            muted={muted}
+            toggleMute={toggleMute}
+            themePref={themePref}
+            resolvedDark={resolvedDark}
+            toggleTheme={toggleTheme}
+            pathname={pathname}
+          />
         </div>
       </header>
-      
-      <MobileNavDrawer drawerOpen={navDrawerOpen} closeDrawer={closeNavDrawer} />
 
       {/* ── Main content ────────────────────────────────────────────── */}
       <main
