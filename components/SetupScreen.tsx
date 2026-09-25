@@ -155,6 +155,15 @@ function MinuteStepper({
 }) {
   const clamp = (v: number) => Math.max(1, Math.min(300, v));
 
+  // Temporary string allows the field to be empty while typing (e.g. backspace then retype).
+  // On blur we validate and commit the final clamped value.
+  const [raw, setRaw] = useState<string>(String(value));
+
+  // Keep raw in sync when value changes externally (e.g. +5 / -5 buttons, URL prefill)
+  useEffect(() => {
+    setRaw(String(value));
+  }, [value]);
+
   const btnStyle = {
     width: 52,
     height: 52,
@@ -174,24 +183,32 @@ function MinuteStepper({
       <motion.button
         whileTap={{ scale: 0.9 }}
         style={btnStyle}
-        onClick={() => onChange(clamp(value - 5))}
+        onClick={() => { const next = clamp(value - 5); onChange(next); setRaw(String(next)); }}
         aria-label="Decrease estimate by 5 minutes"
         id="estimate-minus"
       >
         <Minus className="w-5 h-5" strokeWidth={2.5} />
       </motion.button>
 
-      {/* Editable number */}
+      {/* Editable number — select-all on focus for instant replace */}
       <div className="flex items-baseline gap-2">
         <input
-          type="number"
+          type="text"
+          inputMode="numeric"
+          pattern="[0-9]*"
           id="estimate-input"
-          value={value}
-          min={1}
-          max={300}
+          value={raw}
+          onFocus={e => e.target.select()}
           onChange={e => {
-            const n = parseInt(e.target.value, 10);
-            if (!isNaN(n)) onChange(clamp(n));
+            const v = e.target.value;
+            // Allow empty string and digits only while typing
+            if (v === '' || /^\d+$/.test(v)) setRaw(v);
+          }}
+          onBlur={() => {
+            const n = parseInt(raw, 10);
+            const clamped = clamp(isNaN(n) ? value : n);
+            setRaw(String(clamped));
+            onChange(clamped);
           }}
           className="text-center font-black tabular-nums"
           style={{
@@ -216,7 +233,7 @@ function MinuteStepper({
       <motion.button
         whileTap={{ scale: 0.9 }}
         style={btnStyle}
-        onClick={() => onChange(clamp(value + 5))}
+        onClick={() => { const next = clamp(value + 5); onChange(next); setRaw(String(next)); }}
         aria-label="Increase estimate by 5 minutes"
         id="estimate-plus"
       >
@@ -235,33 +252,112 @@ export default function SetupScreen({ setTrack }: { setTrack?: (t: Track) => voi
   const prefersReducedMotion = useReducedMotion();
   const [hasSeenQuiz, setHasSeenQuiz] = useState<boolean | null>(null);
   const [challengeData, setChallengeData] = useState<{taskName: string, min: number} | null>(null);
+  /**
+   * When true, the RMD launch intent has been armed.
+   * A useEffect will fire START_MISSION as soon as state confirms setup is ready.
+   */
+  const [pendingAutostart, setPendingAutostart] = useState(false);
 
   useEffect(() => {
     let bypassQuiz = false;
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
-      const challenge = params.get('challenge');
       const minStr = params.get('min');
-      if (challenge && minStr) {
+
+      // ── Branch A: RMD internal launch (?task= param) ──────────────────────
+      // Uses a dedicated `task` param to avoid overloading the social `challenge`
+      // param. The challenge banner MUST NOT appear for RMD-internal launches.
+      // Only honored when source=reset-my-day + mode=exact + autostart=1 are
+      // all present.
+      const rmdTask = params.get('task');
+      if (rmdTask && minStr) {
         const min = parseInt(minStr, 10);
         if (!isNaN(min)) {
-          setChallengeData({ taskName: challenge, min });
-          const category = guessCategory(challenge);
-          const cal = calculatePersonalFactor(challenge, category);
-          dispatch({ type: 'UPDATE_SETUP', payload: { taskName: challenge, category, initialEstimate: min, personalFactor: cal?.factor ?? null, isManualOverride: false } });
-          bypassQuiz = true;
-          // Clean up the URL so it doesn't persist
-          window.history.replaceState({}, '', window.location.pathname);
+          const isRmdSource = params.get('source') === 'reset-my-day';
+          const isExactMode = isRmdSource && params.get('mode') === 'exact';
+          const requestsAutostart = isExactMode && params.get('autostart') === '1';
+
+          if (isRmdSource) {
+            // Exact mode: no personal factor, no ADHD tax, no transition time.
+            // challengeData intentionally NOT set → challenge banner cannot appear.
+            const category = guessCategory(rmdTask);
+            dispatch({
+              type: 'UPDATE_SETUP',
+              payload: {
+                taskName: rmdTask,
+                category,
+                initialEstimate: min,
+                personalFactor: null,
+                isManualOverride: true,
+                isExactTime: isExactMode,
+              },
+            });
+
+            if (requestsAutostart) {
+              setPendingAutostart(true);
+            }
+
+            bypassQuiz = true;
+            window.history.replaceState({}, '', window.location.pathname);
+          }
+        }
+      }
+
+      // ── Branch B: Social challenge link (?challenge= param) ───────────────
+      // The original behavior: show the challenge banner and pre-fill the form.
+      // Does NOT autostart. `task` param takes precedence; skip if already handled.
+      if (!bypassQuiz) {
+        const challenge = params.get('challenge');
+        if (challenge && minStr) {
+          const min = parseInt(minStr, 10);
+          if (!isNaN(min)) {
+            setChallengeData({ taskName: challenge, min });
+            const category = guessCategory(challenge);
+            const cal = calculatePersonalFactor(challenge, category);
+            dispatch({
+              type: 'UPDATE_SETUP',
+              payload: { taskName: challenge, category, initialEstimate: min, personalFactor: cal?.factor ?? null, isManualOverride: false },
+            });
+            bypassQuiz = true;
+            window.history.replaceState({}, '', window.location.pathname);
+          }
         }
       }
     }
-    
+
     if (bypassQuiz) {
       setHasSeenQuiz(true);
     } else {
       setHasSeenQuiz(getHasSeenQuiz());
     }
   }, [dispatch]);
+
+  // ── Deterministic RMD autostart ─────────────────────────────────────────
+  // Fires START_MISSION only after state has confirmed it is in `setup`
+  // with the correct taskName already applied. Never uses setTimeout.
+  // Active mission safety: if a mission is already running/paused, disarm
+  // the intent instead of starting a second mission.
+  useEffect(() => {
+    if (!pendingAutostart) return;
+    if (state.status !== 'setup') { setPendingAutostart(false); return; }
+    if (!state.taskName.trim()) return; // wait for next render
+
+    // Active mission protection: never start a second mission.
+    // getActiveMission() reads localStorage synchronously.
+    import('@/lib/mission/storage').then(({ getActiveMission }) => {
+      const active = getActiveMission();
+      if (active && (active.status === 'running' || active.status === 'paused')) {
+        // Conflict — disarm without starting.
+        setPendingAutostart(false);
+        return;
+      }
+      // State is valid and no conflict: fire the existing START_MISSION.
+      // requestNotificationPermission is skipped on autostart (no user gesture)
+      // — audio may also be blocked by browser autoplay rules, which is expected.
+      setPendingAutostart(false);
+      dispatch({ type: 'START_MISSION' });
+    });
+  }, [pendingAutostart, state.status, state.taskName, dispatch]);
 
   function handleQuizComplete(res: QuizResult) {
     const category = guessCategory(res.taskName);

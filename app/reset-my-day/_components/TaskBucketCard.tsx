@@ -88,7 +88,7 @@ function TaskItem({
           >
             {task.hasHistory ? (
               <>
-                <History className="w-3 h-3 flex-shrink-0" />
+                <History className="w-3 h-3 shrink-0" />
                 <span className="text-xs font-semibold">
                   {task.historicalRange}
                 </span>
@@ -96,7 +96,7 @@ function TaskItem({
               </>
             ) : (
               <>
-                <Clock className="w-3 h-3 flex-shrink-0" />
+                <Clock className="w-3 h-3 shrink-0" />
                 <span className="text-xs font-semibold">
                   ~{task.estimatedMinutes} min
                 </span>

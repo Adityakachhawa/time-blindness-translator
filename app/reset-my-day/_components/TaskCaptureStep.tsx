@@ -95,7 +95,7 @@ function TaskRow({ draft, index, total, onChange, onRemove, onMoveUp, onMoveDown
       {/* Row header */}
       <div className="flex items-start gap-3">
         {/* Order controls */}
-        <div className="flex flex-col gap-0.5 mt-0.5 flex-shrink-0">
+        <div className="flex flex-col gap-0.5 mt-0.5 shrink-0">
           <button
             onClick={onMoveUp}
             disabled={index === 0}
@@ -155,7 +155,7 @@ function TaskRow({ draft, index, total, onChange, onRemove, onMoveUp, onMoveDown
         <button
           onClick={onRemove}
           aria-label="Remove task"
-          className="flex-shrink-0 w-9 h-9 rounded-xl flex items-center justify-center outline-none transition-colors"
+          className="shrink-0 w-9 h-9 rounded-xl flex items-center justify-center outline-none transition-colors"
           style={{
             background: 'var(--card)',
             border: '1px solid var(--card-border)',
@@ -210,7 +210,7 @@ function TaskRow({ draft, index, total, onChange, onRemove, onMoveUp, onMoveDown
               color: 'var(--color-sage-600)',
             }}
           >
-            <History className="w-3.5 h-3.5 flex-shrink-0" />
+            <History className="w-3.5 h-3.5 shrink-0" />
             <span>{draft.historicalRange}</span>
           </div>
         ) : (

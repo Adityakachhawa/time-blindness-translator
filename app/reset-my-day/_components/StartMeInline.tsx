@@ -16,49 +16,57 @@ interface StartMeInlineProps {
 }
 
 // ---------------------------------------------------------------------------
-// Component
+// Launch-intent URL builder
 // ---------------------------------------------------------------------------
 
 /**
- * "Stuck? Start Me" inline panel for DO_NOW / THEN tasks.
+ * Builds the RMD → TBT one-click exact-launch URL.
  *
- * Reuses generateTinyStep() from lib/startMe.ts without modification.
+ * URL contract (RMD-internal only):
+ *   /time-translator
+ *     ?task=<taskName>           — dedicated param; avoids overloading ?challenge=
+ *                                   (challenge= is reserved for social challenge links)
+ *     &min=<estimatedMinutes>    — exact allocation selected by RMD
+ *     &source=reset-my-day       — identifies RMD as the origin; required for autostart
+ *     &mode=exact                — requests Exact Time Mode (isExactTime=true, no ADHD tax)
+ *     &autostart=1               — requests immediate START_MISSION
  *
- * ── isMicroStep Architecture Note ──────────────────────────────────────────
+ * SetupScreen reads ?task= in Branch A of the URL param useEffect.
+ * The ?challenge= param triggers Branch B (social challenge banner) — entirely separate.
+ * An RMD launch NEVER sets challengeData → the banner cannot appear.
  *
- * TBT's `isMicroStep` flag prevents micro-step records from contaminating
- * calibration (calculatePersonalFactor, getTaskHistoricalRange both filter
- * out records where isMicroStep === true).
+ * SetupScreen responds by:
+ *   1. Dispatching UPDATE_SETUP with taskName=rmdTask, initialEstimate=min, isExactTime=true
+ *   2. Setting pendingAutostart=true
+ *   3. A useEffect fires START_MISSION once state.status==='setup' + taskName confirmed
  *
- * The existing TBT URL handoff (?challenge=&min=) does NOT support
- * isMicroStep as a URL parameter. The UPDATE_SETUP dispatch in SetupScreen
- * (line 251) only accepts: taskName, category, initialEstimate, personalFactor,
- * isManualOverride — NOT isMicroStep.
- *
- * isMicroStep is only set programmatically from within TBT's own
- * "Start tiny step" button (SetupScreen.tsx line 691), never from a URL param.
- *
- * Because TBT is frozen, we cannot add isMicroStep URL support.
- * Therefore, this component does NOT launch micro-steps as TBT missions.
- *
- * What RMD does instead:
- *   - Reveals the tiny step text (useful for the user to read and act on)
- *   - Offers "Start full task" → navigates to TBT pre-filled with the real
- *     task name and full estimate (NOT the tiny step text). This is a normal
- *     mission — calibration-safe.
- *   - Does NOT offer a "Start this micro-step" button that would create an
- *     uncalibrated record in history.
- *
- * ────────────────────────────────────────────────────────────────────────────
+ * ── isMicroStep Note ─────────────────────────────────────────────────────────
+ * The URL handoff does NOT support isMicroStep. The tiny step text is shown
+ * for reading only. task.name (the real task) is what gets launched.
+ * ─────────────────────────────────────────────────────────────────
  */
+function buildLaunchUrl(task: SequencedTask): string {
+  const params = new URLSearchParams({
+    task: task.name,          // dedicated param — not ?challenge=
+    min: String(task.estimatedMinutes),
+    source: 'reset-my-day',
+    mode: 'exact',
+    autostart: '1',
+  });
+  return `/time-translator?${params.toString()}`;
+}
+
+// ---------------------------------------------------------------------------
+// Component
+// ---------------------------------------------------------------------------
+
 export default function StartMeInline({ task }: StartMeInlineProps) {
   const [open, setOpen] = useState(false);
   const [activeMissionBlocked, setActiveMissionBlocked] = useState(false);
 
-  // generateTinyStep is called unchanged — not modified.
   const tinyStep = generateTinyStep(task.name);
 
-  function handleStartFullMission() {
+  function handleStartExact() {
     // Active mission protection — never start a second mission.
     const active = getActiveMission();
     if (active && (active.status === 'running' || active.status === 'paused')) {
@@ -66,17 +74,14 @@ export default function StartMeInline({ task }: StartMeInlineProps) {
       return;
     }
 
-    // Handoff: navigate to /time-translator pre-filled with the REAL task
-    // name and the REAL estimate — not the tiny step text.
-    // This is a normal mission; isMicroStep defaults to false in TBT.
-    // Calibration is not contaminated because the real task name and real
-    // duration are recorded, exactly as if the user had started from TBT directly.
-    const params = new URLSearchParams({
-      challenge: task.name,
-      min: String(task.estimatedMinutes),
-    });
-    window.location.href = `/time-translator?${params.toString()}`;
+    // Navigate to TBT with the RMD launch-intent URL.
+    // SetupScreen will apply Exact Time Mode and auto-start the mission.
+    window.location.href = buildLaunchUrl(task);
   }
+
+  const durationLabel = task.estimatedMinutes === 1
+    ? '1-min'
+    : `${task.estimatedMinutes}-min`;
 
   return (
     <div className="mt-3">
@@ -131,7 +136,7 @@ export default function StartMeInline({ task }: StartMeInlineProps) {
                 </div>
               ) : (
                 <>
-                  {/* Tiny step — displayed for reading, not launched as a mission */}
+                  {/* Tiny step — shown for reading only, NOT launched as a mission */}
                   <p
                     className="text-sm font-semibold mb-1 leading-relaxed"
                     style={{ color: 'var(--fg)' }}
@@ -144,17 +149,14 @@ export default function StartMeInline({ task }: StartMeInlineProps) {
                     </span>
                     {tinyStep}
                   </p>
-                  <p
-                    className="text-xs mb-4"
-                    style={{ color: 'var(--muted)' }}
-                  >
-                    Do this one thing. Then open the timer if you want to keep going.
+                  <p className="text-xs mb-4" style={{ color: 'var(--muted)' }}>
+                    Start the real task with the time we planned.
                   </p>
 
-                  {/* Single action: start the real full task in TBT */}
+                  {/* One-click exact-launch button */}
                   <button
-                    id={`start-full-${task.id}`}
-                    onClick={handleStartFullMission}
+                    id={`start-exact-${task.id}`}
+                    onClick={handleStartExact}
                     className="w-full px-4 py-2.5 rounded-lg text-xs font-bold outline-none transition-colors"
                     style={{
                       background: 'var(--color-coral-500)',
@@ -162,7 +164,7 @@ export default function StartMeInline({ task }: StartMeInlineProps) {
                       minHeight: 44,
                     }}
                   >
-                    Ready — start the timer for "{task.name}" →
+                    Start {durationLabel} exact timer →
                   </button>
                 </>
               )}
