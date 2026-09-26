@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { AnimatePresence, motion, MotionConfig } from 'framer-motion';
 import { Moon, Sun, Volume2, VolumeX, History, Headphones, Waves, Brain, Coffee, Heart, X } from 'lucide-react';
 import { useAmbientAudio, type Track } from '@/hooks/useAmbientAudio';
@@ -164,11 +165,10 @@ function TBTMobileDrawer({
 }) {
   useEffect(() => {
     if (open) {
+      const original = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
-    } else {
-      document.body.style.overflow = '';
+      return () => { document.body.style.overflow = original; };
     }
-    return () => { document.body.style.overflow = ''; };
   }, [open]);
 
   useEffect(() => {
@@ -211,9 +211,7 @@ function TBTMobileDrawer({
         className="fixed top-0 right-0 bottom-0 z-50 flex flex-col md:hidden"
         style={{
           width: 'min(340px, 88vw)',
-          background: 'var(--card)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
+          background: 'var(--bg)',
           borderLeft: '1px solid var(--card-border)',
           borderTopLeftRadius: '20px',
           borderBottomLeftRadius: '20px',
@@ -222,6 +220,7 @@ function TBTMobileDrawer({
           paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           transform: open ? 'translate3d(0,0,0)' : 'translate3d(100%,0,0)',
           visibility: open ? 'visible' : 'hidden',
+          pointerEvents: open ? 'auto' : 'none',
           transition: 'transform 200ms ease-out, visibility 200ms ease-out',
           willChange: 'transform'
         }}
@@ -342,6 +341,78 @@ function TBTMobileDrawer({
 }
 
 // ---------------------------------------------------------------------------
+// Isolated Mobile Navigation State Component
+// ---------------------------------------------------------------------------
+
+function MobileHeaderNav({
+  hasWeeklyReport,
+  onOpenHistory,
+  currentTrack,
+  cycleTrack,
+  muted,
+  toggleMute,
+  themePref,
+  resolvedDark,
+  toggleTheme,
+  pathname,
+}: {
+  hasWeeklyReport: boolean;
+  onOpenHistory: () => void;
+  currentTrack: Track;
+  cycleTrack: () => void;
+  muted: boolean;
+  toggleMute: () => void;
+  themePref: string;
+  resolvedDark: boolean;
+  toggleTheme: () => void;
+  pathname: string;
+}) {
+  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
+  const closeNavDrawer = useCallback(() => setNavDrawerOpen(false), []);
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  return (
+    <>
+      <div className="md:hidden shrink-0 flex items-center">
+        <button
+          onClick={() => setNavDrawerOpen(o => !o)}
+          className="min-w-11 min-h-11 flex items-center justify-center outline-none"
+          aria-label={navDrawerOpen ? "Close menu" : "Open menu"}
+          aria-expanded={navDrawerOpen}
+          aria-controls="tbt-mobile-drawer"
+          style={{ color: navDrawerOpen ? 'var(--color-coral-500)' : 'var(--fg)', opacity: 0.8 }}
+        >
+          <SimpleHamburger open={navDrawerOpen} />
+        </button>
+      </div>
+      
+      {mounted && createPortal(
+        <TBTMobileDrawer 
+          open={navDrawerOpen} 
+          onClose={closeNavDrawer} 
+          hasWeeklyReport={hasWeeklyReport}
+          onOpenHistory={() => {
+            closeNavDrawer();
+            onOpenHistory();
+          }}
+          currentTrack={currentTrack}
+          cycleTrack={cycleTrack}
+          muted={muted}
+          toggleMute={toggleMute}
+          themePref={themePref}
+          resolvedDark={resolvedDark}
+          toggleTheme={toggleTheme}
+          pathname={pathname}
+        />,
+        document.body
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 
 function AppContent() {
   const { state } = useTimer();
@@ -384,10 +455,6 @@ function AppContent() {
   
   // ── Router ─────────────────────────────────────────────────────────────
   const pathname = usePathname();
-
-  // ── Mobile Nav State ───────────────────────────────────────────────────
-  const [navDrawerOpen, setNavDrawerOpen] = useState(false);
-  const closeNavDrawer = useCallback(() => setNavDrawerOpen(false), []);
 
   // Hydrate prefs from localStorage after mount (SSR-safe)
   // ── Sync Historical Data & Theme ───────────────────────────────────────────
@@ -561,18 +628,18 @@ function AppContent() {
           </div>
           
           {/* Mobile Nav Hamburger (Mobile Only) */}
-          <div className="md:hidden shrink-0 flex items-center">
-            <button
-              onClick={() => setNavDrawerOpen(o => !o)}
-              className="min-w-11 min-h-11 flex items-center justify-center outline-none"
-              aria-label={navDrawerOpen ? "Close menu" : "Open menu"}
-              aria-expanded={navDrawerOpen}
-              aria-controls="tbt-mobile-drawer"
-              style={{ color: navDrawerOpen ? 'var(--color-coral-500)' : 'var(--fg)', opacity: 0.8 }}
-            >
-              <SimpleHamburger open={navDrawerOpen} />
-            </button>
-          </div>
+          <MobileHeaderNav 
+            hasWeeklyReport={hasWeeklyReport}
+            onOpenHistory={() => setHistoryOpen(true)}
+            currentTrack={currentTrack}
+            cycleTrack={cycleTrack}
+            muted={muted}
+            toggleMute={toggleMute}
+            themePref={themePref}
+            resolvedDark={resolvedDark}
+            toggleTheme={toggleTheme}
+            pathname={pathname}
+          />
         </div>
       </header>
 
@@ -632,22 +699,6 @@ function AppContent() {
       <HistoryDrawer
         open={historyOpen}
         onClose={() => setHistoryOpen(false)}
-      />
-
-      {/* ── Mobile Nav Drawer ────────────────────────────────────────── */}
-      <TBTMobileDrawer 
-        open={navDrawerOpen} 
-        onClose={closeNavDrawer} 
-        hasWeeklyReport={hasWeeklyReport}
-        onOpenHistory={() => setHistoryOpen(true)}
-        currentTrack={currentTrack}
-        cycleTrack={cycleTrack}
-        muted={muted}
-        toggleMute={toggleMute}
-        themePref={themePref}
-        resolvedDark={resolvedDark}
-        toggleTheme={toggleTheme}
-        pathname={pathname}
       />
     </div>
   );
