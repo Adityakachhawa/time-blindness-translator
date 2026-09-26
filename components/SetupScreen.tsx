@@ -164,8 +164,6 @@ function MinuteStepper({
   }, [value]);
 
   const btnStyle = {
-    width: 52,
-    height: 52,
     borderRadius: '50%',
     background: 'var(--card)',
     border: '2px solid var(--card-border)',
@@ -178,10 +176,11 @@ function MinuteStepper({
   } as const;
 
   return (
-    <div className="flex items-center gap-4 justify-center w-full">
+    <div className="flex items-center gap-2 sm:gap-4 justify-center w-full">
       <motion.button
         whileTap={{ scale: 0.9 }}
         style={btnStyle}
+        className="w-11 h-11 sm:w-[52px] sm:h-[52px]"
         onClick={() => { const next = clampTimerMinutes(value - 5); onChange(next); setRaw(String(next)); }}
         aria-label="Decrease estimate by 5 minutes"
         id="estimate-minus"
@@ -214,11 +213,9 @@ function MinuteStepper({
             setRaw(String(clamped));
             onChange(clamped);
           }}
-          className="text-center font-black tabular-nums"
+          className="text-center font-black tabular-nums w-20 sm:w-[110px] text-[3rem] sm:text-[3.5rem]"
           style={{
-            fontSize: '3.5rem',
             lineHeight: 1,
-            width: 110,
             background: 'transparent',
             border: 'none',
             outline: 'none',
@@ -237,6 +234,7 @@ function MinuteStepper({
       <motion.button
         whileTap={{ scale: 0.9 }}
         style={btnStyle}
+        className="w-11 h-11 sm:w-[52px] sm:h-[52px]"
         onClick={() => { const next = clampTimerMinutes(value + 5); onChange(next); setRaw(String(next)); }}
         aria-label="Increase estimate by 5 minutes"
         id="estimate-plus"
